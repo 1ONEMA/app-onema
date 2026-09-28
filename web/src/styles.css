@@ -91,6 +91,8 @@ main.page { max-width: 1320px; margin: 0 auto; padding: 18px 16px 110px; }
   content: ''; position: absolute; right: -60px; top: -60px; width: 220px; height: 220px; border-radius: 50%;
   border: 38px solid rgba(2, 192, 164, 0.35); pointer-events: none;
 }
+.hero > * { position: relative; z-index: 1; }
+@media (max-width: 720px) { .hero::after { right: -120px; top: -130px; width: 200px; height: 200px; border-width: 30px; opacity: .7; } }
 .hero h1, .hero h2 { color: #fff; }
 .hero p { color: #DCE8FF; max-width: 760px; }
 .kicker { font-size: 11px; letter-spacing: 0.16em; font-weight: 800; color: #9FF0E3; text-transform: uppercase; margin-bottom: 4px; }
@@ -164,7 +166,8 @@ main.page { max-width: 1320px; margin: 0 auto; padding: 18px 16px 110px; }
 
 /* ---------- Formulários ---------- */
 .field { display: block; margin-bottom: 14px; }
-.field > span { display: block; font-weight: 700; font-size: 14px; color: var(--deep); margin-bottom: 6px; }
+.field > label { display: block; }
+.field label > span { display: block; font-weight: 700; font-size: 14px; color: var(--deep); margin-bottom: 6px; }
 .field small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 4px; }
 .field .err { color: var(--red-ink); font-weight: 650; }
 input[type=text], input[type=email], input[type=password], input[type=number], input[type=search], input[type=datetime-local], select, textarea {

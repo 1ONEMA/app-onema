@@ -9,10 +9,10 @@
   },
   "scripts": {
     "dev": "concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
-    "dev:api": "tsx watch --env-file-if-exists=.env server/src/index.ts",
+    "dev:api": "tsx watch --disable-warning=ExperimentalWarning --env-file-if-exists=.env server/src/index.ts",
     "dev:web": "vite --config web/vite.config.ts",
     "build": "npm run typecheck && vite build --config web/vite.config.ts",
-    "start": "NODE_ENV=production tsx --env-file-if-exists=.env server/src/index.ts",
+    "start": "NODE_ENV=production tsx --disable-warning=ExperimentalWarning --env-file-if-exists=.env server/src/index.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:migrate": "tsx --env-file-if-exists=.env server/src/db/cli.ts migrate",
     "db:seed": "tsx --env-file-if-exists=.env server/src/db/cli.ts seed",
@@ -21,7 +21,8 @@
     "user:create": "tsx --env-file-if-exists=.env server/src/db/cli.ts create-user",
     "jobs:billing": "tsx --env-file-if-exists=.env server/src/db/cli.ts billing",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:all": "npm run typecheck && npm test && npm run build && npm run test:e2e"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",

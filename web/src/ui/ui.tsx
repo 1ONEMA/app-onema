@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { cloneElement, isValidElement, useEffect, useId, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { ApiError } from '../lib/api';
 
@@ -62,13 +62,17 @@ export function Empty({ title, children, action }: { title: string; children?: R
 }
 
 export function Field({ label, hint, error, children }: { label: string; hint?: ReactNode; error?: string | null; children: ReactNode }) {
+  const id = useId();
+  const describedBy = [hint ? `${id}-hint` : '', error ? `${id}-err` : ''].filter(Boolean).join(' ') || undefined;
+  const child = isValidElement(children)
+    ? cloneElement(children as React.ReactElement<any>, { 'aria-describedby': describedBy, ...(error ? { 'aria-invalid': true } : {}) })
+    : children;
   return (
-    <label className="field">
-      <span>{label}</span>
-      {children}
-      {hint && <small>{hint}</small>}
-      {error && <small className="err">{error}</small>}
-    </label>
+    <div className="field">
+      <label><span>{label}</span>{child}</label>
+      {hint && <small id={`${id}-hint`}>{hint}</small>}
+      {error && <small id={`${id}-err`} className="err">{error}</small>}
+    </div>
   );
 }
 

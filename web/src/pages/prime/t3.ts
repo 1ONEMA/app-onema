@@ -6,7 +6,10 @@ export function useT3() {
   const doc = data ? JSON.parse(data.body) : null;
   const find = (prefix: string) => {
     const s = doc?.sections.find((x: any) => x.heading.startsWith(prefix));
-    return s ? s.paragraphs.join(' ').replace(/^“|”$/g, '') : '';
+    if (!s) return '';
+    const t = s.paragraphs.join(' ');
+    // Remove aspas somente quando o texto inteiro é uma única citação (rótulos de checkbox)
+    return /^“[^”]*”$/.test(t) ? t.slice(1, -1) : t;
   };
   return {
     loaded: !!doc,

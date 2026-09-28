@@ -92,11 +92,14 @@ export async function buildApp(opts: { serveWeb?: boolean } = {}): Promise<Fasti
   const dist = path.resolve('web/dist');
   if (opts.serveWeb && fs.existsSync(dist)) {
     await app.register(fastifyStatic, {
-      root: dist, wildcard: false, index: false,
-      setHeaders: (res, file) => {
-        if (file.endsWith('sw.js') || file.endsWith('.webmanifest') || file.endsWith('index.html')) (res as any).setHeader('Cache-Control', 'no-cache');
-        else if (file.includes(`${path.sep}assets${path.sep}`)) (res as any).setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      root: dist, wildcard: false, index: false, cacheControl: false,
+      setHeaders: (res: any, file: string) => {
+        const set = (k: string, v: string) => (typeof res.setHeader === 'function' ? res.setHeader(k, v) : res.header(k, v));
+        if (file.endsWith('sw.js') || file.endsWith('.webmanifest') || file.endsWith('index.html')) set('Cache-Control', 'no-cache');
+        else if (file.includes(`${path.sep}assets${path.sep}`)) set('Cache-Control', 'public, max-age=31536000, immutable');
+        else set('Cache-Control', 'public, max-age=86400');
       },
+
     });
     const indexHtml = fs.readFileSync(path.join(dist, 'index.html'));
     app.setNotFoundHandler((req, reply) => {
