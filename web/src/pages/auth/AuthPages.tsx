@@ -18,8 +18,9 @@ export function Pattern() {
 }
 
 export function AuthLayout({ title, children }: { title: string; children: ReactNode }) {
-  const { status } = useAuth();
+  const { status, error } = useAuth();
   useEffect(() => { document.title = `${title} · ONEMA SAÚDE`; }, [title]);
+  const apiDown = error?.startsWith('API_UNAVAILABLE:');
   return (
     <div className="auth-wrap">
       <aside className="auth-side">
@@ -33,6 +34,11 @@ export function AuthLayout({ title, children }: { title: string; children: React
           <img src="/icons/logo-onema-saude.png" alt="ONEMA SAÚDE" className="logo" />
           {status && status.environment !== 'production' && (
             <p className="caution small">Ambiente de homologação. Use apenas dados fictícios. Pagamentos são simulados.</p>
+          )}
+          {apiDown && (
+            <div className="caution" role="alert">
+              <strong>Versão de visualização.</strong> A API de homologação ainda não foi publicada; entrar, cadastrar e demais operações ficam indisponíveis. Nenhum dado é enviado ou armazenado.
+            </div>
           )}
           <div className="surface">
             <h1 style={{ fontSize: 24 }}>{title}</h1>

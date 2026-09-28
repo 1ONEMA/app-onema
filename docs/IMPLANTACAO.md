@@ -2,6 +2,23 @@
 
 > Nenhum deploy foi realizado. Esta seção prepara a publicação para quando for autorizada. **Produção exige os gates G6–G8 (ver `PENDENCIAS.md`)**; a própria interface administrativa (Gestão › PRIME) mostra “Produção bloqueada” enquanto houver gate pendente.
 
+## Netlify (somente o PWA — versão de visualização)
+
+A Netlify hospeda apenas arquivos estáticos e funções sem disco persistente; **a API (Fastify + SQLite + mídia privada) não pode rodar lá sem perda de dados**. O arquivo `netlify.toml` publica somente a interface:
+
+- build `npm run build`, pasta publicada `web/dist`, Node 22;
+- fallback SPA (acesso direto a qualquer rota) e cabeçalhos de segurança/cache;
+- `/api/*` responde **503** com JSON explicando que a API de homologação não foi publicada. A interface mostra “Versão de visualização”: não é possível entrar, cadastrar ou operar; nenhum dado é enviado ou armazenado.
+
+Como conectar (feito pelo responsável pela conta Netlify):
+
+1. Netlify → *Add new site* → *Import an existing project* → GitHub → `1ONEMA/app-onema`.
+2. Branch: `claude/ecstatic-einstein-iew0xj` (ou `main`, quando houver merge). Build/publish são lidos do `netlify.toml`.
+3. Recomendado para evitar deploys sucessivos: em *Site configuration → Build & deploy → Branches and deploy contexts*, desative *Deploy Previews* e *Branch deploys* (ou use *Stop builds* e publique manualmente).
+4. O plano gratuito da Netlify cobre este uso (verifique limites de minutos de build/tráfego da conta).
+
+Quando a API tiver hospedagem com disco persistente (Render, Fly.io, Railway, VPS…), troque o redirecionamento de `/api/*` pelo proxy comentado no `netlify.toml` e configure no backend `PUBLIC_ORIGIN`/`ALLOWED_ORIGINS` com o domínio da Netlify. O proxy mantém a mesma origem, então cookies `SameSite=Strict` e CSRF continuam funcionando sem alteração de código.
+
 ## Requisitos
 
 - Node.js ≥ 22.13 (usa `node:sqlite`), 1 vCPU / 512 MB RAM são suficientes para homologação.

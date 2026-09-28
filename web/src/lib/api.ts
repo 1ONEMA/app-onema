@@ -35,6 +35,9 @@ export async function api<T = any>(method: string, url: string, body?: unknown, 
   const text = await res.text();
   let data: any = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+  if (res.ok && data === null && text && !(res.headers.get('content-type') ?? '').includes('json')) {
+    throw new ApiError(503, 'API_UNAVAILABLE', 'A API da ONEMA SAÚDE não está disponível neste endereço.');
+  }
   if (!res.ok) {
     const err = data?.error;
     if (res.status === 401 && onUnauthorized && !url.startsWith('/api/auth/')) onUnauthorized();

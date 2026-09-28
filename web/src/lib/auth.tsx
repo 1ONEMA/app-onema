@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const [m, s] = await Promise.all([api<Me>('GET', '/api/auth/me'), api<SystemStatus>('GET', '/api/system/status')]);
       setMe(m); setStatus(s); setError(null);
     } catch (e: any) {
-      setError(e?.message ?? 'Falha ao conectar.');
+      setError(e?.code === 'API_UNAVAILABLE' ? `API_UNAVAILABLE:${e.message}` : e?.message ?? 'Falha ao conectar.');
     } finally { setLoading(false); }
   }, [setMe]);
   useEffect(() => { refresh(); }, [refresh]);

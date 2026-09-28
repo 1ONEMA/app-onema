@@ -1,0 +1,65 @@
+# ONEMA SAÚDE — publicação do PWA (somente interface) na Netlify.
+# A API (Fastify + SQLite) NÃO roda na Netlify: exige servidor contínuo com disco persistente.
+# Quando a API estiver hospedada, troque o redirecionamento de /api/* pelo proxy indicado abaixo.
+
+[build]
+  command = "npm run build"
+  publish = "web/dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NPM_FLAGS = "--include=dev"
+
+# --- API ---------------------------------------------------------------------------------------
+# Enquanto não houver backend publicado: resposta JSON explícita de indisponibilidade (sem dados).
+[[redirects]]
+  from = "/api/*"
+  to = "/api-unavailable.json"
+  status = 503
+  force = true
+
+# Quando houver backend (ex.: https://api-hml.seu-dominio), substitua o bloco acima por:
+# [[redirects]]
+#   from = "/api/*"
+#   to = "https://api-hml.seu-dominio/api/:splat"
+#   status = 200
+#   force = true
+# e configure no backend: PUBLIC_ORIGIN e ALLOWED_ORIGINS com o domínio da Netlify.
+
+# --- SPA: acesso direto a qualquer rota -------------------------------------------------------
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# --- Cabeçalhos -------------------------------------------------------------------------------
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "same-origin"
+    X-Frame-Options = "DENY"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy = "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Content-Type = "application/manifest+json"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
