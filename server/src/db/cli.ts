@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { config } from '../config.ts';
 import { hashPassword } from '../lib/security.ts';
+import { passwordSchema } from '../modules/auth/routes.ts';
 import { ROLES, type Role } from '../lib/roles.ts';
 import { nowIso, randomToken, uid } from '../lib/util.ts';
 import { runBilling } from '../modules/prime/core.ts';
@@ -43,14 +44,20 @@ switch (cmd) {
     if (!email || !name || !roles) { console.error('Uso: npm run user:create -- <email> "<nome>" <ROLE1,ROLE2>'); process.exit(1); }
     const list = roles.split(',') as Role[];
     for (const r of list) if (!ROLES.includes(r)) { console.error('Perfil inválido:', r); process.exit(1); }
-    const password = `${randomToken(12)}7a`;
+    // Senha definida pelo responsável via variável de ambiente (nunca versionada); sem ela, gera temporária.
+    const chosen = process.env.NEW_USER_PASSWORD;
+    if (chosen !== undefined) {
+      const ok = passwordSchema.safeParse(chosen);
+      if (!ok.success) { console.error('Senha inválida:', ok.error.issues.map((i) => i.message).join(' ')); process.exit(1); }
+    }
+    const password = chosen ?? `${randomToken(12)}7a`;
     tx(() => {
-      if (one('SELECT 1 FROM users WHERE email = ?', email)) throw new Error('E-mail já cadastrado.');
+      if (one('SELECT 1 FROM users WHERE email = ?', email.toLowerCase())) throw new Error('E-mail já cadastrado.');
       const id = uid(), now = nowIso();
       run('INSERT INTO users (id, email, name, password_hash, created_at, updated_at) VALUES (?,?,?,?,?,?)', id, email.toLowerCase(), name, hashPassword(password), now, now);
       for (const r of list) run('INSERT INTO user_roles (user_id, role, granted_at) VALUES (?,?,?)', id, r, now);
     });
-    console.log(`Usuário criado. Senha temporária (exibida uma única vez): ${password}`);
+    console.log(chosen !== undefined ? 'Usuário criado com a senha informada em NEW_USER_PASSWORD.' : `Usuário criado. Senha temporária (exibida uma única vez): ${password}`);
     break;
   }
   case 'billing':

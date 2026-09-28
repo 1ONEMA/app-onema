@@ -74,7 +74,7 @@ Se o Playwright não encontrar o Chromium, defina `PW_CHROMIUM=/caminho/para/chr
 |---|---|
 | `npm run db:migrate` | aplica migrations pendentes |
 | `npm run db:seed` | seed **oficial** (somente conteúdo/regras documentados; sem usuários) |
-| `npm run user:create -- email "Nome" ADMIN_ACADEMY` | cria o primeiro administrador (senha temporária exibida uma vez) |
+| `npm run user:create -- email "Nome" ADMIN_ACADEMY,ADMIN_PRIME` | cria administrador (senha temporária exibida uma vez; ou defina `NEW_USER_PASSWORD='...'` antes do comando para usar uma senha escolhida — nunca versionar) |
 | `npm run jobs:billing` | motor de ciclos PRIME (renovação, novas tentativas, suspensão, encerramento) — agendar a cada hora em produção |
 | `npm run db:backup [dir]` | backup consistente do banco (`VACUUM INTO`) |
 
