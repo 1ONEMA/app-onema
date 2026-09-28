@@ -12,9 +12,10 @@ Aplicativo web responsivo e instalável (PWA) da ONEMA SAÚDE com dois módulos 
 ## Stack
 
 - **Backend:** Node.js ≥ 22.13, Fastify 5, TypeScript (executado com `tsx`), validação com Zod.
-- **Banco:** SQLite nativo do Node (`node:sqlite`), migrations SQL versionadas em `server/src/db/migrations`. Mesmo motor SQL do laboratório de referência (D1). O acesso está isolado em `server/src/db/db.ts` para futura troca por PostgreSQL.
+- **Banco:** PostgreSQL. Na Netlify: **Netlify DB (Neon)** via driver `pg`. Em desenvolvimento e testes: **PGlite** (Postgres em WASM, sem instalar nada), persistido em `data/pglite`. Migrations em `server/src/db/migrations.ts`; acesso isolado em `server/src/db/db.ts`.
+- **Hospedagem:** Netlify — PWA estático + API como Netlify Function (`netlify/functions/api.mts`) + função agendada do motor de ciclos + Netlify Blobs para mídia. Ver `docs/IMPLANTACAO.md`.
 - **Frontend:** React 19 + React Router 7 + Vite 8, CSS próprio com tokens da identidade visual. Service worker próprio (somente app shell).
-- **Testes:** Vitest (API, 51 testes) e Playwright (E2E em celular e desktop, 9 cenários).
+- **Testes:** Vitest (API, 53 testes, incluindo o driver `pg` contra um servidor Postgres de protocolo real) e Playwright (E2E em celular e desktop, 9 cenários).
 
 ## Executar localmente
 
@@ -76,14 +77,16 @@ Se o Playwright não encontrar o Chromium, defina `PW_CHROMIUM=/caminho/para/chr
 | `npm run db:seed` | seed **oficial** (somente conteúdo/regras documentados; sem usuários) |
 | `npm run user:create -- email "Nome" ADMIN_ACADEMY,ADMIN_PRIME` | cria administrador (senha temporária exibida uma vez; ou defina `NEW_USER_PASSWORD='...'` antes do comando para usar uma senha escolhida — nunca versionar) |
 | `npm run jobs:billing` | motor de ciclos PRIME (renovação, novas tentativas, suspensão, encerramento) — agendar a cada hora em produção |
-| `npm run db:backup [dir]` | backup consistente do banco (`VACUUM INTO`) |
+| `npm run db:backup [dir]` | exportação lógica (JSON por tabela); em Postgres gerenciado use também `pg_dump` |
 
 ## Estrutura
 
 ```
 server/src/
   config.ts                 configurações por ambiente
-  db/                       conexão, migrations SQL, seeds, CLI
+  db/                       conexão (pg/PGlite), migrations, seeds, CLI
+  bootstrap.ts              migrations + seed oficial + segredos + administrador inicial (primeiro uso)
+netlify/functions/          api.mts (API) e billing.mts (motor de ciclos agendado)
   lib/                      segurança (scrypt, TOTP, HMAC, rate limit), auditoria, contexto/RBAC, erros
   modules/auth              login, cadastro, recuperação, MFA, avisos
   modules/academy           core.ts (motor de estados), routes.ts (especialista), admin.ts (gestão)

@@ -18,7 +18,7 @@ export default defineConfig({
     { name: 'desktop', use: { viewport: { width: 1366, height: 900 } } },
   ],
   webServer: {
-    command: 'rm -rf data/e2e && DATABASE_PATH=data/e2e/onema.sqlite MEDIA_DIR=data/e2e/media npx tsx server/src/db/cli.ts seed-demo && DATABASE_PATH=data/e2e/onema.sqlite MEDIA_DIR=data/e2e/media PORT=8799 PUBLIC_ORIGIN=http://127.0.0.1:8799 NODE_OPTIONS=--disable-warning=ExperimentalWarning npx tsx server/src/index.ts',
+    command: 'rm -rf data/e2e && SEED_DEMO=true DATABASE_PATH=data/e2e/pglite MEDIA_DIR=data/e2e/media PORT=8799 PUBLIC_ORIGIN=http://127.0.0.1:8799 NODE_OPTIONS=--disable-warning=ExperimentalWarning npx tsx server/src/index.ts',
     url: 'http://127.0.0.1:8799/api/health',
     reuseExistingServer: false,
     timeout: 60_000,

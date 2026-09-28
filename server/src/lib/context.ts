@@ -1,7 +1,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { config } from '../config.ts';
-import { one, run, tx } from '../db/db.ts';
+import { all, isUniqueViolation, one, run, tx } from '../db/db.ts';
 import { AppError, badRequest, conflict, forbidden, unauthorized } from './errors.ts';
 import { ADMIN_ROLES, type Role } from './roles.ts';
 import { nowIso, sha256, stableJson } from './util.ts';
@@ -31,18 +31,18 @@ declare module 'fastify' {
 
 export const SESSION_COOKIE = 'onema_sid';
 
-export function loadSession(req: FastifyRequest): AuthCtx | null {
+export async function loadSession(req: FastifyRequest): Promise<AuthCtx | null> {
   const sid = req.cookies?.[SESSION_COOKIE];
   if (!sid) return null;
   const h = sha256(sid);
-  const s = one<any>(
+  const s = await one<any>(
     `SELECT s.*, u.email, u.name, u.status, u.mfa_enabled, u.academy_eligible FROM sessions s JOIN users u ON u.id = s.user_id
      WHERE s.id_hash = ? AND s.revoked_at IS NULL`, h);
   if (!s || s.status !== 'ACTIVE' || s.expires_at < nowIso()) return null;
-  const roles = one<any>('SELECT json_group_array(role) AS r FROM user_roles WHERE user_id = ?', s.user_id)!.r;
-  run('UPDATE sessions SET last_seen_at = ? WHERE id_hash = ?', nowIso(), h);
+  const roles = (await all<any>('SELECT role FROM user_roles WHERE user_id = ? ORDER BY role', s.user_id)).map((r) => r.role);
+  await run('UPDATE sessions SET last_seen_at = ? WHERE id_hash = ?', nowIso(), h);
   return {
-    userId: s.user_id, email: s.email, name: s.name, roles: JSON.parse(roles), sessionHash: h, csrf: s.csrf_token,
+    userId: s.user_id, email: s.email, name: s.name, roles, sessionHash: h, csrf: s.csrf_token,
     mfaVerified: !!s.mfa_verified, mfaEnabled: !!s.mfa_enabled, academyEligible: !!s.academy_eligible,
   };
 }
@@ -82,27 +82,38 @@ export function parse<T extends z.ZodType>(schema: T, data: unknown): z.infer<T>
  * Idempotência: a mesma Idempotency-Key com o mesmo corpo devolve a resposta original
  * (duplo clique / replay); com corpo diferente, 409.
  */
-export function idempotent<T>(req: FastifyRequest, reply: FastifyReply, route: string, fn: () => { status: number; body: T }) {
+export async function idempotent<T>(req: FastifyRequest, reply: FastifyReply, route: string, fn: () => Promise<{ status: number; body: T }>): Promise<T> {
   const a = requireUser(req);
   const key = String(req.headers['idempotency-key'] ?? '');
   if (!/^[A-Za-z0-9_-]{8,100}$/.test(key)) throw badRequest('IDEMPOTENCY_KEY_REQUIRED', 'Cabeçalho Idempotency-Key ausente ou inválido.');
   const reqHash = sha256(route + '|' + stableJson(req.body ?? null));
-  return tx(() => {
-    const prev = one<any>('SELECT * FROM idempotency_keys WHERE user_id = ? AND key = ?', a.userId, key);
-    if (prev) {
-      if (prev.route !== route || prev.request_hash !== reqHash) {
-        throw conflict('IDEMPOTENCY_KEY_REUSED', 'Esta chave de operação já foi usada com outros dados.');
-      }
-      reply.header('Idempotent-Replay', 'true');
-      reply.code(prev.status_code);
-      return JSON.parse(prev.response_json) as T;
+  const replay = (prev: any) => {
+    if (prev.route !== route || prev.request_hash !== reqHash) {
+      throw conflict('IDEMPOTENCY_KEY_REUSED', 'Esta chave de operação já foi usada com outros dados.');
     }
-    const res = fn();
-    run(`INSERT INTO idempotency_keys (user_id, key, route, request_hash, status_code, response_json, created_at)
-         VALUES (?,?,?,?,?,?,?)`, a.userId, key, route, reqHash, res.status, JSON.stringify(res.body), nowIso());
-    reply.code(res.status);
-    return res.body;
-  });
+    reply.header('Idempotent-Replay', 'true');
+    reply.code(prev.status_code);
+    return JSON.parse(prev.response_json) as T;
+  };
+  try {
+    return await tx(async () => {
+      const prev = await one<any>('SELECT * FROM idempotency_keys WHERE user_id = ? AND key = ?', a.userId, key);
+      if (prev) return replay(prev);
+      // Reserva a chave primeiro: uma requisição concorrente com a mesma chave aguarda/colide aqui.
+      await run(`INSERT INTO idempotency_keys (user_id, key, route, request_hash, created_at) VALUES (?,?,?,?,?)`, a.userId, key, route, reqHash, nowIso());
+      const res = await fn();
+      await run('UPDATE idempotency_keys SET status_code = ?, response_json = ? WHERE user_id = ? AND key = ?', res.status, JSON.stringify(res.body), a.userId, key);
+      reply.code(res.status);
+      return res.body;
+    });
+  } catch (e) {
+    if (isUniqueViolation(e)) {
+      const prev = await one<any>('SELECT * FROM idempotency_keys WHERE user_id = ? AND key = ?', a.userId, key);
+      if (prev?.response_json) return replay(prev);
+      throw conflict('REQUEST_IN_PROGRESS', 'Esta operação já está sendo processada. Aguarde e recarregue.');
+    }
+    throw e;
+  }
 }
 
 export function sendError(reply: FastifyReply, e: AppError, correlationId: string) {

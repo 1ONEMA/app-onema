@@ -97,8 +97,9 @@ ASSINATURA_SOLICITADA, PRIME_ACTIVE, DESCONTO_RESERVADO/USADO(/LIBERADO), PAYMEN
 |---|---|---|
 | Login, saída, recuperação | `modules/auth` | auth.test; e2e ✅ (envio de e-mail pendente de provedor) |
 | MFA administrativo | TOTP | auth.test; e2e ✅ |
-| Persistência após recarregar | SQLite | e2e (reload) ✅ |
+| Persistência após recarregar | PostgreSQL (Netlify DB/Neon; PGlite local) | e2e (reload); pg-driver.test ✅ |
 | Rotas diretas | fallback SPA no servidor | e2e ✅ |
+| API na Netlify (Function empacotada) | `netlify/functions/api.mts` | função empacotada pelo bundler oficial e executada contra Postgres (login, sessão Secure, CSRF, oferta PRIME) ✅ |
 | Manifest/ícones/SW/offline | `web/public/manifest.webmanifest`, `sw-template.js` | e2e pwa ✅ |
 | Estratégia de atualização | banner “Nova versão disponível” + SKIP_WAITING | manual (código) |
 | Sem cache de dados de saúde | SW ignora `/api/*`; `Cache-Control: no-store` | e2e pwa ✅ |

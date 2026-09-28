@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import QRCode from 'qrcode';
 import { z } from 'zod';
@@ -9,6 +7,7 @@ import { audit } from '../../lib/audit.ts';
 import { idempotent, parse, requireRoles } from '../../lib/context.ts';
 import { AppError, badRequest, conflict, forbidden, notFound, unprocessable } from '../../lib/errors.ts';
 import { hmac, rateLimit, safeEqual } from '../../lib/security.ts';
+import { getObject } from '../../lib/storage.ts';
 import { hashObj, nowIso, randomToken, sha256, shuffle, uid } from '../../lib/util.ts';
 import {
   activeEnrollment, assertPartner, assessmentReadiness, attemptsOf, certificateState, computeJourney,
@@ -30,10 +29,9 @@ export function signedMediaUrl(assetId: string, ttlSec = 600, preview = false) {
   return `/api/academy/media/${assetId}?exp=${exp}&p=${p}&sig=${sig}`;
 }
 
-export function fileChecksum(storageKey: string) {
-  const file = path.join(config.mediaDir, storageKey);
-  if (!fs.existsSync(file)) return null;
-  return sha256(fs.readFileSync(file));
+export async function fileChecksum(storageKey: string) {
+  const buf = await getObject(storageKey);
+  return buf ? sha256(buf) : null;
 }
 
 function publicStep(s: any) {
@@ -41,11 +39,11 @@ function publicStep(s: any) {
   return { id: s.id, order: s.sort_order, prompt: s.prompt, options };
 }
 
-function activityView(enrollmentId: string, activity: any) {
-  const steps = all<any>('SELECT * FROM academy_activity_steps WHERE activity_id = ? ORDER BY sort_order', activity.id);
-  const attempt = one<any>(`SELECT * FROM academy_activity_attempts WHERE activity_id = ? AND enrollment_id = ? ORDER BY attempt_no DESC LIMIT 1`,
+async function activityView(enrollmentId: string, activity: any) {
+  const steps = await all<any>('SELECT * FROM academy_activity_steps WHERE activity_id = ? ORDER BY sort_order', activity.id);
+  const attempt = await one<any>(`SELECT * FROM academy_activity_attempts WHERE activity_id = ? AND enrollment_id = ? ORDER BY attempt_no DESC LIMIT 1`,
     activity.id, enrollmentId);
-  const decisions = attempt ? all<any>('SELECT * FROM academy_activity_decisions WHERE attempt_id = ? ORDER BY decided_at', attempt.id) : [];
+  const decisions = attempt ? await all<any>('SELECT * FROM academy_activity_decisions WHERE attempt_id = ? ORDER BY decided_at', attempt.id) : [];
   const stepStatus = steps.map((s) => {
     const mine = decisions.filter((d) => d.step_id === s.id);
     const last = mine[mine.length - 1];
@@ -65,8 +63,8 @@ function activityView(enrollmentId: string, activity: any) {
   };
 }
 
-function attemptPublic(attempt: any, withQuestions: boolean) {
-  const asm = one<any>('SELECT * FROM academy_assessments WHERE id = ?', attempt.assessment_id)!;
+async function attemptPublic(attempt: any, withQuestions: boolean) {
+  const asm = await one<any>('SELECT * FROM academy_assessments WHERE id = ?', attempt.assessment_id)!;
   const base: any = {
     id: attempt.id, attemptNo: attempt.attempt_no, state: attempt.state, startedAt: attempt.started_at, submittedAt: attempt.submitted_at,
     assessment: { id: asm.id, version: asm.version, questionCount: asm.question_count, passMinCorrect: asm.pass_min_correct, maxAttempts: asm.max_attempts, criticalGate: !!asm.critical_gate },
@@ -82,7 +80,7 @@ function attemptPublic(attempt: any, withQuestions: boolean) {
   }
   if (withQuestions && ['CRIADA', 'EM_ANDAMENTO'].includes(attempt.state)) {
     const order: string[] = JSON.parse(attempt.question_order_json);
-    const qs = all<any>(`SELECT id, stem, options_json FROM academy_questions WHERE assessment_id = ?`, asm.id);
+    const qs = await all<any>(`SELECT id, stem, options_json FROM academy_questions WHERE assessment_id = ?`, asm.id);
     const byId = new Map(qs.map((q) => [q.id, q]));
     // Gabarito nunca é enviado ao cliente (ACA-T020).
     base.questions = order.map((id, i) => {
@@ -97,12 +95,12 @@ export async function academyRoutes(app: FastifyInstance) {
   // ACA-001/002 - Entrada e Minha Jornada
   app.get('/api/academy/journey', async (req) => {
     const a = partner(req);
-    return tx(() => {
-      const enrollment = activeEnrollment(a.userId);
-      const courses = computeJourney(enrollment, { bind: true });
-      const pay = paymentState(a.userId);
-      const cert = certificateState(enrollment);
-      const training = one<any>('SELECT journey_state, completed_at, credentialing_decision FROM partner_training_status WHERE partner_id = ?', a.userId);
+    return await tx(async () => {
+      const enrollment = await activeEnrollment(a.userId);
+      const courses = await computeJourney(enrollment, { bind: true });
+      const pay = await paymentState(a.userId);
+      const cert = await certificateState(enrollment);
+      const training = await one<any>('SELECT journey_state, completed_at, credentialing_decision FROM partner_training_status WHERE partner_id = ?', a.userId);
       return {
         eligible: a.academyEligible,
         requirePayment: config.academyRequirePayment,
@@ -121,25 +119,25 @@ export async function academyRoutes(app: FastifyInstance) {
   app.get('/api/academy/catalog', async (req) => {
     partner(req);
     return {
-      courses: all<any>(`SELECT c.code, c.status, cv.version, cv.title, cv.objectives FROM academy_courses c
+      courses: await all<any>(`SELECT c.code, c.status, cv.version, cv.title, cv.objectives FROM academy_courses c
                          LEFT JOIN academy_course_versions cv ON cv.id = c.current_version_id ORDER BY c.sort_order`),
     };
   });
 
   app.post('/api/academy/enrollments', async (req, reply) => {
     const a = partner(req);
-    return idempotent(req, reply, 'enroll', () => {
-      const existing = activeEnrollment(a.userId);
+    return await idempotent(req, reply, 'enroll', async () => {
+      const existing = await activeEnrollment(a.userId);
       if (existing) return { status: 200, body: { enrollment: existing } };
-      ensureCanEnroll(a.userId, a.academyEligible);
+      await ensureCanEnroll(a.userId, a.academyEligible);
       const id = uid();
       const now = nowIso();
-      run(`INSERT INTO academy_enrollments (id, partner_id, journey_version, state, started_at) VALUES (?,?,?,?,?)`,
+      await run(`INSERT INTO academy_enrollments (id, partner_id, journey_version, state, started_at) VALUES (?,?,?,?,?)`,
         id, a.userId, config.journeyVersion, 'EM_ANDAMENTO', now);
-      run(`INSERT INTO partner_training_status (partner_id, journey_state, updated_at) VALUES (?,?,?)
+      await run(`INSERT INTO partner_training_status (partner_id, journey_state, updated_at) VALUES (?,?,?)
            ON CONFLICT(partner_id) DO UPDATE SET journey_state = excluded.journey_state, updated_at = excluded.updated_at`, a.userId, 'EM_ANDAMENTO', now);
-      audit({ actorId: a.userId, action: 'ENROLLMENT_CREATED', subjectType: 'enrollment', subjectId: id, correlationId: req.correlationId });
-      return { status: 201, body: { enrollment: one('SELECT * FROM academy_enrollments WHERE id = ?', id) } };
+      await audit({ actorId: a.userId, action: 'ENROLLMENT_CREATED', subjectType: 'enrollment', subjectId: id, correlationId: req.correlationId });
+      return { status: 201, body: { enrollment: await one('SELECT * FROM academy_enrollments WHERE id = ?', id) } };
     });
   });
 
@@ -147,13 +145,13 @@ export async function academyRoutes(app: FastifyInstance) {
   app.get('/api/academy/courses/:code', async (req) => {
     const a = partner(req);
     const { code } = parse(z.object({ code: z.string().regex(/^C\d{2}$/) }), req.params);
-    return tx(() => {
-      const { enrollment, summary, bound } = courseContext(a.userId, code);
-      const lessons = lessonsOf(bound.course_version_id);
-      const prog = lessonProgress(enrollment.id, lessons.map((l) => l.id));
-      const activity = latestApproved('academy_activities', bound.course_version_id);
-      const readiness = assessmentReadiness(bound.course_version_id);
-      const attempts = readiness.assessment ? attemptsOf(enrollment.id, readiness.assessment.id) : [];
+    return await tx(async () => {
+      const { enrollment, summary, bound } = await courseContext(a.userId, code);
+      const lessons = await lessonsOf(bound.course_version_id);
+      const prog = await lessonProgress(enrollment.id, lessons.map((l) => l.id));
+      const activity = await latestApproved('academy_activities', bound.course_version_id);
+      const readiness = await assessmentReadiness(bound.course_version_id);
+      const attempts = readiness.assessment ? await attemptsOf(enrollment.id, readiness.assessment.id) : [];
       return {
         course: summary,
         objectives: bound.objectives,
@@ -180,24 +178,24 @@ export async function academyRoutes(app: FastifyInstance) {
   app.get('/api/academy/lessons/:code', async (req) => {
     const a = partner(req);
     const { code } = parse(z.object({ code: z.string().regex(/^C\d{2}-A\d{2}$/) }), req.params);
-    return tx(() => {
-      const { enrollment, bound } = courseContext(a.userId, code.slice(0, 3));
-      const lesson = one<any>('SELECT * FROM academy_lessons WHERE course_version_id = ? AND code = ?', bound.course_version_id, code);
+    return await tx(async () => {
+      const { enrollment, bound } = await courseContext(a.userId, code.slice(0, 3));
+      const lesson = await one<any>('SELECT * FROM academy_lessons WHERE course_version_id = ? AND code = ?', bound.course_version_id, code);
       if (!lesson) throw notFound('Aula não encontrada.');
-      const prog = one<any>('SELECT * FROM academy_lesson_progress WHERE enrollment_id = ? AND lesson_id = ?', enrollment.id, lesson.id);
-      const media = (id: string | null) => {
+      const prog = await one<any>('SELECT * FROM academy_lesson_progress WHERE enrollment_id = ? AND lesson_id = ?', enrollment.id, lesson.id);
+      const media = async (id: string | null) => {
         if (!id) return null;
-        const m = one<any>('SELECT id, kind, title, mime, state FROM academy_media_assets WHERE id = ?', id);
+        const m = await one<any>('SELECT id, kind, title, mime, state FROM academy_media_assets WHERE id = ?', id);
         if (!m || m.state !== 'APPROVED') return null;
         return { id: m.id, kind: m.kind, title: m.title, mime: m.mime, url: signedMediaUrl(m.id) };
       };
-      const all_ = lessonsOf(bound.course_version_id);
+      const all_ = await lessonsOf(bound.course_version_id);
       const idx = all_.findIndex((l) => l.id === lesson.id);
       return {
         lesson: {
           code: lesson.code, title: lesson.title, body: lesson.body, courseCode: code.slice(0, 3),
           completionMinPercent: lesson.completion_min_percent,
-          video: media(lesson.video_asset_id), caption: media(lesson.caption_asset_id), transcript: media(lesson.transcript_asset_id),
+          video: await media(lesson.video_asset_id), caption: await media(lesson.caption_asset_id), transcript: await media(lesson.transcript_asset_id),
           prev: idx > 0 ? all_[idx - 1].code : null, next: idx < all_.length - 1 ? all_[idx + 1].code : null,
         },
         progress: prog ? { state: prog.state, percent: prog.percent, lastPosition: prog.last_position, rowVersion: prog.row_version } :
@@ -216,11 +214,11 @@ export async function academyRoutes(app: FastifyInstance) {
       complete: z.boolean().default(false),
       rowVersion: z.number().int().min(0),
     }), req.body);
-    return idempotent(req, reply, `progress:${code}`, () => {
-      const { enrollment, bound } = courseContext(a.userId, code.slice(0, 3));
-      const lesson = one<any>('SELECT * FROM academy_lessons WHERE course_version_id = ? AND code = ?', bound.course_version_id, code);
+    return await idempotent(req, reply, `progress:${code}`, async () => {
+      const { enrollment, bound } = await courseContext(a.userId, code.slice(0, 3));
+      const lesson = await one<any>('SELECT * FROM academy_lessons WHERE course_version_id = ? AND code = ?', bound.course_version_id, code);
       if (!lesson) throw notFound('Aula não encontrada.');
-      const cur = one<any>('SELECT * FROM academy_lesson_progress WHERE enrollment_id = ? AND lesson_id = ?', enrollment.id, lesson.id);
+      const cur = await one<any>('SELECT * FROM academy_lesson_progress WHERE enrollment_id = ? AND lesson_id = ?', enrollment.id, lesson.id);
       const curVersion = cur?.row_version ?? 0;
       if (body.rowVersion !== curVersion) {
         throw conflict('PROGRESS_CONFLICT', 'O progresso desta aula foi atualizado em outra sessão. Recarregamos o estado mais recente.',
@@ -240,16 +238,16 @@ export async function academyRoutes(app: FastifyInstance) {
         completedAt = now;
       }
       if (cur) {
-        run(`UPDATE academy_lesson_progress SET state = ?, percent = ?, last_position = ?, row_version = row_version + 1, updated_at = ?, completed_at = ?
+        await run(`UPDATE academy_lesson_progress SET state = ?, percent = ?, last_position = ?, row_version = row_version + 1, updated_at = ?, completed_at = ?
              WHERE id = ? AND row_version = ?`, state, percent, body.position, now, completedAt, cur.id, curVersion);
       } else {
-        run(`INSERT INTO academy_lesson_progress (id, enrollment_id, lesson_id, state, percent, last_position, row_version, updated_at, completed_at)
+        await run(`INSERT INTO academy_lesson_progress (id, enrollment_id, lesson_id, state, percent, last_position, row_version, updated_at, completed_at)
              VALUES (?,?,?,?,?,?,1,?,?)`, uid(), enrollment.id, lesson.id, state, percent, body.position, now, completedAt);
       }
       if (state === 'CONCLUIDA' && cur?.state !== 'CONCLUIDA') {
-        audit({ actorId: a.userId, action: 'LESSON_COMPLETED', subjectType: 'lesson', subjectId: lesson.id, correlationId: req.correlationId, meta: { code } });
+        await audit({ actorId: a.userId, action: 'LESSON_COMPLETED', subjectType: 'lesson', subjectId: lesson.id, correlationId: req.correlationId, meta: { code } });
       }
-      const saved = one<any>('SELECT * FROM academy_lesson_progress WHERE enrollment_id = ? AND lesson_id = ?', enrollment.id, lesson.id)!;
+      const saved = await one<any>('SELECT * FROM academy_lesson_progress WHERE enrollment_id = ? AND lesson_id = ?', enrollment.id, lesson.id)!;
       return { status: 200, body: { state: saved.state, percent: saved.percent, lastPosition: saved.last_position, rowVersion: saved.row_version } };
     });
   });
@@ -260,50 +258,50 @@ export async function academyRoutes(app: FastifyInstance) {
     const q = parse(z.object({ exp: z.coerce.number(), p: z.enum(['0', '1']), sig: z.string() }), req.query);
     if (q.exp < Math.floor(Date.now() / 1000)) throw forbidden('Link de mídia expirado. Recarregue a aula.', 'MEDIA_URL_EXPIRED');
     if (!safeEqual(hmac(`${id}.${q.exp}.${q.p}`), q.sig)) throw forbidden('Assinatura de mídia inválida.', 'MEDIA_SIGNATURE_INVALID');
-    const m = one<any>('SELECT * FROM academy_media_assets WHERE id = ?', id);
+    const m = await one<any>('SELECT * FROM academy_media_assets WHERE id = ?', id);
     if (!m) throw notFound();
     if (m.state === 'BLOCKED' || (m.state !== 'APPROVED' && q.p !== '1')) throw forbidden('Mídia indisponível.', 'MEDIA_BLOCKED');
-    const sum = fileChecksum(m.storage_key);
-    if (sum !== m.checksum_sha256) {
-      run(`UPDATE academy_media_assets SET state = 'BLOCKED' WHERE id = ?`, id);
-      audit({ actorId: null, action: 'MEDIA_CHECKSUM_MISMATCH', subjectType: 'media', subjectId: id, correlationId: req.correlationId });
+    const buf = await getObject(m.storage_key);
+    if (!buf || sha256(buf) !== m.checksum_sha256) {
+      await run(`UPDATE academy_media_assets SET state = 'BLOCKED' WHERE id = ?`, id);
+      await audit({ actorId: null, action: 'MEDIA_CHECKSUM_MISMATCH', subjectType: 'media', subjectId: id, correlationId: req.correlationId });
       throw new AppError(409, 'MEDIA_INTEGRITY', 'A mídia falhou na verificação de integridade e foi bloqueada.');
     }
     reply.header('Cache-Control', 'private, no-store');
     reply.header('Content-Type', m.mime);
-    return reply.send(fs.createReadStream(path.join(config.mediaDir, m.storage_key)));
+    return reply.send(buf);
   });
 
   // ACA-005 - Atividade integradora
   app.get('/api/academy/courses/:code/activity', async (req) => {
     const a = partner(req);
     const { code } = parse(z.object({ code: z.string().regex(/^C\d{2}$/) }), req.params);
-    return tx(() => {
-      const { enrollment, bound } = courseContext(a.userId, code);
-      const activity = latestApproved('academy_activities', bound.course_version_id);
+    return await tx(async () => {
+      const { enrollment, bound } = await courseContext(a.userId, code);
+      const activity = await latestApproved('academy_activities', bound.course_version_id);
       if (!activity) throw unprocessable('ACTIVITY_PENDING', 'O roteiro desta atividade ainda não foi aprovado.');
-      return { activity: activityView(enrollment.id, activity), required: bound.activity_required };
+      return { activity: await activityView(enrollment.id, activity), required: bound.activity_required };
     });
   });
 
   app.post('/api/academy/activities/:id/attempts', async (req, reply) => {
     const a = partner(req);
     const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
-    return idempotent(req, reply, `activity-attempt:${id}`, () => {
-      const activity = one<any>(`SELECT * FROM academy_activities WHERE id = ? AND state = 'APPROVED'`, id);
+    return await idempotent(req, reply, `activity-attempt:${id}`, async () => {
+      const activity = await one<any>(`SELECT * FROM academy_activities WHERE id = ? AND state = 'APPROVED'`, id);
       if (!activity) throw notFound('Atividade não encontrada.');
-      const cv = one<any>('SELECT c.code FROM academy_course_versions cv JOIN academy_courses c ON c.id = cv.course_id WHERE cv.id = ?', activity.course_version_id)!;
-      const { enrollment, bound } = courseContext(a.userId, cv.code);
+      const cv = await one<any>('SELECT c.code FROM academy_course_versions cv JOIN academy_courses c ON c.id = cv.course_id WHERE cv.id = ?', activity.course_version_id)!;
+      const { enrollment, bound } = await courseContext(a.userId, cv.code);
       if (bound.course_version_id !== activity.course_version_id) throw forbidden('Atividade não pertence à versão do seu curso.');
-      const open = one<any>(`SELECT * FROM academy_activity_attempts WHERE activity_id = ? AND enrollment_id = ? AND state = 'EM_ANDAMENTO'`, id, enrollment.id);
+      const open = await one<any>(`SELECT * FROM academy_activity_attempts WHERE activity_id = ? AND enrollment_id = ? AND state = 'EM_ANDAMENTO'`, id, enrollment.id);
       if (!open) {
-        const n = one<any>('SELECT COALESCE(MAX(attempt_no),0)+1 AS n FROM academy_activity_attempts WHERE activity_id = ? AND enrollment_id = ?', id, enrollment.id)!.n;
+        const n = (await one<any>('SELECT COALESCE(MAX(attempt_no),0)+1 AS n FROM academy_activity_attempts WHERE activity_id = ? AND enrollment_id = ?', id, enrollment.id))!.n;
         const attemptId = uid();
-        run(`INSERT INTO academy_activity_attempts (id, activity_id, enrollment_id, attempt_no, state, started_at) VALUES (?,?,?,?,?,?)`,
+        await run(`INSERT INTO academy_activity_attempts (id, activity_id, enrollment_id, attempt_no, state, started_at) VALUES (?,?,?,?,?,?)`,
           attemptId, id, enrollment.id, n, 'EM_ANDAMENTO', nowIso());
-        audit({ actorId: a.userId, action: 'ACTIVITY_ATTEMPT_STARTED', subjectType: 'activity_attempt', subjectId: attemptId, correlationId: req.correlationId });
+        await audit({ actorId: a.userId, action: 'ACTIVITY_ATTEMPT_STARTED', subjectType: 'activity_attempt', subjectId: attemptId, correlationId: req.correlationId });
       }
-      return { status: open ? 200 : 201, body: { activity: activityView(enrollment.id, activity) } };
+      return { status: open ? 200 : 201, body: { activity: await activityView(enrollment.id, activity) } };
     });
   });
 
@@ -311,26 +309,26 @@ export async function academyRoutes(app: FastifyInstance) {
     const a = partner(req);
     const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
     const body = parse(z.object({ stepId: z.string().uuid(), optionId: z.string().min(1).max(40) }), req.body);
-    return idempotent(req, reply, `activity-decision:${id}`, () => {
-      const attempt = one<any>(`SELECT aa.*, e.partner_id FROM academy_activity_attempts aa JOIN academy_enrollments e ON e.id = aa.enrollment_id WHERE aa.id = ?`, id);
+    return await idempotent(req, reply, `activity-decision:${id}`, async () => {
+      const attempt = await one<any>(`SELECT aa.*, e.partner_id FROM academy_activity_attempts aa JOIN academy_enrollments e ON e.id = aa.enrollment_id WHERE aa.id = ?`, id);
       if (!attempt || attempt.partner_id !== a.userId) throw notFound('Tentativa não encontrada.'); // IDOR (ACA-T035)
       if (attempt.state !== 'EM_ANDAMENTO') throw conflict('ATTEMPT_CLOSED', 'Esta tentativa já foi encerrada.');
-      const step = one<any>('SELECT * FROM academy_activity_steps WHERE id = ? AND activity_id = ?', body.stepId, attempt.activity_id);
+      const step = await one<any>('SELECT * FROM academy_activity_steps WHERE id = ? AND activity_id = ?', body.stepId, attempt.activity_id);
       if (!step) throw notFound('Etapa não encontrada.');
-      if (one('SELECT 1 FROM academy_activity_decisions WHERE attempt_id = ? AND step_id = ? AND correct = 1', id, step.id)) {
+      if (await one('SELECT 1 FROM academy_activity_decisions WHERE attempt_id = ? AND step_id = ? AND correct = 1', id, step.id)) {
         throw conflict('STEP_ALREADY_SOLVED', 'Esta decisão já foi concluída corretamente.');
       }
       const opt = JSON.parse(step.options_json).find((o: any) => o.id === body.optionId);
       if (!opt) throw badRequest('INVALID_OPTION', 'Opção inválida.');
-      run(`INSERT INTO academy_activity_decisions (id, attempt_id, step_id, option_id, correct, decided_at) VALUES (?,?,?,?,?,?)`,
+      await run(`INSERT INTO academy_activity_decisions (id, attempt_id, step_id, option_id, correct, decided_at) VALUES (?,?,?,?,?,?)`,
         uid(), id, step.id, opt.id, opt.correct ? 1 : 0, nowIso());
-      const activity = one<any>('SELECT * FROM academy_activities WHERE id = ?', attempt.activity_id)!;
-      const steps = all<any>('SELECT id FROM academy_activity_steps WHERE activity_id = ?', activity.id);
-      const solved = one<any>(`SELECT COUNT(DISTINCT step_id) AS n FROM academy_activity_decisions WHERE attempt_id = ? AND correct = 1`, id)!.n;
+      const activity = await one<any>('SELECT * FROM academy_activities WHERE id = ?', attempt.activity_id)!;
+      const steps = await all<any>('SELECT id FROM academy_activity_steps WHERE activity_id = ?', activity.id);
+      const solved = (await one<any>(`SELECT COUNT(DISTINCT step_id) AS n FROM academy_activity_decisions WHERE attempt_id = ? AND correct = 1`, id))!.n;
       let completed = false;
       if (solved >= steps.length && solved >= (activity.required_correct ?? steps.length)) {
-        run(`UPDATE academy_activity_attempts SET state = 'CONCLUIDA', completed_at = ? WHERE id = ?`, nowIso(), id);
-        audit({ actorId: a.userId, action: 'ACTIVITY_COMPLETED', subjectType: 'activity_attempt', subjectId: id, correlationId: req.correlationId,
+        await run(`UPDATE academy_activity_attempts SET state = 'CONCLUIDA', completed_at = ? WHERE id = ?`, nowIso(), id);
+        await audit({ actorId: a.userId, action: 'ACTIVITY_COMPLETED', subjectType: 'activity_attempt', subjectId: id, correlationId: req.correlationId,
           meta: { activityId: activity.id, version: activity.version } });
         completed = true;
       }
@@ -342,13 +340,13 @@ export async function academyRoutes(app: FastifyInstance) {
   app.post('/api/academy/assessments/:id/attempts', async (req, reply) => {
     const a = partner(req);
     const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
-    return idempotent(req, reply, `assessment-attempt:${id}`, () => {
-      const asm = one<any>(`SELECT * FROM academy_assessments WHERE id = ?`, id);
+    return await idempotent(req, reply, `assessment-attempt:${id}`, async () => {
+      const asm = await one<any>(`SELECT * FROM academy_assessments WHERE id = ?`, id);
       if (!asm) throw notFound('Avaliação não encontrada.');
-      const code = one<any>('SELECT c.code FROM academy_course_versions cv JOIN academy_courses c ON c.id = cv.course_id WHERE cv.id = ?', asm.course_version_id)!.code;
-      const { enrollment, bound, summary } = courseContext(a.userId, code);
+      const code = (await one<any>('SELECT c.code FROM academy_course_versions cv JOIN academy_courses c ON c.id = cv.course_id WHERE cv.id = ?', asm.course_version_id))!.code;
+      const { enrollment, bound, summary } = await courseContext(a.userId, code);
       if (bound.course_version_id !== asm.course_version_id) throw forbidden('Avaliação não pertence à versão do seu curso.');
-      const readiness = assessmentReadiness(bound.course_version_id);
+      const readiness = await assessmentReadiness(bound.course_version_id);
       if (!readiness.ready || readiness.assessment.id !== id) {
         throw unprocessable('ASSESSMENT_PENDING', `Avaliação indisponível: ${readiness.missing.join(', ') || 'versão não vigente'}.`);
       }
@@ -356,27 +354,27 @@ export async function academyRoutes(app: FastifyInstance) {
       if (summary.state !== 'AGUARDANDO_AVALIACAO') {
         throw forbidden('Conclua todas as aulas obrigatórias e a atividade integradora (quando exigida) antes da avaliação.', 'PREREQUISITES_NOT_MET');
       }
-      const open = one<any>(`SELECT * FROM academy_assessment_attempts WHERE assessment_id = ? AND enrollment_id = ? AND state IN ('CRIADA','EM_ANDAMENTO')`, id, enrollment.id);
-      if (open) return { status: 200, body: { attempt: attemptPublic(open, true) } };
-      const used = attemptsOf(enrollment.id, id).filter((t) => t.state !== 'INVALIDADA').length;
+      const open = await one<any>(`SELECT * FROM academy_assessment_attempts WHERE assessment_id = ? AND enrollment_id = ? AND state IN ('CRIADA','EM_ANDAMENTO')`, id, enrollment.id);
+      if (open) return { status: 200, body: { attempt: await attemptPublic(open, true) } };
+      const used = (await attemptsOf(enrollment.id, id)).filter((t) => t.state !== 'INVALIDADA').length;
       if (used >= asm.max_attempts) throw forbidden(`Limite de ${asm.max_attempts} tentativas atingido.`, 'ATTEMPT_LIMIT');
-      const qids = all<any>('SELECT id FROM academy_questions WHERE assessment_id = ?', id).map((q) => q.id);
+      const qids = (await all<any>('SELECT id FROM academy_questions WHERE assessment_id = ?', id)).map((q) => q.id);
       const attemptId = uid();
-      run(`INSERT INTO academy_assessment_attempts (id, assessment_id, enrollment_id, attempt_no, state, question_order_json, started_at)
+      await run(`INSERT INTO academy_assessment_attempts (id, assessment_id, enrollment_id, attempt_no, state, question_order_json, started_at)
            VALUES (?,?,?,?,?,?,?)`, attemptId, id, enrollment.id, used + 1, 'EM_ANDAMENTO', JSON.stringify(shuffle(qids)), nowIso());
-      audit({ actorId: a.userId, action: 'ASSESSMENT_ATTEMPT_STARTED', subjectType: 'assessment_attempt', subjectId: attemptId, correlationId: req.correlationId,
+      await audit({ actorId: a.userId, action: 'ASSESSMENT_ATTEMPT_STARTED', subjectType: 'assessment_attempt', subjectId: attemptId, correlationId: req.correlationId,
         meta: { assessmentVersion: asm.version, attemptNo: used + 1 } });
-      return { status: 201, body: { attempt: attemptPublic(one('SELECT * FROM academy_assessment_attempts WHERE id = ?', attemptId), true) } };
+      return { status: 201, body: { attempt: await attemptPublic(await one('SELECT * FROM academy_assessment_attempts WHERE id = ?', attemptId), true) } };
     });
   });
 
   app.get('/api/academy/assessment-attempts/:id', async (req) => {
     const a = partner(req);
     const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
-    const t = one<any>(`SELECT t.*, e.partner_id FROM academy_assessment_attempts t JOIN academy_enrollments e ON e.id = t.enrollment_id WHERE t.id = ?`, id);
+    const t = await one<any>(`SELECT t.*, e.partner_id FROM academy_assessment_attempts t JOIN academy_enrollments e ON e.id = t.enrollment_id WHERE t.id = ?`, id);
     if (!t || t.partner_id !== a.userId) throw notFound('Tentativa não encontrada.');
-    const code = one<any>(`SELECT c.code FROM academy_assessments s JOIN academy_course_versions cv ON cv.id = s.course_version_id JOIN academy_courses c ON c.id = cv.course_id WHERE s.id = ?`, t.assessment_id)!.code;
-    return { attempt: attemptPublic(t, true), courseCode: code };
+    const code = (await one<any>(`SELECT c.code FROM academy_assessments s JOIN academy_course_versions cv ON cv.id = s.course_version_id JOIN academy_courses c ON c.id = cv.course_id WHERE s.id = ?`, t.assessment_id))!.code;
+    return { attempt: await attemptPublic(t, true), courseCode: code };
   });
 
   // Submissão atômica, idempotente e auditada (ACA-T013..T022)
@@ -386,14 +384,14 @@ export async function academyRoutes(app: FastifyInstance) {
     const body = parse(z.object({
       answers: z.array(z.object({ questionId: z.string().uuid(), optionId: z.string().min(1).max(40) })).min(1).max(200),
     }), req.body);
-    return idempotent(req, reply, `assessment-submit:${id}`, () => {
-      const t = one<any>(`SELECT t.*, e.partner_id FROM academy_assessment_attempts t JOIN academy_enrollments e ON e.id = t.enrollment_id WHERE t.id = ?`, id);
+    return await idempotent(req, reply, `assessment-submit:${id}`, async () => {
+      const t = await one<any>(`SELECT t.*, e.partner_id FROM academy_assessment_attempts t JOIN academy_enrollments e ON e.id = t.enrollment_id WHERE t.id = ?`, id);
       if (!t || t.partner_id !== a.userId) throw notFound('Tentativa não encontrada.');
       if (!['CRIADA', 'EM_ANDAMENTO'].includes(t.state)) {
-        throw conflict('ATTEMPT_ALREADY_SUBMITTED', 'Esta tentativa já foi submetida em outra sessão.', { attempt: attemptPublic(t, false) });
+        throw conflict('ATTEMPT_ALREADY_SUBMITTED', 'Esta tentativa já foi submetida em outra sessão.', { attempt: await attemptPublic(t, false) });
       }
-      const asm = one<any>('SELECT * FROM academy_assessments WHERE id = ?', t.assessment_id)!;
-      const questions = all<any>('SELECT id, position, critical, correct_option_id, options_json FROM academy_questions WHERE assessment_id = ?', asm.id);
+      const asm = await one<any>('SELECT * FROM academy_assessments WHERE id = ?', t.assessment_id)!;
+      const questions = await all<any>('SELECT id, position, critical, correct_option_id, options_json FROM academy_questions WHERE assessment_id = ?', asm.id);
       const answers = new Map(body.answers.map((x) => [x.questionId, x.optionId]));
       const unknown = body.answers.filter((x) => !questions.some((q) => q.id === x.questionId));
       if (unknown.length) throw badRequest('INVALID_QUESTION', 'Resposta para questão que não pertence a esta tentativa.');
@@ -407,73 +405,73 @@ export async function academyRoutes(app: FastifyInstance) {
         const ok = opt === q.correct_option_id;
         if (ok) correct++;
         else if (q.critical) criticalOk = false;
-        run(`INSERT INTO academy_assessment_answers (id, attempt_id, question_id, option_id, correct) VALUES (?,?,?,?,?)`, uid(), id, q.id, opt, ok ? 1 : 0);
+        await run(`INSERT INTO academy_assessment_answers (id, attempt_id, question_id, option_id, correct) VALUES (?,?,?,?,?)`, uid(), id, q.id, opt, ok ? 1 : 0);
       }
       const passed = correct >= asm.pass_min_correct && (!asm.critical_gate || criticalOk);
       const state = passed ? 'APROVADA' : 'REPROVADA';
-      const upd = run(`UPDATE academy_assessment_attempts SET state = ?, submitted_at = ?, correct_count = ?, critical_ok = ? WHERE id = ? AND state IN ('CRIADA','EM_ANDAMENTO')`,
+      const upd = await run(`UPDATE academy_assessment_attempts SET state = ?, submitted_at = ?, correct_count = ?, critical_ok = ? WHERE id = ? AND state IN ('CRIADA','EM_ANDAMENTO')`,
         state, now, correct, criticalOk ? 1 : 0, id);
       if (upd.changes !== 1) throw conflict('ATTEMPT_ALREADY_SUBMITTED', 'Esta tentativa já foi submetida.');
-      const course = one<any>(`SELECT cv.course_id FROM academy_course_versions cv WHERE cv.id = ?`, asm.course_version_id)!;
+      const course = await one<any>(`SELECT cv.course_id FROM academy_course_versions cv WHERE cv.id = ?`, asm.course_version_id)!;
       if (passed) {
-        run(`UPDATE academy_enrollment_courses SET result = 'APROVADO', result_at = ?, result_attempt_id = ? WHERE enrollment_id = ? AND course_id = ?`,
+        await run(`UPDATE academy_enrollment_courses SET result = 'APROVADO', result_at = ?, result_attempt_id = ? WHERE enrollment_id = ? AND course_id = ?`,
           now, id, t.enrollment_id, course.course_id);
       } else {
-        const used = attemptsOf(t.enrollment_id, asm.id).filter((x) => x.state !== 'INVALIDADA').length;
+        const used = (await attemptsOf(t.enrollment_id, asm.id)).filter((x) => x.state !== 'INVALIDADA').length;
         if (used >= asm.max_attempts) {
-          run(`UPDATE academy_enrollment_courses SET result = 'REPROVADO', result_at = ?, result_attempt_id = ? WHERE enrollment_id = ? AND course_id = ?`,
+          await run(`UPDATE academy_enrollment_courses SET result = 'REPROVADO', result_at = ?, result_attempt_id = ? WHERE enrollment_id = ? AND course_id = ?`,
             now, id, t.enrollment_id, course.course_id);
         }
       }
-      audit({ actorId: a.userId, action: 'ASSESSMENT_SUBMITTED', subjectType: 'assessment_attempt', subjectId: id, correlationId: req.correlationId,
+      await audit({ actorId: a.userId, action: 'ASSESSMENT_SUBMITTED', subjectType: 'assessment_attempt', subjectId: id, correlationId: req.correlationId,
         meta: { result: state, assessmentVersion: asm.version, attemptNo: t.attempt_no } });
-      const enrollment = one<any>('SELECT * FROM academy_enrollments WHERE id = ?', t.enrollment_id);
-      refreshJourneyCompletion(enrollment, req.correlationId);
-      return { status: 200, body: { attempt: attemptPublic(one('SELECT * FROM academy_assessment_attempts WHERE id = ?', id), false) } };
+      const enrollment = await one<any>('SELECT * FROM academy_enrollments WHERE id = ?', t.enrollment_id);
+      await refreshJourneyCompletion(enrollment, req.correlationId);
+      return { status: 200, body: { attempt: await attemptPublic(await one('SELECT * FROM academy_assessment_attempts WHERE id = ?', id), false) } };
     });
   });
 
   // ACA-008 - Histórico educacional (somente dados educacionais)
-  const historyData = (partnerId: string) => {
-    const enrollments = all<any>('SELECT id, journey_version, state, started_at, completed_at FROM academy_enrollments WHERE partner_id = ? ORDER BY started_at', partnerId);
-    return enrollments.map((e) => ({
+  const historyData = async (partnerId: string) => {
+    const enrollments = await all<any>('SELECT id, journey_version, state, started_at, completed_at FROM academy_enrollments WHERE partner_id = ? ORDER BY started_at', partnerId);
+    return Promise.all(enrollments.map(async (e) => ({
       ...e,
-      courses: all<any>(`SELECT c.code, cv.version, cv.title, ec.bound_at, ec.result, ec.result_at FROM academy_enrollment_courses ec
+      courses: await all<any>(`SELECT c.code, cv.version, cv.title, ec.bound_at, ec.result, ec.result_at FROM academy_enrollment_courses ec
                          JOIN academy_courses c ON c.id = ec.course_id JOIN academy_course_versions cv ON cv.id = ec.course_version_id
                          WHERE ec.enrollment_id = ? ORDER BY c.sort_order`, e.id),
-      lessons: all<any>(`SELECT l.code, l.title, p.state, p.completed_at FROM academy_lesson_progress p JOIN academy_lessons l ON l.id = p.lesson_id
+      lessons: await all<any>(`SELECT l.code, l.title, p.state, p.completed_at FROM academy_lesson_progress p JOIN academy_lessons l ON l.id = p.lesson_id
                          WHERE p.enrollment_id = ? ORDER BY l.code`, e.id),
-      activityAttempts: all<any>(`SELECT a.title, a.version, t.attempt_no, t.state, t.started_at, t.completed_at FROM academy_activity_attempts t
+      activityAttempts: await all<any>(`SELECT a.title, a.version, t.attempt_no, t.state, t.started_at, t.completed_at FROM academy_activity_attempts t
                                   JOIN academy_activities a ON a.id = t.activity_id WHERE t.enrollment_id = ? ORDER BY t.started_at`, e.id),
-      assessmentAttempts: all<any>(`SELECT c.code, s.version, t.attempt_no, t.state, t.started_at, t.submitted_at, t.correct_count, s.question_count
+      assessmentAttempts: await all<any>(`SELECT c.code, s.version, t.attempt_no, t.state, t.started_at, t.submitted_at, t.correct_count, s.question_count
                                     FROM academy_assessment_attempts t JOIN academy_assessments s ON s.id = t.assessment_id
                                     JOIN academy_course_versions cv ON cv.id = s.course_version_id JOIN academy_courses c ON c.id = cv.course_id
                                     WHERE t.enrollment_id = ? ORDER BY t.started_at`, e.id),
-      certificates: all<any>('SELECT public_code, issued_at, revoked_at FROM academy_certificates WHERE enrollment_id = ?', e.id),
-    }));
+      certificates: await all<any>('SELECT public_code, issued_at, revoked_at FROM academy_certificates WHERE enrollment_id = ?', e.id),
+    })));
   };
   app.get('/api/academy/history', async (req) => {
     const a = partner(req);
-    return { enrollments: historyData(a.userId) };
+    return { enrollments: await historyData(a.userId) };
   });
   app.get('/api/academy/history/export', async (req, reply) => {
     const a = partner(req);
-    audit({ actorId: a.userId, action: 'HISTORY_EXPORTED', subjectType: 'user', subjectId: a.userId, correlationId: req.correlationId });
+    await audit({ actorId: a.userId, action: 'HISTORY_EXPORTED', subjectType: 'user', subjectId: a.userId, correlationId: req.correlationId });
     reply.header('Content-Disposition', 'attachment; filename="historico-academy.json"');
     reply.header('Cache-Control', 'no-store');
-    return { exportedAt: nowIso(), scope: 'Somente dados educacionais da ONEMA Academy', partner: { name: a.name, email: a.email }, enrollments: historyData(a.userId) };
+    return { exportedAt: nowIso(), scope: 'Somente dados educacionais da ONEMA Academy', partner: { name: a.name, email: a.email }, enrollments: await historyData(a.userId) };
   });
 
   // ACA-009 - Certificados
   app.get('/api/academy/certificates', async (req) => {
     const a = partner(req);
-    const rows = all<any>(`SELECT c.* FROM academy_certificates c JOIN academy_enrollments e ON e.id = c.enrollment_id WHERE e.partner_id = ?`, a.userId);
-    const tpl = one<any>(`SELECT id, version FROM academy_certificate_templates WHERE state = 'APPROVED' ORDER BY version DESC LIMIT 1`);
+    const rows = await all<any>(`SELECT c.* FROM academy_certificates c JOIN academy_enrollments e ON e.id = c.enrollment_id WHERE e.partner_id = ?`, a.userId);
+    const tpl = await one<any>(`SELECT id, version FROM academy_certificate_templates WHERE state = 'APPROVED' ORDER BY version DESC LIMIT 1`);
     return {
       templateApproved: !!tpl,
       certificates: await Promise.all(rows.map(async (c) => {
         const verifyUrl = `${config.publicOrigin}/verificar/${c.public_code}`;
-        const template = one<any>('SELECT heading, declaration, signatories_json, version FROM academy_certificate_templates WHERE id = ?', c.template_id)!;
+        const template = await one<any>('SELECT heading, declaration, signatories_json, version FROM academy_certificate_templates WHERE id = ?', c.template_id)!;
         return {
           id: c.id, publicCode: c.public_code, issuedAt: c.issued_at, contentHash: c.content_hash, revokedAt: c.revoked_at,
           revokeReason: c.revoke_reason, snapshot: JSON.parse(c.snapshot_json), verifyUrl,
@@ -486,14 +484,14 @@ export async function academyRoutes(app: FastifyInstance) {
 
   app.post('/api/academy/certificates', async (req, reply) => {
     const a = partner(req);
-    return idempotent(req, reply, 'certificate-issue', () => {
-      const enrollment = requireEnrollment(a.userId);
-      const existing = one<any>('SELECT id, public_code FROM academy_certificates WHERE enrollment_id = ?', enrollment.id);
+    return await idempotent(req, reply, 'certificate-issue', async () => {
+      const enrollment = await requireEnrollment(a.userId);
+      const existing = await one<any>('SELECT id, public_code FROM academy_certificates WHERE enrollment_id = ?', enrollment.id);
       if (existing) return { status: 200, body: { certificate: existing, alreadyIssued: true } };
-      const journey = refreshJourneyCompletion(enrollment, req.correlationId);
-      const fresh = one<any>('SELECT * FROM academy_enrollments WHERE id = ?', enrollment.id)!;
+      const journey = await refreshJourneyCompletion(enrollment, req.correlationId);
+      const fresh = await one<any>('SELECT * FROM academy_enrollments WHERE id = ?', enrollment.id)!;
       if (fresh.state !== 'CONCLUIDA') throw forbidden('A emissão exige a conclusão de todos os cursos da jornada.', 'JOURNEY_INCOMPLETE');
-      const tpl = one<any>(`SELECT * FROM academy_certificate_templates WHERE state = 'APPROVED' ORDER BY version DESC LIMIT 1`);
+      const tpl = await one<any>(`SELECT * FROM academy_certificate_templates WHERE state = 'APPROVED' ORDER BY version DESC LIMIT 1`);
       if (!tpl) throw unprocessable('CERTIFICATE_TEMPLATE_PENDING', 'O modelo oficial do certificado ainda não foi aprovado pela ONEMA (P-008). A emissão será liberada após a aprovação.');
       const code = `ONM-${randomToken(6).replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 4)}-${randomToken(6).replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 4)}`;
       const snapshot = {
@@ -506,9 +504,9 @@ export async function academyRoutes(app: FastifyInstance) {
         statement: 'A conclusão não autoriza atendimento nem credenciamento automático.',
       };
       const id = uid();
-      run(`INSERT INTO academy_certificates (id, enrollment_id, public_code, template_id, issued_at, snapshot_json, content_hash) VALUES (?,?,?,?,?,?,?)`,
+      await run(`INSERT INTO academy_certificates (id, enrollment_id, public_code, template_id, issued_at, snapshot_json, content_hash) VALUES (?,?,?,?,?,?,?)`,
         id, enrollment.id, code, tpl.id, nowIso(), JSON.stringify(snapshot), hashObj(snapshot));
-      audit({ actorId: a.userId, action: 'CERTIFICATE_ISSUED', subjectType: 'certificate', subjectId: id, after: snapshot, correlationId: req.correlationId });
+      await audit({ actorId: a.userId, action: 'CERTIFICATE_ISSUED', subjectType: 'certificate', subjectId: id, after: snapshot, correlationId: req.correlationId });
       return { status: 201, body: { certificate: { id, public_code: code }, alreadyIssued: false } };
     });
   });
@@ -516,10 +514,10 @@ export async function academyRoutes(app: FastifyInstance) {
   // Verificação pública mínima (sem notas, respostas, pagamento ou dados clínicos)
   app.get('/api/public/certificates/:code/verify', { config: { public: true } }, async (req) => {
     const { code } = parse(z.object({ code: z.string().max(40) }), req.params);
-    if (!rateLimit(`verify:${req.ip}`, 60, 60_000)) throw new AppError(429, 'RATE_LIMIT', 'Muitas consultas. Aguarde um minuto.');
-    const c = one<any>('SELECT * FROM academy_certificates WHERE public_code = ?', code.toUpperCase());
+    if (!await rateLimit(`verify:${req.ip}`, 60, 60_000)) throw new AppError(429, 'RATE_LIMIT', 'Muitas consultas. Aguarde um minuto.');
+    const c = await one<any>('SELECT * FROM academy_certificates WHERE public_code = ?', code.toUpperCase());
     const result = !c ? 'NAO_ENCONTRADO' : c.revoked_at ? 'REVOGADO' : 'VALIDO';
-    run(`INSERT INTO academy_certificate_verifications (id, certificate_id, checked_at, result, request_fingerprint) VALUES (?,?,?,?,?)`,
+    await run(`INSERT INTO academy_certificate_verifications (id, certificate_id, checked_at, result, request_fingerprint) VALUES (?,?,?,?,?)`,
       uid(), c?.id ?? null, nowIso(), result, sha256(`${req.ip}|${req.headers['user-agent'] ?? ''}`).slice(0, 16));
     if (!c) return { result };
     const snap = JSON.parse(c.snapshot_json);
@@ -535,14 +533,14 @@ export async function academyRoutes(app: FastifyInstance) {
   // ACA-010 - Pagamento da jornada (sandbox; gateway real não autorizado - P-009)
   app.post('/api/academy/payment-orders', async (req, reply) => {
     const a = partner(req);
-    return idempotent(req, reply, 'academy-order', () => {
-      const open = one<any>(`SELECT * FROM academy_payment_orders WHERE partner_id = ? AND status IN ('PENDENTE','PAGO')`, a.userId);
+    return await idempotent(req, reply, 'academy-order', async () => {
+      const open = await one<any>(`SELECT * FROM academy_payment_orders WHERE partner_id = ? AND status IN ('PENDENTE','PAGO')`, a.userId);
       if (open) return { status: 200, body: { order: open } };
       const id = uid(), now = nowIso();
-      run(`INSERT INTO academy_payment_orders (id, partner_id, amount_cents, currency, status, provider, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
+      await run(`INSERT INTO academy_payment_orders (id, partner_id, amount_cents, currency, status, provider, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
         id, a.userId, config.academyFeeCents, 'BRL', 'PENDENTE', config.paymentProvider, now, now);
-      audit({ actorId: a.userId, action: 'ACADEMY_ORDER_CREATED', subjectType: 'academy_order', subjectId: id, correlationId: req.correlationId });
-      return { status: 201, body: { order: one('SELECT * FROM academy_payment_orders WHERE id = ?', id) } };
+      await audit({ actorId: a.userId, action: 'ACADEMY_ORDER_CREATED', subjectType: 'academy_order', subjectId: id, correlationId: req.correlationId });
+      return { status: 201, body: { order: await one('SELECT * FROM academy_payment_orders WHERE id = ?', id) } };
     });
   });
 
@@ -551,10 +549,10 @@ export async function academyRoutes(app: FastifyInstance) {
     if (config.paymentProvider !== 'SANDBOX') throw forbidden('Simulação indisponível.');
     const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
     const { outcome } = parse(z.object({ outcome: z.enum(['APROVADO', 'RECUSADO']) }), req.body);
-    const o = one<any>('SELECT * FROM academy_payment_orders WHERE id = ?', id);
+    const o = await one<any>('SELECT * FROM academy_payment_orders WHERE id = ?', id);
     if (!o || o.partner_id !== a.userId) throw notFound('Pedido não encontrado.');
     const event = { eventId: `sbx_${uid()}`, orderId: id, type: outcome === 'APROVADO' ? 'PAYMENT_CONFIRMED' : 'PAYMENT_DECLINED', providerRef: `sbx_ref_${id.slice(0, 8)}` };
-    return tx(() => applyPaymentEvent(event, req.correlationId));
+    return await tx(async () => await applyPaymentEvent(event, req.correlationId));
   });
 
   // Webhook: assinatura HMAC + proteção de replay (contrato futuro do provedor real)
@@ -569,7 +567,7 @@ export async function academyRoutes(app: FastifyInstance) {
       type: z.enum(['PAYMENT_CONFIRMED', 'PAYMENT_DECLINED', 'PAYMENT_REFUNDED', 'PAYMENT_CANCELLED']),
       providerRef: z.string().max(100).optional(),
     }), req.body);
-    return tx(() => applyPaymentEvent(ev, req.correlationId));
+    return await tx(async () => await applyPaymentEvent(ev, req.correlationId));
   });
 }
 
@@ -580,19 +578,19 @@ const TRANSITIONS: Record<string, { from: string[]; to: string }> = {
   PAYMENT_REFUNDED: { from: ['PAGO'], to: 'ESTORNADO' },
 };
 
-export function applyPaymentEvent(ev: { eventId: string; orderId: string; type: string; providerRef?: string }, correlationId: string | null) {
-  if (one('SELECT 1 FROM academy_payment_events WHERE provider_event_id = ?', ev.eventId)) {
-    return { duplicate: true, order: one('SELECT id, status FROM academy_payment_orders WHERE id = ?', ev.orderId) };
+export async function applyPaymentEvent(ev: { eventId: string; orderId: string; type: string; providerRef?: string }, correlationId: string | null) {
+  if (await one('SELECT 1 FROM academy_payment_events WHERE provider_event_id = ?', ev.eventId)) {
+    return { duplicate: true, order: await one('SELECT id, status FROM academy_payment_orders WHERE id = ?', ev.orderId) };
   }
-  const o = one<any>('SELECT * FROM academy_payment_orders WHERE id = ?', ev.orderId);
+  const o = await one<any>('SELECT * FROM academy_payment_orders WHERE id = ?', ev.orderId);
   if (!o) throw notFound('Pedido não encontrado.');
   const t = TRANSITIONS[ev.type];
-  run(`INSERT INTO academy_payment_events (id, provider_event_id, order_id, type, received_at) VALUES (?,?,?,?,?)`, uid(), ev.eventId, o.id, ev.type, nowIso());
+  await run(`INSERT INTO academy_payment_events (id, provider_event_id, order_id, type, received_at) VALUES (?,?,?,?,?)`, uid(), ev.eventId, o.id, ev.type, nowIso());
   if (!t.from.includes(o.status)) {
-    audit({ actorId: null, action: 'ACADEMY_PAYMENT_EVENT_IGNORED', subjectType: 'academy_order', subjectId: o.id, correlationId, meta: { type: ev.type, status: o.status } });
+    await audit({ actorId: null, action: 'ACADEMY_PAYMENT_EVENT_IGNORED', subjectType: 'academy_order', subjectId: o.id, correlationId, meta: { type: ev.type, status: o.status } });
     return { duplicate: false, ignored: true, order: { id: o.id, status: o.status } };
   }
-  run('UPDATE academy_payment_orders SET status = ?, provider_ref = COALESCE(?, provider_ref), updated_at = ? WHERE id = ?', t.to, ev.providerRef ?? null, nowIso(), o.id);
-  audit({ actorId: null, action: `ACADEMY_PAYMENT_${t.to}`, subjectType: 'academy_order', subjectId: o.id, correlationId, meta: { provider: o.provider } });
+  await run('UPDATE academy_payment_orders SET status = ?, provider_ref = COALESCE(?, provider_ref), updated_at = ? WHERE id = ?', t.to, ev.providerRef ?? null, nowIso(), o.id);
+  await audit({ actorId: null, action: `ACADEMY_PAYMENT_${t.to}`, subjectType: 'academy_order', subjectId: o.id, correlationId, meta: { provider: o.provider } });
   return { duplicate: false, order: { id: o.id, status: t.to } };
 }

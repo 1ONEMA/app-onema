@@ -3,7 +3,11 @@
     "target": "ES2023",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "jsx": "react-jsx",
     "strict": true,
     "noUncheckedIndexedAccess": false,
@@ -12,7 +16,20 @@
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "types": ["node", "vite/client"]
+    "types": [
+      "node",
+      "vite/client"
+    ]
   },
-  "include": ["server/src", "server/test", "web/src", "shared", "e2e", "web/vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+  "include": [
+    "server/src",
+    "server/test",
+    "web/src",
+    "shared",
+    "e2e",
+    "web/vite.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "netlify/functions"
+  ]
 }

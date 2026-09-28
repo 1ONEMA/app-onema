@@ -37,7 +37,7 @@ export function AuthLayout({ title, children }: { title: string; children: React
           )}
           {apiDown && (
             <div className="caution" role="alert">
-              <strong>Versão de visualização.</strong> A API de homologação ainda não foi publicada; entrar, cadastrar e demais operações ficam indisponíveis. Nenhum dado é enviado ou armazenado.
+              <strong>Serviço temporariamente indisponível.</strong> {error!.replace(/^API_UNAVAILABLE:/, '')} Entrar, cadastrar e demais operações ficam indisponíveis até a normalização.
             </div>
           )}
           <div className="surface">

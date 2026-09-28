@@ -54,6 +54,15 @@ Nenhuma destas pendências foi preenchida por suposição. O sistema exibe a pen
 | V-2 | Logotipo horizontal em vetor (SVG) com fundo transparente — o app usa o PNG embutido no HTML oficial e o ícone recortado do manual |
 | V-3 | Confirmar grafia do slogan (“ORGÂNIZADA”) no manual |
 
+## Infraestrutura (Netlify)
+
+| # | Pendência |
+|---|---|
+| I-1 | Vídeos das aulas: storage externo com URL assinada (limite ~6 MB por resposta de Function) |
+| I-2 | Reivindicar (*claim*) o banco Netlify DB na conta Neon e definir plano/backup (PITR) |
+| I-3 | Remover `BOOTSTRAP_ADMIN_PASSWORD` do painel após o primeiro acesso |
+| I-4 | Envio de e-mail (recuperação de senha) ainda sem provedor: em produção, o link de redefinição não chega ao usuário |
+
 ## Validações que dependem da ONEMA SAÚDE
 
 Validação clínica, jurídica (CDC art. 49, Decreto 7.962/2013, LGPD, Resoluções Cofen citadas), de privacidade (DPO), acessibilidade WCAG formal, testes de carga/SLO, pentest e testes em dispositivos reais iOS/Android.

@@ -36,7 +36,7 @@ describe('Adesão', () => {
     expect(JSON.parse(t1.body.body).sections).toHaveLength(11);
     const r = await c.post('/api/prime/subscriptions', { acceptTerms: false, termsTextId: offer.body.terms.id, privacyTextId: offer.body.privacy.id, paymentMethod: 'SANDBOX_APROVADO', preferences: NO_PREFS }, true);
     expect(r.status).toBe(400);
-    expect(one<any>('SELECT COUNT(*) AS n FROM subscriptions').n).toBe(0);
+    expect((await one<any>('SELECT COUNT(*) AS n FROM subscriptions')).n).toBe(0);
   });
 
   it('A02: adesão com marketing desmarcado e sem convite: assinatura ativa, marketing e compartilhamento ausentes', async () => {
@@ -54,7 +54,7 @@ describe('Adesão', () => {
     expect((await c.get('/api/prime/share')).body.grants).toHaveLength(0);
     const me = await c.get('/api/prime/me');
     expect(me.body.receipts[0].text).toMatch(/Seu ONEMA PRIME foi ativado\. Mensalidade: R\$ 34,90/);
-    const sub = one<any>('SELECT acceptance_json FROM subscriptions');
+    const sub = await one<any>('SELECT acceptance_json FROM subscriptions');
     expect(JSON.parse(sub.acceptance_json)).toMatchObject({ termsVersion: '2.0', privacyVersion: '2.0' });
   });
 
@@ -111,21 +111,21 @@ describe('Desconto PRIME', () => {
     // a primeira já consumiu o desconto: as seguintes são rejeitadas por preço divergente (não cobram valor diferente do exibido)
     expect([x.status, y.status]).toEqual([409, 409]);
     expect(x.body.error.code).toBe('PRICE_CHANGED');
-    expect(one<any>(`SELECT COUNT(*) AS n FROM discount_reservations WHERE status IN ('RESERVED','USED')`).n).toBe(1);
-    expect(one<any>('SELECT COUNT(*) AS n FROM service_orders').n).toBe(1);
+    expect((await one<any>(`SELECT COUNT(*) AS n FROM discount_reservations WHERE status IN ('RESERVED','USED')`)).n).toBe(1);
+    expect((await one<any>('SELECT COUNT(*) AS n FROM service_orders')).n).toBe(1);
   });
 
   it('falha de pagamento libera a reserva de forma auditável; estorno do pedido também', async () => {
     const c = await patient(); await subscribe(c);
     const { o } = await order(c, 'DEMO-SERV-A', 'SANDBOX_RECUSADO');
     expect(o.body.paid).toBe(false);
-    expect(one<any>(`SELECT status, release_reason FROM discount_reservations`)).toMatchObject({ status: 'RELEASED', release_reason: 'PAGAMENTO_NAO_CONFIRMADO' });
+    expect(await one<any>(`SELECT status, release_reason FROM discount_reservations`)).toMatchObject({ status: 'RELEASED', release_reason: 'PAGAMENTO_NAO_CONFIRMADO' });
     const ok = await order(c, 'DEMO-SERV-A');
     expect(ok.o.body.order.discount_cents).toBe(450);
     const fin = await loginAs(app, 'financeiro');
     const r = await fin.post(`/api/admin/prime/orders/${ok.o.body.order.id}/refund`, { note: 'Estorno de teste' });
     expect(r.body.discountReleased).toBe(true);
-    expect(one<any>(`SELECT COUNT(*) AS n FROM audit_events WHERE action IN ('DESCONTO_LIBERADO','ORDER_REFUNDED')`).n).toBe(2);
+    expect((await one<any>(`SELECT COUNT(*) AS n FROM audit_events WHERE action IN ('DESCONTO_LIBERADO','ORDER_REFUNDED')`)).n).toBe(2);
   });
 
   it('sem PRIME: preço cheio e nenhum desconto', async () => {
@@ -159,7 +159,7 @@ describe('Responsável principal', () => {
     expect((await r.get(`/api/prime/share/${gid}/view/AGENDA`)).status).toBe(403);
     const log = await p.get('/api/prime/share');
     expect(log.body.accessLog.length).toBeGreaterThanOrEqual(4);
-    expect(() => run('DELETE FROM share_access_log')).toThrow(/append-only/);
+    await expect(run('DELETE FROM share_access_log')).rejects.toThrow(/append-only/);
   });
 
   it('escopo de cobranças mostra somente dados financeiros do titular; convite exige PRIME ativo', async () => {
@@ -184,7 +184,7 @@ describe('Preferências', () => {
     const r = await c.put('/api/prime/preferences', { ...NO_PREFS, LEMBRETES: { enabled: true, channels: { app: true, email: false, whatsapp: true }, frequency: 'MENSAL' } });
     expect(r.status).toBe(422);
     expect(r.body.error.code).toBe('WHATSAPP_DISABLED');
-    expect(one<any>('SELECT COUNT(*) AS n FROM preference_events').n).toBe(0);
+    expect((await one<any>('SELECT COUNT(*) AS n FROM preference_events')).n).toBe(0);
   });
 
   it('A08: desligar resumo e mudar frequência registram eventos com versão e origem', async () => {
@@ -197,7 +197,7 @@ describe('Preferências', () => {
     const events = p.body.events.map((e: any) => `${e.event}:${e.purpose}:${e.channel ?? ''}`);
     expect(events).toContain('OPT_OUT:RESUMO_MENSAL:');
     expect(events).toContain('CHANGE:LEMBRETES:');
-    expect(one<any>(`SELECT text_version, source FROM preference_events WHERE event = 'OPT_OUT'`)).toMatchObject({ text_version: '2.0', source: 'PREFERENCIAS' });
+    expect(await one<any>(`SELECT text_version, source FROM preference_events WHERE event = 'OPT_OUT'`)).toMatchObject({ text_version: '2.0', source: 'PREFERENCIAS' });
   });
 });
 
@@ -209,31 +209,31 @@ describe('Cancelamento, arrependimento e estorno (A09)', () => {
     expect(r.body.text).toMatch(/Não haverá renovação após o ciclo atual/);
     expect(r.body.subscription.status).toBe('CANCEL_SCHEDULED');
     expect(r.body.subscription.benefit.active).toBe(true);
-    const cycleEnd = one<any>('SELECT ends_at FROM subscription_cycles').ends_at;
-    const summary = tx(() => runBilling(addDays(cycleEnd, 1)));
+    const cycleEnd = (await one<any>('SELECT ends_at FROM subscription_cycles')).ends_at;
+    const summary = await tx(() => runBilling(addDays(cycleEnd, 1)));
     expect(summary.cancelled).toBe(1);
-    expect(one<any>('SELECT COUNT(*) AS n FROM charges').n).toBe(1);
-    expect(one<any>('SELECT status FROM subscriptions').status).toBe('CANCELLED');
+    expect((await one<any>('SELECT COUNT(*) AS n FROM charges')).n).toBe(1);
+    expect((await one<any>('SELECT status FROM subscriptions')).status).toBe('CANCELLED');
   });
 
   it('arrependimento em 7 dias referencia a cobrança original e o estorno gera trilha', async () => {
     const c = await patient(); await subscribe(c);
     const r = await c.post('/api/prime/refund-requests', { type: 'ARREPENDIMENTO' }, true);
     expect(r.status).toBe(201);
-    const req = one<any>('SELECT * FROM refund_requests');
-    expect(req.charge_id).toBe(one<any>('SELECT id FROM charges').id);
-    expect(one<any>('SELECT status FROM subscriptions').status).toBe('REFUND_PENDING');
+    const req = await one<any>('SELECT * FROM refund_requests');
+    expect(req.charge_id).toBe((await one<any>('SELECT id FROM charges')).id);
+    expect((await one<any>('SELECT status FROM subscriptions')).status).toBe('REFUND_PENDING');
     const fin = await loginAs(app, 'financeiro');
     expect((await fin.post(`/api/admin/prime/refunds/${req.id}/decide`, { approve: true, note: 'Aprovado em teste' })).status).toBe(200);
-    expect(one<any>('SELECT status FROM subscriptions').status).toBe('REFUNDED');
-    expect(one<any>('SELECT status FROM charges').status).toBe('REFUNDED');
+    expect((await one<any>('SELECT status FROM subscriptions')).status).toBe('REFUNDED');
+    expect((await one<any>('SELECT status FROM charges')).status).toBe('REFUNDED');
     const me = await c.get('/api/prime/me');
     expect(me.body.refunds[0].status).toBe('REFUNDED');
   });
 
   it('arrependimento fora do prazo é recusado com orientação', async () => {
     const c = await patient(); await subscribe(c);
-    run('UPDATE subscriptions SET accepted_at = ?', addDays(nowIso(), -8));
+    await run('UPDATE subscriptions SET accepted_at = ?', addDays(nowIso(), -8));
     const r = await c.post('/api/prime/refund-requests', { type: 'ARREPENDIMENTO' }, true);
     expect(r.body.error.code).toBe('WITHDRAWAL_EXPIRED');
   });
@@ -243,23 +243,23 @@ describe('Motor de ciclos', () => {
   it('renovação, até 3 novas tentativas em 7 dias, suspensão só dos benefícios; regularização não cria segundo uso', async () => {
     const c = await patient(); await subscribe(c);
     await order(c, 'DEMO-SERV-A'); // usa o desconto do ciclo 1
-    const end1 = one<any>('SELECT ends_at FROM subscription_cycles WHERE cycle_no = 1').ends_at;
-    run(`UPDATE subscriptions SET payment_method = 'SANDBOX_RECUSADO'`);
+    const end1 = (await one<any>('SELECT ends_at FROM subscription_cycles WHERE cycle_no = 1')).ends_at;
+    await run(`UPDATE subscriptions SET payment_method = 'SANDBOX_RECUSADO'`);
     let t = addDays(end1, 0.01);
-    expect(tx(() => runBilling(t)).failed).toBe(1);
-    expect(one<any>('SELECT status FROM subscriptions').status).toBe('PAYMENT_PENDING');
-    for (let i = 0; i < 3; i++) { t = addDays(t, 2); tx(() => runBilling(t)); }
-    expect(one<any>(`SELECT COUNT(*) AS n FROM charges WHERE cycle_id = (SELECT current_cycle_id FROM subscriptions)`).n).toBe(4);
-    tx(() => runBilling(addDays(t, 0.5)));
-    expect(one<any>('SELECT status FROM subscriptions').status).toBe('SUSPENDED');
+    expect((await tx(() => runBilling(t))).failed).toBe(1);
+    expect((await one<any>('SELECT status FROM subscriptions')).status).toBe('PAYMENT_PENDING');
+    for (let i = 0; i < 3; i++) { t = addDays(t, 2); await tx(() => runBilling(t)); }
+    expect((await one<any>(`SELECT COUNT(*) AS n FROM charges WHERE cycle_id = (SELECT current_cycle_id FROM subscriptions)`)).n).toBe(4);
+    await tx(() => runBilling(addDays(t, 0.5)));
+    expect((await one<any>('SELECT status FROM subscriptions')).status).toBe('SUSPENDED');
     const me = await c.get('/api/prime/me');
     expect(me.body.subscription.benefit.reason).toMatch(/benefícios suspensos/);
     expect((await c.get('/api/prime/hub')).status).toBe(200); // acesso ao próprio histórico mantido
     const pay = await c.post('/api/prime/subscriptions/current/pay', { paymentMethod: 'SANDBOX_APROVADO' }, true);
     expect(pay.body.subscription.status).toBe('ACTIVE');
-    expect(one<any>(`SELECT COUNT(*) AS n FROM discount_reservations WHERE status = 'USED'`).n).toBe(1);
+    expect((await one<any>(`SELECT COUNT(*) AS n FROM discount_reservations WHERE status = 'USED'`)).n).toBe(1);
     // renovação normal do ciclo 3
-    const end2 = one<any>('SELECT ends_at FROM subscription_cycles WHERE cycle_no = 2').ends_at;
+    const end2 = (await one<any>('SELECT ends_at FROM subscription_cycles WHERE cycle_no = 2')).ends_at;
     expect(end2).toBe(addMonths(end1, 1));
   });
 });
@@ -290,6 +290,6 @@ describe('Gates e privacidade (A10, A11)', () => {
     const r = await ap.post('/api/admin/prime/parameters', { monthlyPriceCents: 3990, discountBps: 500, discountCapCents: 2000, usesPerCycle: 1, retryMax: 3, retryWindowDays: 7, refundWithdrawalDays: 7, sourceNote: 'Alteração de teste automatizado' });
     expect(r.body.version).toBe(2);
     expect((await c.get('/api/prime/me')).body.subscription.monthlyPriceCents).toBe(3490);
-    expect(idOf('paciente')).toBeTruthy();
+    expect(await idOf('paciente')).toBeTruthy();
   });
 });

@@ -27,7 +27,7 @@ Não havia versões concorrentes do HTML; a paleta do HTML (navy/teal) é próxi
 
 ## Stack
 
-O repositório `app-onema` estava vazio (sem stack a preservar). O repositório `CRM-PMG-ACADEMY` é um produto diferente (CRM de vendas) e não foi alterado. Escolha justificada no README: Node/Fastify/TypeScript + SQLite nativo (mesmo motor do laboratório, zero serviço pago, backup por arquivo) + React/Vite, com camada de dados isolada para migração futura a PostgreSQL.
+O repositório `app-onema` estava vazio (sem stack a preservar). O repositório `CRM-PMG-ACADEMY` é um produto diferente (CRM de vendas) e não foi alterado. Escolha inicial: Node/Fastify/TypeScript + SQLite + React/Vite. Por decisão posterior de hospedar tudo na Netlify, a camada de dados foi migrada para PostgreSQL (Netlify DB/Neon em produção; PGlite em desenvolvimento e testes) e a API passou a rodar como Netlify Function, sem alteração das regras e com a mesma suíte de testes.
 
 ## Conflitos e divergências identificados
 

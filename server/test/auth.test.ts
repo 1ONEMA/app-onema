@@ -78,7 +78,7 @@ describe('Autenticação e sessão', () => {
     const c2 = new Client(app);
     await c2.login(emailOf('auditor'));
     expect((await c2.get('/api/admin/audit')).status).toBe(403);
-    const secret = one<any>('SELECT mfa_secret FROM users WHERE email = ?', emailOf('auditor'))!.mfa_secret;
+    const secret = (await one<any>('SELECT mfa_secret FROM users WHERE email = ?', emailOf('auditor')))!.mfa_secret;
     expect((await c2.post('/api/auth/mfa/verify', { code: totp(secret) })).status).toBe(200);
     expect((await c2.get('/api/admin/audit')).status).toBe(200);
   });

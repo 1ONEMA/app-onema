@@ -67,13 +67,15 @@ export function safeEqual(a: string, b: string) {
   return ab.length === bb.length && crypto.timingSafeEqual(ab, bb);
 }
 
-// ---- Rate limit simples em memória (por processo) ----
-const buckets = new Map<string, { count: number; reset: number }>();
-export function rateLimit(key: string, limit: number, windowMs: number): boolean {
+// ---- Rate limit compartilhado (tabela rate_limits), válido entre instâncias serverless ----
+import { run as dbRun, one as dbOne } from '../db/db.ts';
+export async function rateLimit(key: string, limit: number, windowMs: number): Promise<boolean> {
   const now = Date.now();
-  const b = buckets.get(key);
-  if (!b || b.reset < now) { buckets.set(key, { count: 1, reset: now + windowMs }); return true; }
-  b.count++;
-  return b.count <= limit;
+  const start = now - (now % windowMs);
+  await dbRun(`INSERT INTO rate_limits (key, window_start, count) VALUES (?, ?, 1)
+    ON CONFLICT (key) DO UPDATE SET count = CASE WHEN rate_limits.window_start = excluded.window_start THEN rate_limits.count + 1 ELSE 1 END,
+    window_start = excluded.window_start`, key, start);
+  const r = await dbOne<{ count: number }>('SELECT count FROM rate_limits WHERE key = ?', key);
+  return (r?.count ?? 0) <= limit;
 }
-export function resetRateLimits() { buckets.clear(); }
+export async function resetRateLimits() { await dbRun('DELETE FROM rate_limits'); }

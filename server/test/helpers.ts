@@ -1,24 +1,31 @@
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.ts';
-import { openDb, setDb, one, run } from '../src/db/db.ts';
+import { all, exec, newMemoryDriver, one, run, setDriver } from '../src/db/db.ts';
 import { migrate } from '../src/db/migrate.ts';
 import { DEMO_PASSWORD, DEMO_USERS, seedDemo } from '../src/db/seed.ts';
 import { resetRateLimits, totp } from '../src/lib/security.ts';
 import { randomToken } from '../src/lib/util.ts';
 
+let migrated = false;
+/** Um banco PGlite em memória por arquivo de teste; cada teste começa com dados limpos + seed de demonstração. */
 export async function setup() {
-  const db = openDb(':memory:');
-  setDb(db);
-  migrate(db);
-  seedDemo();
-  resetRateLimits();
+  if (!migrated) {
+    setDriver(newMemoryDriver());
+    await migrate();
+    migrated = true;
+  } else {
+    const tables = (await all<any>(`SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> 'schema_migrations'`)).map((t) => `"${t.tablename}"`);
+    await exec(`TRUNCATE ${tables.join(', ')} RESTART IDENTITY CASCADE`);
+  }
+  await seedDemo();
+  await resetRateLimits();
   const app = await buildApp();
   return app;
 }
 
 export type DemoKey = (typeof DEMO_USERS)[number]['key'];
 export const emailOf = (k: DemoKey) => DEMO_USERS.find((u) => u.key === k)!.email;
-export const idOf = (k: DemoKey) => one<any>('SELECT id FROM users WHERE email = ?', emailOf(k))!.id as string;
+export const idOf = async (k: DemoKey) => (await one<any>('SELECT id FROM users WHERE email = ?', emailOf(k)))!.id as string;
 
 export class Client {
   cookie = '';
@@ -58,7 +65,7 @@ export async function loginAs(app: FastifyInstance, key: DemoKey) {
   const c = new Client(app);
   const r = await c.login(emailOf(key));
   if (r.body.mfa.required) {
-    const u = one<any>('SELECT mfa_enabled, mfa_secret FROM users WHERE email = ?', emailOf(key))!;
+    const u = (await one<any>('SELECT mfa_enabled, mfa_secret FROM users WHERE email = ?', emailOf(key)))!;
     if (!u.mfa_enabled) {
       const s = await c.post('/api/auth/mfa/setup');
       const e = await c.post('/api/auth/mfa/enable', { code: totp(s.body.secret) });
@@ -71,4 +78,4 @@ export async function loginAs(app: FastifyInstance, key: DemoKey) {
   return c;
 }
 
-export { one, run };
+export { all, one, run };

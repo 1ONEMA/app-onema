@@ -14,14 +14,22 @@ export const config = {
   isTest: env === 'test',
   port: Number(process.env.PORT ?? 8787),
   host: process.env.HOST ?? '127.0.0.1',
-  /** Caminho do banco SQLite. ":memory:" nos testes. */
-  databasePath: process.env.DATABASE_PATH ?? path.resolve('data/onema.sqlite'),
+  /**
+   * Ambiente funcional exibido e usado nas regras: development | homologacao | production.
+   * Separado de NODE_ENV para permitir homologação publicada (HTTPS) sem se passar por produção.
+   */
+  appEnv: (process.env.APP_ENV ?? (isProd ? 'production' : env)) as string,
+  /** Banco local (PGlite) quando DATABASE_URL/NETLIFY_DATABASE_URL não estiver definido. ":memory:" nos testes. */
+  databasePath: process.env.DATABASE_PATH ?? path.resolve('data/pglite'),
   /** Armazenamento privado de mídia da Academy (fora da pasta pública). */
   mediaDir: process.env.MEDIA_DIR ?? path.resolve('data/media'),
   /** Origem pública do app (usada no QR do certificado e na checagem de Origin). */
-  publicOrigin: process.env.PUBLIC_ORIGIN ?? 'http://localhost:5173',
+  publicOrigin: process.env.PUBLIC_ORIGIN ?? process.env.URL ?? 'http://localhost:5173',
   allowedOrigins: (process.env.ALLOWED_ORIGINS ?? 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:8787,http://127.0.0.1:8787')
-    .split(',').map((s) => s.trim()).filter(Boolean),
+    .split(',').concat([process.env.URL, process.env.DEPLOY_PRIME_URL, process.env.DEPLOY_URL].filter(Boolean) as string[])
+    .map((s) => s.trim()).filter(Boolean),
+  /** Cookies Secure sempre que servido por HTTPS. */
+  secureCookies: isProd || (process.env.PUBLIC_ORIGIN ?? process.env.URL ?? '').startsWith('https://'),
   sessionTtlHours: Number(process.env.SESSION_TTL_HOURS ?? 12),
   /** Segredo usado para assinar URLs temporárias de mídia e webhooks sandbox. Obrigatório em produção. */
   appSecret: process.env.APP_SECRET ?? (isProd ? '' : 'dev-only-secret-change-me'),
@@ -43,7 +51,7 @@ export const config = {
 };
 
 export function assertProductionConfig() {
-  if (!config.isProd) return;
+  if (!config.isProd && !config.secureCookies) return;
   const missing: string[] = [];
   if (!config.appSecret || config.appSecret.length < 32) missing.push('APP_SECRET (>=32 caracteres)');
   if (!config.paymentWebhookSecret) missing.push('PAYMENT_WEBHOOK_SECRET');

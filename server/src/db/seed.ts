@@ -1,18 +1,15 @@
 /**
  * Seeds.
- *  - seedOfficial(): somente conteúdo e regras DOCUMENTADOS pela ONEMA (títulos, regras C01/C04, textos T1–T3,
+ *  - await seedOfficial(): somente conteúdo e regras DOCUMENTADOS pela ONEMA (títulos, regras C01/C04, textos T1–T3,
  *    parâmetros PRIME). Nada é preenchido por estimativa: o que é pendente fica NULL/DRAFT com a referência.
  *  - seedDemo(): dados FICTÍCIOS para homologação local. Bloqueado em produção.
  */
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { config } from '../config.ts';
 import { hashPassword } from '../lib/security.ts';
 import { hashObj, nowIso, sha256, stableJson, uid } from '../lib/util.ts';
 import { all, one, run, tx } from './db.ts';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
+import primeTexts from './content/prime-texts.json';
 const SRC_ACADEMY = 'Documento Mestre de Transferência Técnica ONEMA Academy v1.0 (25/09/2026)';
 
 const COURSES = [
@@ -60,48 +57,48 @@ const ACTIVITY_RULES: Record<string, { required: number | null; note: string }> 
   C04: { required: null, note: `${SRC_ACADEMY}: obrigatória; roteiro e regra de conclusão pendentes (P-003).` },
 };
 
-export function seedOfficial() {
-  return tx(() => {
+export async function seedOfficial() {
+  return await tx(async () => {
     const now = nowIso();
     const created: string[] = [];
     // Academy: cursos e versão 1 em RASCUNHO (conteúdo das aulas pendente - P-006)
-    COURSES.forEach((c, i) => {
-      if (one('SELECT 1 FROM academy_courses WHERE code = ?', c.code)) return;
+    for (const [i, c] of COURSES.entries()) {
+      if (await one('SELECT 1 FROM academy_courses WHERE code = ?', c.code)) continue;
       const courseId = uid(), cvId = uid();
-      run('INSERT INTO academy_courses (id, code, sort_order, status, created_at) VALUES (?,?,?,?,?)', courseId, c.code, i + 1, 'ACTIVE', now);
-      run(`INSERT INTO academy_course_versions (id, course_id, version, title, activity_required, workload_text, source_note, state, created_at)
+      await run('INSERT INTO academy_courses (id, code, sort_order, status, created_at) VALUES (?,?,?,?,?)', courseId, c.code, i + 1, 'ACTIVE', now);
+      await run(`INSERT INTO academy_course_versions (id, course_id, version, title, activity_required, workload_text, source_note, state, created_at)
            VALUES (?,?,?,?,?,?,?,?,?)`, cvId, courseId, 1, c.title, c.activity, null, c.note, 'DRAFT', now);
-      c.lessons.forEach(([code, title], j) => {
-        run(`INSERT INTO academy_lessons (id, course_version_id, code, sort_order, required, title) VALUES (?,?,?,?,?,?)`, uid(), cvId, code, j + 1, 1, title);
-      });
+      for (const [j, [code, title]] of c.lessons.entries()) {
+        await run(`INSERT INTO academy_lessons (id, course_version_id, code, sort_order, required, title) VALUES (?,?,?,?,?,?)`, uid(), cvId, code, j + 1, 1, title);
+      }
       const r = ASSESSMENT_RULES[c.code];
-      run(`INSERT INTO academy_assessments (id, course_version_id, version, question_count, pass_min_correct, max_attempts, critical_gate, source_note, state, created_at)
+      await run(`INSERT INTO academy_assessments (id, course_version_id, version, question_count, pass_min_correct, max_attempts, critical_gate, source_note, state, created_at)
            VALUES (?,?,?,?,?,?,?,?,?,?)`, uid(), cvId, 1, r.q, r.p, r.m, r.critical, r.note, 'DRAFT', now);
       const act = ACTIVITY_RULES[c.code];
       if (act) {
-        run(`INSERT INTO academy_activities (id, course_version_id, version, title, required_correct, source_note, state, created_at)
+        await run(`INSERT INTO academy_activities (id, course_version_id, version, title, required_correct, source_note, state, created_at)
              VALUES (?,?,?,?,?,?,?,?)`, uid(), cvId, 1, `Atividade integradora ${c.code}`, act.required, act.note, 'DRAFT', now);
       }
       created.push(c.code);
-    });
+    }
 
     // PRIME: parâmetros v1 (T1 §2, §4, §5, §7)
-    if (!one('SELECT 1 FROM prime_parameters')) {
-      run(`INSERT INTO prime_parameters (id, version, monthly_price_cents, discount_bps, discount_cap_cents, uses_per_cycle, retry_max, retry_window_days, refund_withdrawal_days, source_note, created_at)
+    if (!await one('SELECT 1 FROM prime_parameters')) {
+      await run(`INSERT INTO prime_parameters (id, version, monthly_price_cents, discount_bps, discount_cap_cents, uses_per_cycle, retry_max, retry_window_days, refund_withdrawal_days, source_note, created_at)
            VALUES (?,?,?,?,?,?,?,?,?,?,?)`, uid(), 1, 3490, 500, 2000, 1, 3, 7, 7,
         'ONEMA PRIME v2.0 (decisão RT 28/09/2026): R$ 34,90/mês; 5% em um pedido elegível por ciclo, teto R$ 20; até 3 novas tentativas em 7 dias; arrependimento em 7 dias.', now);
       created.push('prime_parameters');
     }
-    const texts = JSON.parse(fs.readFileSync(path.join(here, 'content/prime-texts.json'), 'utf8'));
+    const texts = primeTexts as any;
     for (const t of texts.texts) {
-      if (one('SELECT 1 FROM legal_texts WHERE code = ? AND version = ?', t.code, texts.version)) continue;
+      if (await one('SELECT 1 FROM legal_texts WHERE code = ? AND version = ?', t.code, texts.version)) continue;
       const body = JSON.stringify({ title: t.title, sections: t.sections, source: texts.source });
-      run(`INSERT INTO legal_texts (id, code, version, title, body, content_hash, rt_approved_at, legal_review, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+      await run(`INSERT INTO legal_texts (id, code, version, title, body, content_hash, rt_approved_at, legal_review, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
         uid(), t.code, texts.version, t.title, body, sha256(body), texts.rtApprovedAt, 'PENDENTE', now);
       created.push(t.code);
     }
-    if (!one('SELECT 1 FROM provider_identity WHERE id = 1')) {
-      run('INSERT INTO provider_identity (id, validated) VALUES (1, 0)');
+    if (!await one('SELECT 1 FROM provider_identity WHERE id = 1')) {
+      await run('INSERT INTO provider_identity (id, validated) VALUES (1, 0)');
     }
     return created;
   });
@@ -127,21 +124,22 @@ export const DEMO_USERS = [
   { key: 'adminPrime', email: 'admin.prime.demo@exemplo.test', name: 'Admin PRIME Demo', roles: ['ADMIN_PRIME'] },
 ] as const;
 
+let demoHash: string | null = null;
 export const DEMO_LABEL = '[DEMONSTRAÇÃO FICTÍCIA — não é conteúdo oficial ONEMA]';
 
-export function seedDemo() {
-  if (config.isProd) throw new Error('seed-demo é proibido em produção.');
-  seedOfficial();
-  return tx(() => {
+export async function seedDemo() {
+  if (config.appEnv === 'production') throw new Error('seed-demo é proibido em produção.');
+  await seedOfficial();
+  return await tx(async () => {
     const now = nowIso();
     const ids: Record<string, string> = {};
     for (const u of DEMO_USERS) {
-      const existing = one<any>('SELECT id FROM users WHERE email = ?', u.email);
+      const existing = await one<any>('SELECT id FROM users WHERE email = ?', u.email);
       if (existing) { ids[u.key] = existing.id; continue; }
       const id = uid();
-      run('INSERT INTO users (id, email, name, password_hash, academy_eligible, created_at, updated_at) VALUES (?,?,?,?,?,?,?)',
-        id, u.email, u.name, hashPassword(DEMO_PASSWORD), (u as any).eligible ? 1 : 0, now, now);
-      for (const r of u.roles) run('INSERT INTO user_roles (user_id, role, granted_at) VALUES (?,?,?)', id, r, now);
+      await run('INSERT INTO users (id, email, name, password_hash, academy_eligible, created_at, updated_at) VALUES (?,?,?,?,?,?,?)',
+        id, u.email, u.name, (demoHash ??= hashPassword(DEMO_PASSWORD)), (u as any).eligible ? 1 : 0, now, now);
+      for (const r of u.roles) await run('INSERT INTO user_roles (user_id, role, granted_at) VALUES (?,?,?)', id, r, now);
       ids[u.key] = id;
     }
     // Catálogo fictício com os valores dos critérios de aceite A04
@@ -152,36 +150,36 @@ export function seedDemo() {
       ['DEMO-PACOTE', 'Pacote de demonstração (fictício)', 'PACOTE', 72990],
     ];
     for (const [code, name, kind, price] of demoItems) {
-      if (one('SELECT 1 FROM catalog_items WHERE code = ?', code)) continue;
-      run(`INSERT INTO catalog_items (id, code, name, kind, price_cents, prime_eligible, active, is_demo, created_at, updated_at) VALUES (?,?,?,?,?,1,1,1,?,?)`,
+      if (await one('SELECT 1 FROM catalog_items WHERE code = ?', code)) continue;
+      await run(`INSERT INTO catalog_items (id, code, name, kind, price_cents, prime_eligible, active, is_demo, created_at, updated_at) VALUES (?,?,?,?,?,1,1,1,?,?)`,
         uid(), code, name, kind, price, now, now);
     }
 
     // Academy: conteúdo neutro de demonstração em TODAS as aulas, aprovado pelo RT demo e publicado.
-    for (const c of all<any>('SELECT * FROM academy_courses ORDER BY sort_order')) {
-      const cv = one<any>(`SELECT * FROM academy_course_versions WHERE course_id = ? AND version = 1`, c.id)!;
+    for (const c of await all<any>('SELECT * FROM academy_courses ORDER BY sort_order')) {
+      const cv = await one<any>(`SELECT * FROM academy_course_versions WHERE course_id = ? AND version = 1`, c.id)!;
       if (cv.state !== 'DRAFT') continue;
-      for (const l of all<any>('SELECT * FROM academy_lessons WHERE course_version_id = ?', cv.id)) {
-        run('UPDATE academy_lessons SET body = ?, completion_min_percent = 100 WHERE id = ?',
+      for (const l of await all<any>('SELECT * FROM academy_lessons WHERE course_version_id = ?', cv.id)) {
+        await run('UPDATE academy_lessons SET body = ?, completion_min_percent = 100 WHERE id = ?',
           `${DEMO_LABEL}\n\nEste texto substitui temporariamente o conteúdo oficial da aula "${l.title}", que ainda não foi disponibilizado (P-006).\n\nRole até o final e marque a aula como concluída para testar o registro de progresso.`, l.id);
       }
-      run('UPDATE academy_course_versions SET created_by = ?, objectives = ? WHERE id = ?', ids.gestor, `${DEMO_LABEL} Objetivos oficiais pendentes.`, cv.id);
+      await run('UPDATE academy_course_versions SET created_by = ?, objectives = ? WHERE id = ?', ids.gestor, `${DEMO_LABEL} Objetivos oficiais pendentes.`, cv.id);
       const snap = {
-        cv: one('SELECT id, version, title, objectives, activity_required, workload_text FROM academy_course_versions WHERE id = ?', cv.id),
-        lessons: all('SELECT code, sort_order, required, title, body, video_asset_id, caption_asset_id, transcript_asset_id, completion_min_percent FROM academy_lessons WHERE course_version_id = ? ORDER BY sort_order', cv.id),
+        cv: await one('SELECT id, version, title, objectives, activity_required, workload_text FROM academy_course_versions WHERE id = ?', cv.id),
+        lessons: await all('SELECT code, sort_order, required, title, body, video_asset_id, caption_asset_id, transcript_asset_id, completion_min_percent FROM academy_lessons WHERE course_version_id = ? ORDER BY sort_order', cv.id),
       };
-      run(`UPDATE academy_course_versions SET state = 'PUBLISHED', submitted_at = ?, approved_by = ?, approved_at = ?, published_at = ?, content_hash = ? WHERE id = ?`,
+      await run(`UPDATE academy_course_versions SET state = 'PUBLISHED', submitted_at = ?, approved_by = ?, approved_at = ?, published_at = ?, content_hash = ? WHERE id = ?`,
         now, ids.rt, now, now, hashObj(snap), cv.id);
-      run('UPDATE academy_courses SET current_version_id = ? WHERE id = ?', cv.id, c.id);
+      await run('UPDATE academy_courses SET current_version_id = ? WHERE id = ?', cv.id, c.id);
     }
 
     // C01: roteiro e banco fictícios e neutros sob a REGRA OFICIAL (6 decisões; 12 questões, 10/12, 3 tentativas).
-    const c01cv = one<any>(`SELECT cv.id FROM academy_course_versions cv JOIN academy_courses c ON c.id = cv.course_id WHERE c.code = 'C01' AND cv.version = 1`)!.id;
-    const act = one<any>(`SELECT * FROM academy_activities WHERE course_version_id = ? AND version = 1`, c01cv)!;
+    const c01cv = (await one<any>(`SELECT cv.id FROM academy_course_versions cv JOIN academy_courses c ON c.id = cv.course_id WHERE c.code = 'C01' AND cv.version = 1`))!.id;
+    const act = await one<any>(`SELECT * FROM academy_activities WHERE course_version_id = ? AND version = 1`, c01cv)!;
     if (act.state === 'DRAFT') {
-      run('UPDATE academy_activities SET intro = ?, created_by = ? WHERE id = ?', `${DEMO_LABEL} Micro-simulação neutra para testar o fluxo de decisões e feedback.`, ids.gestor, act.id);
+      await run('UPDATE academy_activities SET intro = ?, created_by = ? WHERE id = ?', `${DEMO_LABEL} Micro-simulação neutra para testar o fluxo de decisões e feedback.`, ids.gestor, act.id);
       for (let i = 1; i <= 6; i++) {
-        run('INSERT INTO academy_activity_steps (id, activity_id, sort_order, prompt, options_json) VALUES (?,?,?,?,?)', uid(), act.id, i,
+        await run('INSERT INTO academy_activity_steps (id, activity_id, sort_order, prompt, options_json) VALUES (?,?,?,?,?)', uid(), act.id, i,
           `Decisão de demonstração ${i}: escolha a opção marcada como "correta (demonstração)".`,
           JSON.stringify([
             { id: 'o1', text: 'Opção incorreta (demonstração)', correct: false, feedback: 'Feedback de demonstração: esta não é a opção esperada. Revise e tente novamente.' },
@@ -189,17 +187,17 @@ export function seedDemo() {
             { id: 'o3', text: 'Outra opção incorreta (demonstração)', correct: false, feedback: 'Feedback de demonstração: revise e tente novamente.' },
           ]));
       }
-      run(`UPDATE academy_activities SET state = 'APPROVED', approved_by = ?, approved_at = ? WHERE id = ?`, ids.rt, now, act.id);
+      await run(`UPDATE academy_activities SET state = 'APPROVED', approved_by = ?, approved_at = ? WHERE id = ?`, ids.rt, now, act.id);
     }
-    const asm = one<any>(`SELECT * FROM academy_assessments WHERE course_version_id = ? AND version = 1`, c01cv)!;
+    const asm = await one<any>(`SELECT * FROM academy_assessments WHERE course_version_id = ? AND version = 1`, c01cv)!;
     if (asm.state === 'DRAFT') {
       for (let i = 1; i <= 12; i++) {
-        run(`INSERT INTO academy_questions (id, assessment_id, position, critical, stem, options_json, correct_option_id, created_by, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+        await run(`INSERT INTO academy_questions (id, assessment_id, position, critical, stem, options_json, correct_option_id, created_by, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
           uid(), asm.id, i, 0, `${DEMO_LABEL} Questão ${i}: selecione a alternativa "Resposta esperada (demonstração)".`,
           JSON.stringify([{ id: 'o1', text: 'Alternativa A (demonstração)' }, { id: 'o2', text: 'Resposta esperada (demonstração)' }, { id: 'o3', text: 'Alternativa C (demonstração)' }, { id: 'o4', text: 'Alternativa D (demonstração)' }]),
           'o2', ids.gestor, now);
       }
-      run(`UPDATE academy_assessments SET state = 'APPROVED', approved_by = ?, approved_at = ? WHERE id = ?`, ids.rt, now, asm.id);
+      await run(`UPDATE academy_assessments SET state = 'APPROVED', approved_by = ?, approved_at = ? WHERE id = ?`, ids.rt, now, asm.id);
     }
     return { users: DEMO_USERS.map((u) => u.email), password: DEMO_PASSWORD };
   });

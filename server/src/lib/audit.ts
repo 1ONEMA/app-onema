@@ -1,4 +1,4 @@
-import { one, run } from '../db/db.ts';
+import { run } from '../db/db.ts';
 import { hashObj, nowIso, uid } from './util.ts';
 
 export interface AuditInput {
@@ -13,12 +13,12 @@ export interface AuditInput {
   meta?: Record<string, unknown>;
 }
 
-export function audit(e: AuditInput) {
-  const seq = (one<{ s: number }>('SELECT COALESCE(MAX(seq),0)+1 AS s FROM audit_events')!).s;
-  run(
-    `INSERT INTO audit_events (id, seq, actor_id, action, subject_type, subject_id, before_hash, after_hash, correlation_id, meta_json, occurred_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-    uid(), seq, e.actorId, e.action, e.subjectType, e.subjectId ?? null,
+/** Trilha append-only; `seq` é gerado pelo banco (identity), seguro entre instâncias. */
+export async function audit(e: AuditInput) {
+  await run(
+    `INSERT INTO audit_events (id, actor_id, action, subject_type, subject_id, before_hash, after_hash, correlation_id, meta_json, occurred_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?)`,
+    uid(), e.actorId, e.action, e.subjectType, e.subjectId ?? null,
     e.before === undefined ? null : hashObj(e.before),
     e.after === undefined ? null : hashObj(e.after),
     e.correlationId ?? null,

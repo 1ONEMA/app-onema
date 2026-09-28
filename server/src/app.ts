@@ -17,14 +17,14 @@ import { primeRoutes } from './modules/prime/routes.ts';
 
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
-export async function buildApp(opts: { serveWeb?: boolean } = {}): Promise<FastifyInstance> {
+export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean } = {}): Promise<FastifyInstance> {
   const app = Fastify({
     logger: config.isTest ? false : {
       level: config.isProd ? 'info' : 'debug',
       // Nunca registrar cookies, credenciais ou corpo de requisições (dados sensíveis)
       redact: ['req.headers.cookie', 'req.headers.authorization', 'req.headers["x-csrf-token"]', 'res.headers["set-cookie"]'],
     },
-    trustProxy: config.isProd,
+    trustProxy: opts.trustProxy ?? config.isProd,
     bodyLimit: 1_000_000,
     genReqId: () => uid(),
   });
@@ -40,7 +40,7 @@ export async function buildApp(opts: { serveWeb?: boolean } = {}): Promise<Fasti
     req.correlationId = /^[A-Za-z0-9-]{8,64}$/.test(incoming) ? incoming : req.id;
     reply.header('X-Correlation-Id', req.correlationId);
     if (req.url.startsWith('/api/')) {
-      req.auth = loadSession(req);
+      req.auth = await loadSession(req);
       reply.header('Cache-Control', 'no-store');
     }
   });

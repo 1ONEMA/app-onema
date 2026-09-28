@@ -43,11 +43,11 @@ async function completeActivity(c: Client, course: string) {
   }
   return last;
 }
-function keyMap(assessmentId: string) {
-  return new Map(all<any>('SELECT id, correct_option_id FROM academy_questions WHERE assessment_id = ?', assessmentId).map((q) => [q.id, q.correct_option_id]));
+async function keyMap(assessmentId: string) {
+  return new Map((await all<any>('SELECT id, correct_option_id FROM academy_questions WHERE assessment_id = ?', assessmentId)).map((q) => [q.id, q.correct_option_id]));
 }
-function answers(attempt: any, keys: Map<string, string>, wrongPositions: number[] = []) {
-  const pos = new Map(all<any>('SELECT id, position FROM academy_questions WHERE assessment_id = ?', attempt.assessment.id).map((q) => [q.id, q.position]));
+async function answers(attempt: any, keys: Map<string, string>, wrongPositions: number[] = []) {
+  const pos = new Map((await all<any>('SELECT id, position FROM academy_questions WHERE assessment_id = ?', attempt.assessment.id)).map((q) => [q.id, q.position]));
   return attempt.questions.map((q: any) => {
     const wrong = wrongPositions.includes(pos.get(q.questionId)!);
     const key = keys.get(q.questionId)!;
@@ -76,7 +76,7 @@ describe('Acesso, pagamento e matrícula', () => {
     expect(o2.body.order.id).not.toBe(o.body.order.id);
     await c.post(`/api/academy/payment-orders/${o2.body.order.id}/sandbox-pay`, { outcome: 'APROVADO' });
     expect((await c.post('/api/academy/enrollments', {}, true)).status).toBe(201);
-    const t = one<any>('SELECT * FROM partner_training_status WHERE partner_id = ?', idOf('especialista'));
+    const t = await one<any>('SELECT * FROM partner_training_status WHERE partner_id = ?', await idOf('especialista'));
     expect(t.credentialing_decision).toBe('PENDENTE');
   });
 
@@ -92,7 +92,7 @@ describe('Acesso, pagamento e matrícula', () => {
     const r2 = await anon.req('POST', '/api/academy/payment-webhooks', ev, { 'x-onema-signature': sig });
     expect(r1.body.order.status).toBe('PAGO');
     expect(r2.body.duplicate).toBe(true);
-    expect(one<any>('SELECT COUNT(*) AS n FROM academy_payment_events WHERE order_id = ?', o.body.order.id).n).toBe(1);
+    expect((await one<any>('SELECT COUNT(*) AS n FROM academy_payment_events WHERE order_id = ?', o.body.order.id)).n).toBe(1);
   });
 
   it('matrícula é idempotente e a jornada mostra somente os dados do próprio parceiro', async () => {
@@ -100,7 +100,7 @@ describe('Acesso, pagamento e matrícula', () => {
     await payAndEnroll(c);
     const again = await c.post('/api/academy/enrollments', {}, true);
     expect(again.status).toBe(200);
-    expect(one<any>('SELECT COUNT(*) AS n FROM academy_enrollments').n).toBe(1);
+    expect((await one<any>('SELECT COUNT(*) AS n FROM academy_enrollments')).n).toBe(1);
     const j = await c.get('/api/academy/journey');
     expect(j.body.courses.map((x: any) => x.code)).toEqual(['C01', 'C02', 'C03', 'C04']);
     expect(j.body.courses[0].state).toBe('DISPONIVEL');
@@ -149,7 +149,7 @@ describe('Atividade e avaliação C01 (regra oficial 10/12, 3 tentativas)', () =
     expect(blocked.body.error.code).toBe('PREREQUISITES_NOT_MET');
     const last = await completeActivity(c, 'C01');
     expect(last.body.completed).toBe(true);
-    expect(one<any>(`SELECT COUNT(*) AS n FROM audit_events WHERE action = 'ACTIVITY_COMPLETED'`).n).toBe(1);
+    expect((await one<any>(`SELECT COUNT(*) AS n FROM audit_events WHERE action = 'ACTIVITY_COMPLETED'`)).n).toBe(1);
     const j = await c.get('/api/academy/journey');
     expect(j.body.courses[0].state).toBe('AGUARDANDO_AVALIACAO');
   });
@@ -158,37 +158,37 @@ describe('Atividade e avaliação C01 (regra oficial 10/12, 3 tentativas)', () =
     const c = await partner(); await payAndEnroll(c);
     await completeLessons(c, 'C01'); await completeActivity(c, 'C01');
     const asmId = (await c.get('/api/academy/courses/C01')).body.assessment.id;
-    const keys = keyMap(asmId);
+    const keys = await keyMap(asmId);
     const t1 = await c.post(`/api/academy/assessments/${asmId}/attempts`, {}, true);
     expect(t1.status).toBe(201);
     expect(JSON.stringify(t1.body)).not.toMatch(/correctOption|correct_option|"correct":/);
     expect(t1.body.attempt.questions).toHaveLength(12);
-    const s1 = await c.post(`/api/academy/assessment-attempts/${t1.body.attempt.id}/submit`, { answers: answers(t1.body.attempt, keys, [1, 2, 3]) }, true);
+    const s1 = await c.post(`/api/academy/assessment-attempts/${t1.body.attempt.id}/submit`, { answers: await answers(t1.body.attempt, keys, [1, 2, 3]) }, true);
     expect(s1.body.attempt.state).toBe('REPROVADA');
     expect(s1.body.attempt.result.correct).toBe(9);
     const t2 = await c.post(`/api/academy/assessments/${asmId}/attempts`, {}, true);
-    const s2 = await c.post(`/api/academy/assessment-attempts/${t2.body.attempt.id}/submit`, { answers: answers(t2.body.attempt, keys, [4, 5]) }, true);
+    const s2 = await c.post(`/api/academy/assessment-attempts/${t2.body.attempt.id}/submit`, { answers: await answers(t2.body.attempt, keys, [4, 5]) }, true);
     expect(s2.body.attempt.state).toBe('APROVADA');
     const j = await c.get('/api/academy/journey');
     expect(j.body.courses[0].state).toBe('APROVADO');
     expect(j.body.courses[1].state).not.toBe('BLOQUEADO');
     // ordem variada: gabarito vinculado ao questionVersionId (ACA-T016)
-    const order1 = one<any>('SELECT question_order_json FROM academy_assessment_attempts WHERE id = ?', t1.body.attempt.id).question_order_json;
+    const order1 = (await one<any>('SELECT question_order_json FROM academy_assessment_attempts WHERE id = ?', t1.body.attempt.id)).question_order_json;
     expect(JSON.parse(order1).sort()).toEqual([...keys.keys()].sort());
     // especialista tentando obter o gabarito pela API administrativa: negado e auditado (ACA-T020)
     const k = await c.get(`/api/admin/academy/assessments/${asmId}/questions`);
     expect(k.status).toBe(403);
-    expect(one<any>(`SELECT COUNT(*) AS n FROM audit_events WHERE action = 'ANSWER_KEY_ACCESS_DENIED'`).n).toBe(1);
+    expect((await one<any>(`SELECT COUNT(*) AS n FROM audit_events WHERE action = 'ANSWER_KEY_ACCESS_DENIED'`)).n).toBe(1);
   });
 
   it('três reprovações encerram o curso como REPROVADO e bloqueiam a quarta tentativa (ACA-T015)', async () => {
     const c = await partner(); await payAndEnroll(c);
     await completeLessons(c, 'C01'); await completeActivity(c, 'C01');
     const asmId = (await c.get('/api/academy/courses/C01')).body.assessment.id;
-    const keys = keyMap(asmId);
+    const keys = await keyMap(asmId);
     for (let i = 0; i < 3; i++) {
       const t = await c.post(`/api/academy/assessments/${asmId}/attempts`, {}, true);
-      await c.post(`/api/academy/assessment-attempts/${t.body.attempt.id}/submit`, { answers: answers(t.body.attempt, keys, [1, 2, 3, 4]) }, true);
+      await c.post(`/api/academy/assessment-attempts/${t.body.attempt.id}/submit`, { answers: await answers(t.body.attempt, keys, [1, 2, 3, 4]) }, true);
     }
     const t4 = await c.post(`/api/academy/assessments/${asmId}/attempts`, {}, true);
     expect(t4.status).toBe(403);
@@ -200,7 +200,7 @@ describe('Atividade e avaliação C01 (regra oficial 10/12, 3 tentativas)', () =
     await completeLessons(c, 'C01'); await completeActivity(c, 'C01');
     const asmId = (await c.get('/api/academy/courses/C01')).body.assessment.id;
     const t = await c.post(`/api/academy/assessments/${asmId}/attempts`, {}, true);
-    const body = { answers: answers(t.body.attempt, keyMap(asmId)) };
+    const body = { answers: await answers(t.body.attempt, await keyMap(asmId)) };
     const [a, b] = await Promise.all([
       c.post(`/api/academy/assessment-attempts/${t.body.attempt.id}/submit`, body, 'same-key-123'),
       c.post(`/api/academy/assessment-attempts/${t.body.attempt.id}/submit`, body, 'same-key-123'),
@@ -211,7 +211,7 @@ describe('Atividade e avaliação C01 (regra oficial 10/12, 3 tentativas)', () =
     const conc = await other.post(`/api/academy/assessment-attempts/${t.body.attempt.id}/submit`, body, true);
     expect(conc.status).toBe(409);
     expect(conc.body.error.code).toBe('ATTEMPT_ALREADY_SUBMITTED');
-    expect(one<any>('SELECT COUNT(*) AS n FROM academy_assessment_answers WHERE attempt_id = ?', t.body.attempt.id).n).toBe(12);
+    expect((await one<any>('SELECT COUNT(*) AS n FROM academy_assessment_answers WHERE attempt_id = ?', t.body.attempt.id)).n).toBe(12);
   });
 
   it('IDOR: outro parceiro não acessa tentativa alheia (ACA-T035)', async () => {
@@ -219,7 +219,7 @@ describe('Atividade e avaliação C01 (regra oficial 10/12, 3 tentativas)', () =
     await completeLessons(c, 'C01'); await completeActivity(c, 'C01');
     const asmId = (await c.get('/api/academy/courses/C01')).body.assessment.id;
     const t = await c.post(`/api/academy/assessments/${asmId}/attempts`, {}, true);
-    run('UPDATE users SET academy_eligible = 1 WHERE email = ?', emailOf('especialista2'));
+    await run('UPDATE users SET academy_eligible = 1 WHERE email = ?', emailOf('especialista2'));
     const intruder = new Client(app); await intruder.login(emailOf('especialista2'));
     expect((await intruder.get(`/api/academy/assessment-attempts/${t.body.attempt.id}`)).status).toBe(404);
     expect((await intruder.post(`/api/academy/assessment-attempts/${t.body.attempt.id}/submit`, { answers: [{ questionId: uid(), optionId: 'o1' }] }, true)).status).toBe(404);
@@ -235,21 +235,21 @@ describe('Atividade e avaliação C01 (regra oficial 10/12, 3 tentativas)', () =
 });
 
 /** Fixture de TESTE: aprova C02–C04 com regras fictícias apenas neste banco em memória para exercitar gates finais. */
-function testOnlyFixture(courseCode: string, rules: { q: number; p: number; m: number; gate: 0 | 1; critical?: number[] }) {
-  const cv = one<any>(`SELECT cv.id FROM academy_course_versions cv JOIN academy_courses c ON c.id = cv.course_id WHERE c.code = ? AND cv.state = 'PUBLISHED'`, courseCode)!.id;
-  const asm = one<any>('SELECT id FROM academy_assessments WHERE course_version_id = ?', cv)!.id;
-  run('UPDATE academy_assessments SET question_count = ?, pass_min_correct = ?, max_attempts = ?, critical_gate = ? WHERE id = ?', rules.q, rules.p, rules.m, rules.gate, asm);
+async function testOnlyFixture(courseCode: string, rules: { q: number; p: number; m: number; gate: 0 | 1; critical?: number[] }) {
+  const cv = (await one<any>(`SELECT cv.id FROM academy_course_versions cv JOIN academy_courses c ON c.id = cv.course_id WHERE c.code = ? AND cv.state = 'PUBLISHED'`, courseCode))!.id;
+  const asm = (await one<any>('SELECT id FROM academy_assessments WHERE course_version_id = ?', cv))!.id;
+  await run('UPDATE academy_assessments SET question_count = ?, pass_min_correct = ?, max_attempts = ?, critical_gate = ? WHERE id = ?', rules.q, rules.p, rules.m, rules.gate, asm);
   for (let i = 1; i <= rules.q; i++) {
-    run(`INSERT INTO academy_questions (id, assessment_id, position, critical, stem, options_json, correct_option_id, created_at) VALUES (?,?,?,?,?,?,?,?)`,
+    await run(`INSERT INTO academy_questions (id, assessment_id, position, critical, stem, options_json, correct_option_id, created_at) VALUES (?,?,?,?,?,?,?,?)`,
       uid(), asm, i, rules.critical?.includes(i) ? 1 : 0, `Teste ${i}`, JSON.stringify([{ id: 'o1', text: 'a' }, { id: 'o2', text: 'b' }]), 'o2', nowIso());
   }
-  run(`UPDATE academy_assessments SET state = 'APPROVED' WHERE id = ?`, asm);
-  const act = one<any>(`SELECT id FROM academy_activities WHERE course_version_id = ?`, cv);
+  await run(`UPDATE academy_assessments SET state = 'APPROVED' WHERE id = ?`, asm);
+  const act = await one<any>(`SELECT id FROM academy_activities WHERE course_version_id = ?`, cv);
   if (act) {
-    run('UPDATE academy_activities SET required_correct = 1 WHERE id = ?', act.id);
-    run('INSERT INTO academy_activity_steps (id, activity_id, sort_order, prompt, options_json) VALUES (?,?,?,?,?)', uid(), act.id, 1, 'Teste',
+    await run('UPDATE academy_activities SET required_correct = 1 WHERE id = ?', act.id);
+    await run('INSERT INTO academy_activity_steps (id, activity_id, sort_order, prompt, options_json) VALUES (?,?,?,?,?)', uid(), act.id, 1, 'Teste',
       JSON.stringify([{ id: 'o1', text: 'x', correct: false, feedback: 'f' }, { id: 'o2', text: 'y', correct: true, feedback: 'f' }]));
-    run(`UPDATE academy_activities SET state = 'APPROVED' WHERE id = ?`, act.id);
+    await run(`UPDATE academy_activities SET state = 'APPROVED' WHERE id = ?`, act.id);
   }
   return asm;
 }
@@ -260,14 +260,14 @@ async function passCourse(c: Client, code: string, wrong: number[] = []) {
   if (course.body.activityRequired === 1) await completeActivity(c, code);
   const asmId = course.body.assessment.id;
   const t = await c.post(`/api/academy/assessments/${asmId}/attempts`, {}, true);
-  return c.post(`/api/academy/assessment-attempts/${t.body.attempt.id}/submit`, { answers: answers(t.body.attempt, keyMap(asmId), wrong) }, true);
+  return c.post(`/api/academy/assessment-attempts/${t.body.attempt.id}/submit`, { answers: await answers(t.body.attempt, await keyMap(asmId), wrong) }, true);
 }
 
 describe('C04: questões críticas como gate independente (ACA-T017..T019)', () => {
   async function toC04() {
-    testOnlyFixture('C02', { q: 2, p: 1, m: 3, gate: 0 });
-    testOnlyFixture('C03', { q: 2, p: 1, m: 3, gate: 0 });
-    testOnlyFixture('C04', { q: 10, p: 8, m: 5, gate: 1, critical: [3, 6, 8, 10] }); // m=5 apenas no teste (P-002)
+    await testOnlyFixture('C02', { q: 2, p: 1, m: 3, gate: 0 });
+    await testOnlyFixture('C03', { q: 2, p: 1, m: 3, gate: 0 });
+    await testOnlyFixture('C04', { q: 10, p: 8, m: 5, gate: 1, critical: [3, 6, 8, 10] }); // m=5 apenas no teste (P-002)
     const c = await partner(); await payAndEnroll(c);
     for (const code of ['C01', 'C02', 'C03']) expect((await passCourse(c, code)).body.attempt.state).toBe('APROVADA');
     await completeLessons(c, 'C04'); await completeActivity(c, 'C04');
@@ -276,7 +276,7 @@ describe('C04: questões críticas como gate independente (ACA-T017..T019)', () 
   }
   async function attempt(c: Client, asmId: string, wrong: number[]) {
     const t = await c.post(`/api/academy/assessments/${asmId}/attempts`, {}, true);
-    return c.post(`/api/academy/assessment-attempts/${t.body.attempt.id}/submit`, { answers: answers(t.body.attempt, keyMap(asmId), wrong) }, true);
+    return c.post(`/api/academy/assessment-attempts/${t.body.attempt.id}/submit`, { answers: await answers(t.body.attempt, await keyMap(asmId), wrong) }, true);
   }
   it('9/10 com a questão 06 (crítica) errada reprova; 7/10 com críticas corretas reprova; 8/10 com críticas corretas aprova', async () => {
     const { c, asmId } = await toC04();
@@ -290,9 +290,9 @@ describe('C04: questões críticas como gate independente (ACA-T017..T019)', () 
 
 describe('Certificado, credenciamento e integrações', () => {
   async function completeJourney() {
-    testOnlyFixture('C02', { q: 2, p: 1, m: 3, gate: 0 });
-    testOnlyFixture('C03', { q: 2, p: 1, m: 3, gate: 0 });
-    testOnlyFixture('C04', { q: 10, p: 8, m: 3, gate: 1, critical: [3, 6, 8, 10] });
+    await testOnlyFixture('C02', { q: 2, p: 1, m: 3, gate: 0 });
+    await testOnlyFixture('C03', { q: 2, p: 1, m: 3, gate: 0 });
+    await testOnlyFixture('C04', { q: 10, p: 8, m: 3, gate: 1, critical: [3, 6, 8, 10] });
     const c = await partner(); await payAndEnroll(c);
     return c;
   }
@@ -310,7 +310,7 @@ describe('Certificado, credenciamento e integrações', () => {
     expect(j.body.enrollment.state).toBe('CONCLUIDA');
     expect(j.body.certificate.state).toBe('ELEGIVEL');
     // Projeção: conclusão não gera aptidão (ACA-T043/T044)
-    expect(one<any>('SELECT * FROM partner_training_status WHERE partner_id = ?', idOf('especialista'))).toMatchObject({ journey_state: 'CONCLUIDA', credentialing_decision: 'PENDENTE' });
+    expect(await one<any>('SELECT * FROM partner_training_status WHERE partner_id = ?', await idOf('especialista'))).toMatchObject({ journey_state: 'CONCLUIDA', credentialing_decision: 'PENDENTE' });
     // Modelo pendente (P-008): emissão bloqueada com mensagem clara
     const pending = await c.post('/api/academy/certificates', {}, true);
     expect(pending.body.error.code).toBe('CERTIFICATE_TEMPLATE_PENDING');
@@ -321,36 +321,36 @@ describe('Certificado, credenciamento e integrações', () => {
     const [i1, i2] = [await c.post('/api/academy/certificates', {}, true), await c.post('/api/academy/certificates', {}, true)];
     expect(i1.status).toBe(201);
     expect(i2.body.alreadyIssued).toBe(true);
-    expect(one<any>('SELECT COUNT(*) AS n FROM academy_certificates').n).toBe(1);
+    expect((await one<any>('SELECT COUNT(*) AS n FROM academy_certificates')).n).toBe(1);
     const code = i1.body.certificate.public_code;
     const v = await new Client(app).get(`/api/public/certificates/${code}/verify`);
     expect(v.body.result).toBe('VALIDO');
-    const certRow = one<any>('SELECT * FROM academy_certificates WHERE public_code = ?', code);
+    const certRow = await one<any>('SELECT * FROM academy_certificates WHERE public_code = ?', code);
     expect(v.body.contentHash).toBe(certRow.content_hash);
     expect(JSON.stringify(v.body)).not.toMatch(/correct|score|nota|pagamento|amount/i);
-    expect(() => run('UPDATE academy_certificates SET content_hash = ? WHERE id = ?', 'x', certRow.id)).toThrow(/immutable/);
+    await expect(run('UPDATE academy_certificates SET content_hash = ? WHERE id = ?', 'x', certRow.id)).rejects.toThrow(/immutable/);
     expect((await new Client(app).get('/api/public/certificates/ONM-XXXX-0000/verify')).body).toEqual({ result: 'NAO_ENCONTRADO' });
     await rt.post(`/api/admin/academy/certificates/${certRow.id}/revoke`, { reason: 'Revogação de teste automatizado' });
     expect((await new Client(app).get(`/api/public/certificates/${code}/verify`)).body.result).toBe('REVOGADO');
     // Credenciamento humano: APTO exige confirmação dos demais gates (P-010)
     const cred = await loginAs(app, 'credenciamento');
-    const noGates = await cred.post(`/api/admin/academy/training-status/${idOf('especialista')}/decision`, { decision: 'APTO', note: 'Decisão de teste registrada', otherGatesConfirmed: false });
+    const noGates = await cred.post(`/api/admin/academy/training-status/${await idOf('especialista')}/decision`, { decision: 'APTO', note: 'Decisão de teste registrada', otherGatesConfirmed: false });
     expect(noGates.status).toBe(422);
-    expect((await cred.post(`/api/admin/academy/training-status/${idOf('especialista')}/decision`, { decision: 'APTO', note: 'Decisão de teste registrada', otherGatesConfirmed: true })).status).toBe(200);
+    expect((await cred.post(`/api/admin/academy/training-status/${await idOf('especialista')}/decision`, { decision: 'APTO', note: 'Decisão de teste registrada', otherGatesConfirmed: true })).status).toBe(200);
   });
 
   it('credenciamento APTO é negado com Academy incompleta (ACA-T044)', async () => {
     const c = await partner(); await payAndEnroll(c);
     const cred = await loginAs(app, 'credenciamento');
-    const r = await cred.post(`/api/admin/academy/training-status/${idOf('especialista')}/decision`, { decision: 'APTO', note: 'Tentativa de teste', otherGatesConfirmed: true });
+    const r = await cred.post(`/api/admin/academy/training-status/${await idOf('especialista')}/decision`, { decision: 'APTO', note: 'Tentativa de teste', otherGatesConfirmed: true });
     expect(r.status).toBe(409);
   });
 
   it('segregação: nenhuma tabela/rota da Academy grava dados de paciente (ACA-T003/T038)', async () => {
     const c = await partner(); await payAndEnroll(c);
     await completeLessons(c, 'C01');
-    expect(one<any>('SELECT COUNT(*) AS n FROM prime_receipts').n).toBe(0);
-    expect(one<any>('SELECT COUNT(*) AS n FROM notifications WHERE user_id = ?', idOf('paciente')).n).toBe(0);
+    expect((await one<any>('SELECT COUNT(*) AS n FROM prime_receipts')).n).toBe(0);
+    expect((await one<any>('SELECT COUNT(*) AS n FROM notifications WHERE user_id = ?', await idOf('paciente'))).n).toBe(0);
     const exp = await c.get('/api/academy/history/export');
     expect(exp.body.scope).toMatch(/educacionais/);
   });
@@ -363,7 +363,7 @@ describe('Administração de conteúdo, mídia e auditoria', () => {
     const gestor = await loginAs(app, 'gestor');
     const courses = await gestor.get('/api/admin/academy/courses');
     const v1 = courses.body.courses[0].versions[0];
-    const lesson = one<any>('SELECT * FROM academy_lessons WHERE course_version_id = ? LIMIT 1', v1.id);
+    const lesson = await one<any>('SELECT * FROM academy_lessons WHERE course_version_id = ? LIMIT 1', v1.id);
     const edit = await gestor.put(`/api/admin/academy/lessons/${lesson.id}`, { title: 'x x x', body: 'y', videoAssetId: null, captionAssetId: null, transcriptAssetId: null, completionMinPercent: 100 });
     expect(edit.body.error.code).toBe('VERSION_IMMUTABLE');
     const draft = await gestor.post('/api/admin/academy/course-versions', { courseCode: 'C01' });
@@ -379,8 +379,8 @@ describe('Administração de conteúdo, mídia e auditoria', () => {
     expect((await adminA.post(`/api/admin/academy/course-versions/${draft.body.id}/publish`)).status).toBe(200);
     const course = await c.get('/api/academy/courses/C01');
     expect(course.body.course.version).toBe(1); // matrícula antiga preserva versão
-    expect(one<any>(`SELECT state FROM academy_course_versions WHERE id = ?`, v1.id).state).toBe('ARCHIVED');
-    expect(one<any>(`SELECT COUNT(*) AS n FROM audit_events WHERE action = 'COURSE_VERSION_APPROVED' AND after_hash IS NOT NULL`).n).toBe(1);
+    expect((await one<any>(`SELECT state FROM academy_course_versions WHERE id = ?`, v1.id)).state).toBe('ARCHIVED');
+    expect((await one<any>(`SELECT COUNT(*) AS n FROM audit_events WHERE action = 'COURSE_VERSION_APPROVED' AND after_hash IS NOT NULL`)).n).toBe(1);
   });
 
   it('vídeo sem legenda/transcrição não libera versão; checksum divergente bloqueia; URL assinada expira (ACA-T032, T041, T042)', async () => {
@@ -400,7 +400,7 @@ describe('Administração de conteúdo, mídia e auditoria', () => {
     const vid = (await upload('VIDEO', 'video/mp4', 'video-ficticio')).json();
     const rt = await loginAs(app, 'rt');
     expect((await rt.post(`/api/admin/academy/media/${vid.id}/approve`)).status).toBe(200);
-    const lesson = one<any>('SELECT id FROM academy_lessons WHERE course_version_id = ? ORDER BY sort_order LIMIT 1', draft.body.id);
+    const lesson = await one<any>('SELECT id FROM academy_lessons WHERE course_version_id = ? ORDER BY sort_order LIMIT 1', draft.body.id);
     await gestor.put(`/api/admin/academy/lessons/${lesson.id}`, { title: 'Aula com vídeo', body: null, videoAssetId: vid.id, captionAssetId: null, transcriptAssetId: null, completionMinPercent: 90 });
     const sub = await gestor.post(`/api/admin/academy/course-versions/${draft.body.id}/submit`);
     expect(sub.status).toBe(422);
@@ -414,13 +414,13 @@ describe('Administração de conteúdo, mídia e auditoria', () => {
     // arquivo adulterado no storage -> bloqueio
     fs.writeFileSync(path.join(config.mediaDir, vid.id), 'adulterado');
     expect((await app.inject({ url: prev.body.url })).statusCode).toBe(409);
-    expect(one<any>('SELECT state FROM academy_media_assets WHERE id = ?', vid.id).state).toBe('BLOCKED');
+    expect((await one<any>('SELECT state FROM academy_media_assets WHERE id = ?', vid.id)).state).toBe('BLOCKED');
   });
 
   it('trilha de auditoria é append-only (ACA-T028)', async () => {
     const c = await partner(); await payAndEnroll(c);
-    expect(() => run('DELETE FROM audit_events')).toThrow(/append-only/);
-    expect(() => run(`UPDATE audit_events SET action = 'X'`)).toThrow(/append-only/);
+    await expect(run('DELETE FROM audit_events')).rejects.toThrow(/append-only/);
+    await expect(run(`UPDATE audit_events SET action = 'X'`)).rejects.toThrow(/append-only/);
     const aud = await loginAs(app, 'auditor');
     const r = await aud.get('/api/admin/audit');
     expect(r.body.total).toBeGreaterThan(0);
