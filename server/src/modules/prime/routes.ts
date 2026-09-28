@@ -5,7 +5,7 @@ import { all, one, run, tx } from '../../db/db.ts';
 import { audit } from '../../lib/audit.ts';
 import { idempotent, parse, requireRoles, requireUser } from '../../lib/context.ts';
 import { badRequest, conflict, forbidden, notFound, unprocessable } from '../../lib/errors.ts';
-import { addDays, brl, nowIso, protocol, sha256, uid } from '../../lib/util.ts';
+import { addDays, addMonths, brl, nowIso, protocol, sha256, uid } from '../../lib/util.ts';
 import {
   SANDBOX_METHODS, benefitState, chargeCycle, currentParams, cycleById, cycleUsage, fmtDate, fmtDateTime, latestSubscription,
   latestText, newSubscriptionProtocol, notify, openSubscription, paramsById, quote, receipt, sandboxCharge,
@@ -66,7 +66,8 @@ function savePrefs(patientId: string, prefs: z.infer<typeof prefsSchema>, source
       throw unprocessable('WHATSAPP_DISABLED', 'O WhatsApp oficial ainda não está habilitado. Nenhuma mensagem será enviada por esse canal.');
     }
     if (p !== 'LEMBRETES' && v.frequency) throw badRequest('VALIDATION', 'Frequência só se aplica a lembretes.');
-    const freq = p === 'LEMBRETES' ? (v.enabled ? v.frequency ?? 'MENSAL' : v.frequency ?? null) : p === 'RESUMO_MENSAL' ? 'MENSAL' : null;
+    if (p === 'LEMBRETES' && v.enabled && !v.frequency) throw badRequest('VALIDATION', 'Escolha a frequência dos lembretes.');
+    const freq = p === 'LEMBRETES' ? v.frequency ?? null : p === 'RESUMO_MENSAL' ? 'MENSAL' : null;
     run(`INSERT INTO communication_preferences (patient_id, purpose, enabled, channel_app, channel_email, channel_whatsapp, frequency, text_version, updated_at)
          VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(patient_id, purpose) DO UPDATE SET enabled = excluded.enabled, channel_app = excluded.channel_app,
          channel_email = excluded.channel_email, channel_whatsapp = excluded.channel_whatsapp, frequency = excluded.frequency,
@@ -158,6 +159,19 @@ export async function primeRoutes(app: FastifyInstance) {
     if (!ok) throw notFound();
     const t = one<any>('SELECT * FROM legal_texts WHERE id = ?', id)!;
     return { ...textMeta(t), body: t.body };
+  });
+
+  // Prévia calculada pelo motor financeiro (T1 §2: datas nunca em texto fixo)
+  app.get('/api/prime/subscriptions/preview', async (req) => {
+    patient(req);
+    const p = currentParams();
+    const now = nowIso();
+    const end = addMonths(now, 1);
+    return {
+      amountCents: p.monthly_price_cents, firstChargeAt: now, cycleStartsAt: now, cycleEndsAt: end, nextRenewalAt: end,
+      cycleReference: 'Ciclo 1', parametersVersion: p.version,
+      note: 'O ciclo começa na confirmação do pagamento; se a confirmação ocorrer em outro dia, as datas serão recalculadas e exibidas no comprovante.',
+    };
   });
 
   // Minha assinatura / extrato

@@ -1,0 +1,22 @@
+/** Ícones de linha no estilo do Manual de Identidade (traço arredondado + detalhe em Health Green). */
+type P = { size?: number; accent?: boolean };
+const base = (size = 22) => ({ width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true });
+const G = '#02C0A4';
+export const IconHome = ({ size }: P) => <svg {...base(size)}><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-5h-6v5H5a1 1 0 0 1-1-1z" /></svg>;
+export const IconHeart = ({ size }: P) => <svg {...base(size)}><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" /></svg>;
+export const IconBell = ({ size }: P) => <svg {...base(size)}><path d="M6 16V11a6 6 0 1 1 12 0v5" /><path d="M4 16h16" /><circle cx="12" cy="20" r="1" fill="currentColor" /></svg>;
+export const IconWallet = ({ size }: P) => <svg {...base(size)}><rect x="3.5" y="6" width="17" height="13" rx="2" /><path d="M5 6l10-2 1 2" /><rect x="15" y="12.5" width="3" height="3" rx=".6" fill={G} stroke="none" /></svg>;
+export const IconCalendar = ({ size }: P) => <svg {...base(size)}><rect x="3.5" y="4.5" width="17" height="16" rx="2.5" /><path d="M3.5 9h17" />{[7.5, 11.5, 15.5].map((x) => [12.5, 16].map((y) => <rect key={`${x}-${y}`} x={x - 1.1} y={y - 1.1} width="2.4" height="2.4" rx=".5" fill={G} stroke="none" />))}</svg>;
+export const IconDoc = ({ size }: P) => <svg {...base(size)}><rect x="4.5" y="3.5" width="15" height="17" rx="2" />{[7.5, 11.5, 15.5].map((y) => <rect key={y} x="7" y={y - 1} width="2.4" height="2.4" rx=".5" fill={G} stroke="none" />)}<path d="M11 7.5h6M11 11.5h6M11 15.5h6" /></svg>;
+export const IconChat = ({ size }: P) => <svg {...base(size)}><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-4 4v-4H6a2 2 0 0 1-2-2z" /><path d="M12 7v6M9 10h6" stroke={G} strokeWidth="2.2" /></svg>;
+export const IconNurse = ({ size }: P) => <svg {...base(size)}><path d="M8 4h8v5a4 4 0 0 1-8 0z" /><path d="M8 7h8" /><path d="M5 21a7 7 0 0 1 14 0" /></svg>;
+export const IconShield = ({ size }: P) => <svg {...base(size)}><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z" /></svg>;
+export const IconBook = ({ size }: P) => <svg {...base(size)}><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z" /><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5" /><path d="M9 8h7" stroke={G} strokeWidth="2.2" /></svg>;
+export const IconUsers = ({ size }: P) => <svg {...base(size)}><circle cx="9" cy="8" r="3.2" /><path d="M3.5 20a5.5 5.5 0 0 1 11 0" /><circle cx="17" cy="9" r="2.5" /><path d="M15.5 14.2A4.5 4.5 0 0 1 21 18.5" /></svg>;
+export const IconCog = ({ size }: P) => <svg {...base(size)}><circle cx="12" cy="12" r="3" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" /></svg>;
+export const IconCheck = ({ size }: P) => <svg {...base(size)}><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>;
+export const IconLock = ({ size }: P) => <svg {...base(size)}><rect x="5" y="10.5" width="14" height="10" rx="2" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" /></svg>;
+export const IconUser = ({ size }: P) => <svg {...base(size)}><circle cx="12" cy="8" r="4" /><path d="M4.5 21a7.5 7.5 0 0 1 15 0" /></svg>;
+export const IconHospital = ({ size }: P) => <svg {...base(size)}><path d="M5 21V4.5h14V21M3 21h18" /><path d="M10 21v-4h4v4" /><path d="M12 7.5v5M9.5 10h5" stroke={G} strokeWidth="2.2" /></svg>;
+export const IconAward = ({ size }: P) => <svg {...base(size)}><circle cx="12" cy="9" r="5.5" /><path d="M8.5 13.5L7 21l5-2.5 5 2.5-1.5-7.5" /><circle cx="12" cy="9" r="2" fill={G} stroke="none" /></svg>;
+export const IconAlert = ({ size }: P) => <svg {...base(size)}><path d="M12 3l9.5 17h-19z" /><path d="M12 10v4M12 17.2v.3" /></svg>;
