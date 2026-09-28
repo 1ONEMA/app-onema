@@ -7,7 +7,7 @@
 import { config } from '../config.ts';
 import { hashPassword } from '../lib/security.ts';
 import { hashObj, nowIso, sha256, stableJson, uid } from '../lib/util.ts';
-import { all, one, run, tx } from './db.ts';
+import { all, insertMany, one, run, tx } from './db.ts';
 
 import primeTexts from './content/prime-texts.json';
 const SRC_ACADEMY = 'Documento Mestre de Transferência Técnica ONEMA Academy v1.0 (25/09/2026)';
@@ -61,45 +61,42 @@ export async function seedOfficial() {
   return await tx(async () => {
     const now = nowIso();
     const created: string[] = [];
-    // Academy: cursos e versão 1 em RASCUNHO (conteúdo das aulas pendente - P-006)
+    // Academy: cursos e versão 1 em RASCUNHO (conteúdo das aulas pendente - P-006). Inserções em lote.
+    const existing = new Set((await all<any>('SELECT code FROM academy_courses')).map((r) => r.code));
+    const courses: any[][] = [], versions: any[][] = [], lessons: any[][] = [], assessments: any[][] = [], activities: any[][] = [];
     for (const [i, c] of COURSES.entries()) {
-      if (await one('SELECT 1 FROM academy_courses WHERE code = ?', c.code)) continue;
+      if (existing.has(c.code)) continue;
       const courseId = uid(), cvId = uid();
-      await run('INSERT INTO academy_courses (id, code, sort_order, status, created_at) VALUES (?,?,?,?,?)', courseId, c.code, i + 1, 'ACTIVE', now);
-      await run(`INSERT INTO academy_course_versions (id, course_id, version, title, activity_required, workload_text, source_note, state, created_at)
-           VALUES (?,?,?,?,?,?,?,?,?)`, cvId, courseId, 1, c.title, c.activity, null, c.note, 'DRAFT', now);
-      for (const [j, [code, title]] of c.lessons.entries()) {
-        await run(`INSERT INTO academy_lessons (id, course_version_id, code, sort_order, required, title) VALUES (?,?,?,?,?,?)`, uid(), cvId, code, j + 1, 1, title);
-      }
+      courses.push([courseId, c.code, i + 1, 'ACTIVE', now]);
+      versions.push([cvId, courseId, 1, c.title, c.activity, null, c.note, 'DRAFT', now]);
+      for (const [j, [code, title]] of c.lessons.entries()) lessons.push([uid(), cvId, code, j + 1, 1, title]);
       const r = ASSESSMENT_RULES[c.code];
-      await run(`INSERT INTO academy_assessments (id, course_version_id, version, question_count, pass_min_correct, max_attempts, critical_gate, source_note, state, created_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?)`, uid(), cvId, 1, r.q, r.p, r.m, r.critical, r.note, 'DRAFT', now);
+      assessments.push([uid(), cvId, 1, r.q, r.p, r.m, r.critical, r.note, 'DRAFT', now]);
       const act = ACTIVITY_RULES[c.code];
-      if (act) {
-        await run(`INSERT INTO academy_activities (id, course_version_id, version, title, required_correct, source_note, state, created_at)
-             VALUES (?,?,?,?,?,?,?,?)`, uid(), cvId, 1, `Atividade integradora ${c.code}`, act.required, act.note, 'DRAFT', now);
-      }
+      if (act) activities.push([uid(), cvId, 1, `Atividade integradora ${c.code}`, act.required, act.note, 'DRAFT', now]);
       created.push(c.code);
     }
+    await insertMany('academy_courses', ['id', 'code', 'sort_order', 'status', 'created_at'], courses);
+    await insertMany('academy_course_versions', ['id', 'course_id', 'version', 'title', 'activity_required', 'workload_text', 'source_note', 'state', 'created_at'], versions);
+    await insertMany('academy_lessons', ['id', 'course_version_id', 'code', 'sort_order', 'required', 'title'], lessons);
+    await insertMany('academy_assessments', ['id', 'course_version_id', 'version', 'question_count', 'pass_min_correct', 'max_attempts', 'critical_gate', 'source_note', 'state', 'created_at'], assessments);
+    await insertMany('academy_activities', ['id', 'course_version_id', 'version', 'title', 'required_correct', 'source_note', 'state', 'created_at'], activities);
 
     // PRIME: parâmetros v1 (T1 §2, §4, §5, §7)
-    if (!await one('SELECT 1 FROM prime_parameters')) {
-      await run(`INSERT INTO prime_parameters (id, version, monthly_price_cents, discount_bps, discount_cap_cents, uses_per_cycle, retry_max, retry_window_days, refund_withdrawal_days, source_note, created_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?)`, uid(), 1, 3490, 500, 2000, 1, 3, 7, 7,
-        'ONEMA PRIME v2.0 (decisão RT 28/09/2026): R$ 34,90/mês; 5% em um pedido elegível por ciclo, teto R$ 20; até 3 novas tentativas em 7 dias; arrependimento em 7 dias.', now);
-      created.push('prime_parameters');
-    }
+    await run(`INSERT INTO prime_parameters (id, version, monthly_price_cents, discount_bps, discount_cap_cents, uses_per_cycle, retry_max, retry_window_days, refund_withdrawal_days, source_note, created_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT (version) DO NOTHING`, uid(), 1, 3490, 500, 2000, 1, 3, 7, 7,
+      'ONEMA PRIME v2.0 (decisão RT 28/09/2026): R$ 34,90/mês; 5% em um pedido elegível por ciclo, teto R$ 20; até 3 novas tentativas em 7 dias; arrependimento em 7 dias.', now);
     const texts = primeTexts as any;
+    const haveTexts = new Set((await all<any>('SELECT code FROM legal_texts WHERE version = ?', texts.version)).map((r) => r.code));
+    const textRows: any[][] = [];
     for (const t of texts.texts) {
-      if (await one('SELECT 1 FROM legal_texts WHERE code = ? AND version = ?', t.code, texts.version)) continue;
+      if (haveTexts.has(t.code)) continue;
       const body = JSON.stringify({ title: t.title, sections: t.sections, source: texts.source });
-      await run(`INSERT INTO legal_texts (id, code, version, title, body, content_hash, rt_approved_at, legal_review, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-        uid(), t.code, texts.version, t.title, body, sha256(body), texts.rtApprovedAt, 'PENDENTE', now);
+      textRows.push([uid(), t.code, texts.version, t.title, body, sha256(body), texts.rtApprovedAt, 'PENDENTE', now]);
       created.push(t.code);
     }
-    if (!await one('SELECT 1 FROM provider_identity WHERE id = 1')) {
-      await run('INSERT INTO provider_identity (id, validated) VALUES (1, 0)');
-    }
+    await insertMany('legal_texts', ['id', 'code', 'version', 'title', 'body', 'content_hash', 'rt_approved_at', 'legal_review', 'created_at'], textRows);
+    await run('INSERT INTO provider_identity (id, validated) VALUES (1, 0) ON CONFLICT (id) DO NOTHING');
     return created;
   });
 }
@@ -133,15 +130,18 @@ export async function seedDemo() {
   return await tx(async () => {
     const now = nowIso();
     const ids: Record<string, string> = {};
+    const known = new Map((await all<any>(`SELECT id, email FROM users WHERE email IN (${DEMO_USERS.map(() => '?').join(',')})`, ...DEMO_USERS.map((u) => u.email)))
+      .map((r) => [r.email, r.id]));
+    const userRows: any[][] = [], roleRows: any[][] = [];
     for (const u of DEMO_USERS) {
-      const existing = await one<any>('SELECT id FROM users WHERE email = ?', u.email);
-      if (existing) { ids[u.key] = existing.id; continue; }
+      if (known.has(u.email)) { ids[u.key] = known.get(u.email); continue; }
       const id = uid();
-      await run('INSERT INTO users (id, email, name, password_hash, academy_eligible, created_at, updated_at) VALUES (?,?,?,?,?,?,?)',
-        id, u.email, u.name, (demoHash ??= hashPassword(DEMO_PASSWORD)), (u as any).eligible ? 1 : 0, now, now);
-      for (const r of u.roles) await run('INSERT INTO user_roles (user_id, role, granted_at) VALUES (?,?,?)', id, r, now);
+      userRows.push([id, u.email, u.name, (demoHash ??= hashPassword(DEMO_PASSWORD)), (u as any).eligible ? 1 : 0, now, now]);
+      for (const r of u.roles) roleRows.push([id, r, now]);
       ids[u.key] = id;
     }
+    await insertMany('users', ['id', 'email', 'name', 'password_hash', 'academy_eligible', 'created_at', 'updated_at'], userRows);
+    await insertMany('user_roles', ['user_id', 'role', 'granted_at'], roleRows);
     // Catálogo fictício com os valores dos critérios de aceite A04
     const demoItems: [string, string, 'SERVICO' | 'PACOTE', number][] = [
       ['DEMO-SERV-A', 'Serviço de demonstração A (fictício)', 'SERVICO', 8990],
@@ -149,20 +149,17 @@ export async function seedDemo() {
       ['DEMO-SERV-C', 'Serviço de demonstração C (fictício)', 'SERVICO', 44990],
       ['DEMO-PACOTE', 'Pacote de demonstração (fictício)', 'PACOTE', 72990],
     ];
-    for (const [code, name, kind, price] of demoItems) {
-      if (await one('SELECT 1 FROM catalog_items WHERE code = ?', code)) continue;
-      await run(`INSERT INTO catalog_items (id, code, name, kind, price_cents, prime_eligible, active, is_demo, created_at, updated_at) VALUES (?,?,?,?,?,1,1,1,?,?)`,
-        uid(), code, name, kind, price, now, now);
-    }
+    await run(`INSERT INTO catalog_items (id, code, name, kind, price_cents, prime_eligible, active, is_demo, created_at, updated_at) VALUES
+      ${demoItems.map(() => '(?,?,?,?,?,1,1,1,?,?)').join(', ')} ON CONFLICT (code) DO NOTHING`,
+      ...demoItems.flatMap(([code, name, kind, price]) => [uid(), code, name, kind, price, now, now]));
 
     // Academy: conteúdo neutro de demonstração em TODAS as aulas, aprovado pelo RT demo e publicado.
     for (const c of await all<any>('SELECT * FROM academy_courses ORDER BY sort_order')) {
       const cv = await one<any>(`SELECT * FROM academy_course_versions WHERE course_id = ? AND version = 1`, c.id)!;
       if (cv.state !== 'DRAFT') continue;
-      for (const l of await all<any>('SELECT * FROM academy_lessons WHERE course_version_id = ?', cv.id)) {
-        await run('UPDATE academy_lessons SET body = ?, completion_min_percent = 100 WHERE id = ?',
-          `${DEMO_LABEL}\n\nEste texto substitui temporariamente o conteúdo oficial da aula "${l.title}", que ainda não foi disponibilizado (P-006).\n\nRole até o final e marque a aula como concluída para testar o registro de progresso.`, l.id);
-      }
+      await run(`UPDATE academy_lessons SET completion_min_percent = 100, body = ? || title || ? WHERE course_version_id = ?`,
+        `${DEMO_LABEL}\n\nEste texto substitui temporariamente o conteúdo oficial da aula "`,
+        '", que ainda não foi disponibilizado (P-006).\n\nRole até o final e marque a aula como concluída para testar o registro de progresso.', cv.id);
       await run('UPDATE academy_course_versions SET created_by = ?, objectives = ? WHERE id = ?', ids.gestor, `${DEMO_LABEL} Objetivos oficiais pendentes.`, cv.id);
       const snap = {
         cv: await one('SELECT id, version, title, objectives, activity_required, workload_text FROM academy_course_versions WHERE id = ?', cv.id),
@@ -178,25 +175,20 @@ export async function seedDemo() {
     const act = await one<any>(`SELECT * FROM academy_activities WHERE course_version_id = ? AND version = 1`, c01cv)!;
     if (act.state === 'DRAFT') {
       await run('UPDATE academy_activities SET intro = ?, created_by = ? WHERE id = ?', `${DEMO_LABEL} Micro-simulação neutra para testar o fluxo de decisões e feedback.`, ids.gestor, act.id);
-      for (let i = 1; i <= 6; i++) {
-        await run('INSERT INTO academy_activity_steps (id, activity_id, sort_order, prompt, options_json) VALUES (?,?,?,?,?)', uid(), act.id, i,
-          `Decisão de demonstração ${i}: escolha a opção marcada como "correta (demonstração)".`,
-          JSON.stringify([
-            { id: 'o1', text: 'Opção incorreta (demonstração)', correct: false, feedback: 'Feedback de demonstração: esta não é a opção esperada. Revise e tente novamente.' },
-            { id: 'o2', text: 'Opção correta (demonstração)', correct: true, feedback: 'Feedback de demonstração: decisão registrada como correta.' },
-            { id: 'o3', text: 'Outra opção incorreta (demonstração)', correct: false, feedback: 'Feedback de demonstração: revise e tente novamente.' },
-          ]));
-      }
+      const options = JSON.stringify([
+        { id: 'o1', text: 'Opção incorreta (demonstração)', correct: false, feedback: 'Feedback de demonstração: esta não é a opção esperada. Revise e tente novamente.' },
+        { id: 'o2', text: 'Opção correta (demonstração)', correct: true, feedback: 'Feedback de demonstração: decisão registrada como correta.' },
+        { id: 'o3', text: 'Outra opção incorreta (demonstração)', correct: false, feedback: 'Feedback de demonstração: revise e tente novamente.' },
+      ]);
+      await insertMany('academy_activity_steps', ['id', 'activity_id', 'sort_order', 'prompt', 'options_json'],
+        [1, 2, 3, 4, 5, 6].map((i) => [uid(), act.id, i, `Decisão de demonstração ${i}: escolha a opção marcada como "correta (demonstração)".`, options]));
       await run(`UPDATE academy_activities SET state = 'APPROVED', approved_by = ?, approved_at = ? WHERE id = ?`, ids.rt, now, act.id);
     }
     const asm = await one<any>(`SELECT * FROM academy_assessments WHERE course_version_id = ? AND version = 1`, c01cv)!;
     if (asm.state === 'DRAFT') {
-      for (let i = 1; i <= 12; i++) {
-        await run(`INSERT INTO academy_questions (id, assessment_id, position, critical, stem, options_json, correct_option_id, created_by, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-          uid(), asm.id, i, 0, `${DEMO_LABEL} Questão ${i}: selecione a alternativa "Resposta esperada (demonstração)".`,
-          JSON.stringify([{ id: 'o1', text: 'Alternativa A (demonstração)' }, { id: 'o2', text: 'Resposta esperada (demonstração)' }, { id: 'o3', text: 'Alternativa C (demonstração)' }, { id: 'o4', text: 'Alternativa D (demonstração)' }]),
-          'o2', ids.gestor, now);
-      }
+      const qopts = JSON.stringify([{ id: 'o1', text: 'Alternativa A (demonstração)' }, { id: 'o2', text: 'Resposta esperada (demonstração)' }, { id: 'o3', text: 'Alternativa C (demonstração)' }, { id: 'o4', text: 'Alternativa D (demonstração)' }]);
+      await insertMany('academy_questions', ['id', 'assessment_id', 'position', 'critical', 'stem', 'options_json', 'correct_option_id', 'created_by', 'created_at'],
+        Array.from({ length: 12 }, (_, k) => [uid(), asm.id, k + 1, 0, `${DEMO_LABEL} Questão ${k + 1}: selecione a alternativa "Resposta esperada (demonstração)".`, qopts, 'o2', ids.gestor, now]));
       await run(`UPDATE academy_assessments SET state = 'APPROVED', approved_by = ?, approved_at = ? WHERE id = ?`, ids.rt, now, asm.id);
     }
     return { users: DEMO_USERS.map((u) => u.email), password: DEMO_PASSWORD };

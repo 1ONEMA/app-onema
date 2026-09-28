@@ -21,7 +21,17 @@ async function pgDriver(url: string): Promise<Driver> {
   // BIGINT (COUNT/SUM) como número JS
   pg.types.setTypeParser(20, (v: string) => Number(v));
   pg.types.setTypeParser(1700, (v: string) => Number(v));
-  const pool = new pg.Pool({ connectionString: url, max: Number(process.env.DB_POOL_MAX ?? 3), ssl: /sslmode=disable|localhost|127\.0\.0\.1/.test(url) ? undefined : { rejectUnauthorized: false } });
+  const pool = new pg.Pool({
+    connectionString: url,
+    max: Number(process.env.DB_POOL_MAX ?? 3),
+    ssl: /sslmode=disable|localhost|127\.0\.0\.1/.test(url) ? undefined : { rejectUnauthorized: false },
+    // Limites explícitos: sem eles uma conexão travada só termina quando a Function é abortada (HTTP 502).
+    connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS ?? 6000),
+    query_timeout: Number(process.env.DB_QUERY_TIMEOUT_MS ?? 8000),
+    idleTimeoutMillis: 10000,
+    allowExitOnIdle: true,
+  });
+  pool.on('error', (e: any) => console.error('Erro em conexão ociosa do Postgres:', e?.message));
   return {
     kind: 'pg',
     async acquire() {
@@ -147,3 +157,10 @@ export async function tx<T>(fn: () => Promise<T>): Promise<T> {
 
 /** Violação de unicidade do Postgres (23505). */
 export const isUniqueViolation = (e: any) => e?.code === '23505';
+
+/** Inserção em lote (uma única ida ao banco). */
+export async function insertMany(table: string, cols: string[], rows: any[][]) {
+  if (!rows.length) return;
+  const ph = `(${cols.map(() => '?').join(',')})`;
+  await run(`INSERT INTO ${table} (${cols.join(', ')}) VALUES ${rows.map(() => ph).join(', ')}`, ...rows.flat());
+}

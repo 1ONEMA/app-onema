@@ -14,7 +14,9 @@ Arquitetura publicada:
 | Mídia privada da Academy | **Netlify Blobs** (store `academy-media`), servida só por URL assinada |
 | Motor de ciclos PRIME | função agendada `netlify/functions/billing.mts` (a cada hora) |
 
-Na primeira requisição, a API aplica as migrations, o seed oficial (conteúdo/regras documentados), gera e guarda no banco os segredos internos (se `APP_SECRET`/`PAYMENT_WEBHOOK_SECRET` não forem informados) e cria o administrador inicial.
+A inicialização do banco (migrations, seed oficial, segredos internos gerados e guardados no banco se `APP_SECRET`/`PAYMENT_WEBHOOK_SECRET` não forem informados, administrador inicial e, opcionalmente, dados de demonstração) roda **na etapa de build** (`npm run netlify:init`), sem o limite de 10 s das Functions. A API, ao iniciar, só confirma a versão da inicialização (2–3 consultas). Se o banco não estiver acessível no build, a própria API inicializa no primeiro acesso (≈6 s com 60 ms de latência até o banco).
+
+**Diagnóstico:** em *Logs → Functions → api* aparecem as linhas `[bootstrap] ...` com o tempo de cada etapa e `[api] falha na inicialização ...` em caso de erro; o log do deploy mostra `[netlify-init] Banco pronto` ou o aviso correspondente.
 
 ### Passo a passo
 

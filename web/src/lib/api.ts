@@ -41,7 +41,10 @@ export async function api<T = any>(method: string, url: string, body?: unknown, 
   if (!res.ok) {
     const err = data?.error;
     if (res.status === 401 && onUnauthorized && !url.startsWith('/api/auth/')) onUnauthorized();
-    throw new ApiError(res.status, err?.code ?? 'HTTP_' + res.status, err?.message ?? 'Não foi possível concluir a operação.', err?.details, err?.correlationId);
+    const fallback = [502, 503, 504].includes(res.status)
+      ? 'O servidor está indisponível ou demorou para responder. Aguarde alguns segundos e tente novamente.'
+      : 'Não foi possível concluir a operação.';
+    throw new ApiError(res.status, err?.code ?? 'HTTP_' + res.status, err?.message ?? fallback, err?.details, err?.correlationId);
   }
   return data as T;
 }

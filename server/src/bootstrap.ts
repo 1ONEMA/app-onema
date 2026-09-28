@@ -13,17 +13,38 @@ import { passwordSchema } from './modules/auth/routes.ts';
 
 let ready: Promise<string[]> | null = null;
 
+/** Versão da inicialização: quando igual à gravada no banco, a partida da Function só faz 3–4 consultas. */
+const BOOTSTRAP_VERSION = '2026-09-29.1';
+const bootstrapKey = () => `${BOOTSTRAP_VERSION}${process.env.SEED_DEMO === 'true' ? '+demo' : ''}`;
+
 export function ensureReady(): Promise<string[]> {
   if (!ready) {
     ready = (async () => {
-      const applied = await migrate();
+      const t0 = Date.now();
+      const step = (name: string) => console.log(`[bootstrap] ${name} em ${Date.now() - t0} ms`);
+      // Caminho rápido: banco já inicializado nesta versão.
+      try {
+        const v = await one<{ value: string }>(`SELECT value FROM system_settings WHERE key = 'bootstrap_version'`);
+        if (v?.value === bootstrapKey()) {
+          await loadSecrets();
+          await bootstrapAdmin();
+          step('caminho rápido concluído');
+          return [];
+        }
+      } catch (e: any) {
+        if (e?.code !== '42P01') throw e; // 42P01 = tabela ainda não existe (banco vazio)
+      }
+      const applied = await migrate(); step(`migrations (${applied.join(', ') || 'nenhuma nova'})`);
       await loadSecrets();
-      await seedOfficial();
-      await bootstrapAdmin();
+      await seedOfficial(); step('seed oficial');
+      await bootstrapAdmin(); step('administrador inicial');
       if (process.env.SEED_DEMO === 'true') {
         if (config.appEnv === 'production') console.warn('SEED_DEMO ignorado em produção.');
-        else await seedDemo();
+        else { await seedDemo(); step('dados de demonstração'); }
       }
+      await run(`INSERT INTO system_settings (key, value, created_at) VALUES ('bootstrap_version', ?, ?)
+                 ON CONFLICT (key) DO UPDATE SET value = excluded.value`, bootstrapKey(), nowIso());
+      step('inicialização completa');
       return applied;
     })().catch((e) => { ready = null; throw e; });
   }

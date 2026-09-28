@@ -6,7 +6,7 @@
 # Variáveis (painel da Netlify → Site configuration → Environment variables): ver docs/IMPLANTACAO.md.
 
 [build]
-  command = "npm run build"
+  command = "npm run build && npm run netlify:init"
   publish = "web/dist"
 
 [build.environment]
