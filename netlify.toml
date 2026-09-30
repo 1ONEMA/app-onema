@@ -16,8 +16,6 @@
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["pg-native"]
-  # Nunca empacotar banco local de desenvolvimento nem o PWA (servido pela CDN) na Function.
-  included_files = ["!data/**", "!web/**"]
 
 # SPA: acesso direto a qualquer rota (a função com path /api/* tem precedência)
 [[redirects]]
