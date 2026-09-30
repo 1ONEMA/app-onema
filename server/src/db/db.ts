@@ -16,11 +16,7 @@ export interface Client { query(sql: string, params: any[]): Promise<QResult>; e
 export interface Driver { acquire(): Promise<Client>; close(): Promise<void>; kind: 'pg' | 'pglite' }
 
 // ---------------- Drivers ----------------
-async function pgDriver(url: string): Promise<Driver> {
-  const { default: pg } = await import('pg');
-  // BIGINT (COUNT/SUM) como número JS
-  pg.types.setTypeParser(20, (v: string) => Number(v));
-  pg.types.setTypeParser(1700, (v: string) => Number(v));
+function makePool(pg: any, url: string) {
   const pool = new pg.Pool({
     connectionString: url,
     max: Number(process.env.DB_POOL_MAX ?? 3),
@@ -32,10 +28,37 @@ async function pgDriver(url: string): Promise<Driver> {
     allowExitOnIdle: true,
   });
   pool.on('error', (e: any) => console.error('Erro em conexão ociosa do Postgres:', e?.message));
+  return pool;
+}
+
+/** Pooler do Supabase: o cluster pode ser aws-0-<região> ou aws-1-<região>; o outro responde "Tenant or user not found". */
+export function poolerAlternative(url: string) {
+  const m = url.match(/@aws-([01])-([a-z0-9-]+\.pooler\.supabase\.com)/);
+  return m ? url.replace(`@aws-${m[1]}-${m[2]}`, `@aws-${m[1] === '0' ? '1' : '0'}-${m[2]}`) : null;
+}
+
+async function pgDriver(url: string): Promise<Driver> {
+  const { default: pg } = await import('pg');
+  // BIGINT (COUNT/SUM) como número JS
+  pg.types.setTypeParser(20, (v: string) => Number(v));
+  pg.types.setTypeParser(1700, (v: string) => Number(v));
+  let pool = makePool(pg, url);
+  let checked = !poolerAlternative(url);
   return {
     kind: 'pg',
     async acquire() {
-      const c = await pool.connect();
+      let c;
+      try {
+        c = await pool.connect();
+      } catch (e: any) {
+        const alt = !checked && /tenant or user not found/i.test(String(e?.message)) ? poolerAlternative(url) : null;
+        if (!alt) throw e;
+        checked = true;
+        pool.end().catch(() => {});
+        pool = makePool(pg, alt);
+        c = await pool.connect();
+      }
+      checked = true;
       return {
         query: async (sql, params) => { const r = await c.query(sql, params); return { rows: r.rows, rowCount: r.rowCount ?? 0 }; },
         exec: async (sql) => { await c.query(sql); },

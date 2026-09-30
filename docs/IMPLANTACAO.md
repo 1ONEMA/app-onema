@@ -73,3 +73,10 @@ Versão de código: reimplante a tag anterior (o banco é compatível para frent
 - A inicialização (migrations, seed oficial, administrador inicial, demonstração) é **retomável**: cada requisição executa só as etapas que cabem no tempo da Function (orçamento de 8 s) e grava o progresso no banco (`system_settings.bootstrap_progress`). Enquanto não termina, a API responde `503 INITIALIZING` e o PWA tenta novamente de forma automática a cada 5 s.
 - Em geral a inicialização já é concluída no build (`npm run netlify:init`) quando o banco está disponível nessa etapa.
 - Se persistir erro: Netlify › Logs › Functions › `api` — as mensagens de inicialização e de requisições lentas aparecem ali (sem conteúdo sensível).
+
+## Banco no Supabase (alternativa ao Netlify DB)
+
+Homologação configurada no projeto Supabase `onema-saude-homologacao` (região São Paulo, plano gratuito):
+- Usuário dedicado `onema_app` (sem superusuário) e schema próprio `onema` (fora do `public`, portanto **não exposto** pela API REST do Supabase).
+- Na Netlify, `DATABASE_URL` = `postgresql://onema_app.<ref>:<senha>@aws-0-sa-east-1.pooler.supabase.com:6543/postgres` (pooler em modo transação, compatível com Functions; se o cluster for `aws-1-…`, o app troca automaticamente).
+- A senha fica **somente** na variável de ambiente da Netlify; nunca no repositório.
