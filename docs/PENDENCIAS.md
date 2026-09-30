@@ -58,8 +58,8 @@ Nenhuma destas pendências foi preenchida por suposição. O sistema exibe a pen
 
 | # | Pendência |
 |---|---|
-| I-1 | Vídeos das aulas: storage externo com URL assinada (limite ~6 MB por resposta de Function) |
-| I-2 | Reivindicar (*claim*) o banco Netlify DB na conta Neon e definir plano/backup (PITR) |
+| I-1 | ~~Vídeos das aulas acima de 6 MB~~ — resolvido: envio e reprodução em partes (ver IMPLANTACAO.md) |
+| I-2 | Banco no Supabase (plano gratuito, sem backup PITR): definir plano/backup antes de dados reais; manter banco e Function na mesma região |
 | I-3 | Remover `BOOTSTRAP_ADMIN_PASSWORD` do painel após o primeiro acesso |
 | I-4 | Envio de e-mail (recuperação de senha) ainda sem provedor: em produção, o link de redefinição não chega ao usuário |
 
