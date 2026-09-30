@@ -76,9 +76,9 @@ Versão de código: reimplante a tag anterior (o banco é compatível para frent
 
 ## Banco no Supabase (alternativa ao Netlify DB)
 
-Homologação configurada no projeto Supabase `onema-saude-homologacao` (região São Paulo, plano gratuito):
+Homologação configurada no projeto Supabase `onema-saude-hml-ohio` (região us-east-2/Ohio, a mesma das Netlify Functions no plano atual; plano gratuito). O projeto anterior em São Paulo foi pausado:
 - Usuário dedicado `onema_app` (sem superusuário) e schema próprio `onema` (fora do `public`, portanto **não exposto** pela API REST do Supabase).
-- Na Netlify, `DATABASE_URL` = `postgresql://onema_app.<ref>:<senha>@aws-0-sa-east-1.pooler.supabase.com:6543/postgres` (pooler em modo transação, compatível com Functions; se o cluster for `aws-1-…`, o app troca automaticamente).
+- Na Netlify, `DATABASE_URL` = `postgresql://onema_app.<ref>:<senha>@aws-0-us-east-2.pooler.supabase.com:6543/postgres` (pooler em modo transação, compatível com Functions; se o cluster for `aws-1-…`, o app troca automaticamente).
 - A senha fica **somente** na variável de ambiente da Netlify; nunca no repositório.
 
 ## Mídia grande (vídeos de aula)
@@ -87,5 +87,5 @@ A Netlify limita cada requisição de Function a ~6 MB. Por isso o PWA envia arq
 
 ## Desempenho
 
-- Cada consulta ao banco custa uma viagem entre a Function e o Supabase. Mantenha **a Function na mesma região do banco**: Netlify › Site configuration › Build & deploy › Functions region → **South America (São Paulo) – sa-east-1** (banco `onema-saude-homologacao` está em sa-east-1).
+- Cada consulta ao banco custa uma viagem entre a Function e o Supabase. Mantenha **a Function na mesma região do banco**: Netlify › Site configuration › Build & deploy › Functions region → **South America (São Paulo) – sa-east-1** (o banco atual está em us-east-2, região padrão das Functions).
 - Consultas agrupadas: sessão (1 consulta por requisição), lista de usuários (1), jornada do especialista (de 25 para 7).
