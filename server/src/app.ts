@@ -2,7 +2,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import cookie from '@fastify/cookie';
 import multipart from '@fastify/multipart';
-import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { config } from './config.ts';
 import { loadSession, sendError } from './lib/context.ts';
@@ -91,6 +90,10 @@ export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean 
   // Em produção o mesmo servidor entrega o PWA compilado (web/dist) com fallback SPA.
   const dist = path.resolve('web/dist');
   if (opts.serveWeb && fs.existsSync(dist)) {
+    // Import dinâmico por variável: fora do pacote da Netlify Function (lá a CDN entrega o PWA).
+    // Evita também require() de dependência só-ESM (content-disposition 3) em runtimes Node < 22.12.
+    const mod = '@fastify/static';
+    const { default: fastifyStatic } = (await import(/* @vite-ignore */ mod)) as typeof import('@fastify/static');
     await app.register(fastifyStatic, {
       root: dist, wildcard: false, index: false, cacheControl: false,
       setHeaders: (res: any, file: string) => {
