@@ -102,7 +102,11 @@ async function pgliteDriver(dataDir: string | null): Promise<Driver> {
 
 let driverPromise: Promise<Driver> | null = null;
 export function databaseUrl() {
-  return process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL || '';
+  const direct = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL;
+  if (direct) return direct.trim().replace(/^["']|["']$/g, '');
+  // Tolera variável cadastrada com outro nome (ex.: database_url, SUPABASE_DB_URL): usa a primeira com URL Postgres.
+  const found = Object.entries(process.env).find(([k, v]) => /(database|db|postgres)/i.test(k) && /^\s*["']?postgres(ql)?:\/\//.test(v ?? ''));
+  return found ? found[1]!.trim().replace(/^["']|["']$/g, '') : '';
 }
 export function getDriver(): Promise<Driver> {
   if (!driverPromise) {

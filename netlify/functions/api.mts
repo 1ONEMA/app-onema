@@ -15,7 +15,15 @@ function applyDefaults(siteUrl: string | undefined) {
   process.env.APP_ENV ??= 'homologacao';
   if (siteUrl) process.env.PUBLIC_ORIGIN ??= siteUrl;
   process.env.DB_CONNECT_TIMEOUT_MS ??= '4000';
+  // Aceita a URL do banco cadastrada com outro nome (ex.: database_url, SUPABASE_DB_URL) ou entre aspas.
+  if (!process.env.DATABASE_URL && !process.env.NETLIFY_DATABASE_URL) {
+    const found = Object.entries(process.env).find(([k, v]) => /(database|db|postgres)/i.test(k) && /^\s*["']?postgres(ql)?:\/\//.test(v ?? ''));
+    if (found) process.env.DATABASE_URL = found[1]!.trim().replace(/^["']|["']$/g, '');
+  }
 }
+
+/** Somente NOMES de variáveis relacionadas a banco (nunca valores), para diagnóstico. */
+const dbVarNames = () => Object.keys(process.env).filter((k) => /(database|db_|postgres|supabase)/i.test(k));
 
 async function getApp(siteUrl: string | undefined, started: number) {
   applyDefaults(siteUrl);
@@ -41,10 +49,11 @@ async function health(siteUrl: string | undefined) {
     ok: false,
     runtime: process.version,
     databaseConfigured: !!(process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL),
+    databaseVariables: dbVarNames(),
     adminBootstrapConfigured: !!(process.env.BOOTSTRAP_ADMIN_EMAIL && process.env.BOOTSTRAP_ADMIN_PASSWORD),
     seedDemo: process.env.SEED_DEMO === 'true',
   };
-  if (!info.databaseConfigured) return Response.json({ ...info, problem: 'NETLIFY_DATABASE_URL não definida' }, { status: 503 });
+  if (!info.databaseConfigured) return Response.json({ ...info, problem: 'DATABASE_URL não chegou à Function (cadastre em Environment variables com escopo Functions e publique de novo)' }, { status: 503 });
   try {
     const { one } = await import('../../server/src/db/db.ts');
     const t = Date.now();
@@ -70,7 +79,7 @@ const json = (status: number, code: string, message: string) =>
 
 function describeInitError(e: any) {
   const noDb = !process.env.NETLIFY_DATABASE_URL && !process.env.DATABASE_URL;
-  if (noDb) return json(503, 'DATABASE_NOT_CONFIGURED', 'O banco de dados ainda não foi configurado neste site (Netlify DB). A API não pode operar sem persistência.');
+  if (noDb) return json(503, 'DATABASE_NOT_CONFIGURED', 'A variável DATABASE_URL não chegou ao servidor. Na Netlify: Site configuration › Environment variables › DATABASE_URL (escopo Functions) e depois Trigger deploy.');
   const msg = String(e?.message ?? '');
   if (/timeout|ECONNREFUSED|ENOTFOUND|ETIMEDOUT|terminated|Connection/i.test(msg)) {
     return json(503, 'DATABASE_UNREACHABLE', 'Não foi possível conectar ao banco de dados agora. Aguarde alguns segundos e tente novamente.');
