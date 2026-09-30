@@ -19,14 +19,16 @@ export const setUnauthorizedHandler = (fn: () => void) => { onUnauthorized = fn;
 
 export async function api<T = any>(method: string, url: string, body?: unknown, opts: Opts = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
-  if (body !== undefined && !(body instanceof FormData)) headers['Content-Type'] = 'application/json';
+  const raw = body instanceof FormData || body instanceof Blob;
+  if (body instanceof Blob) headers['Content-Type'] = 'application/octet-stream';
+  else if (body !== undefined && !raw) headers['Content-Type'] = 'application/json';
   if (method !== 'GET' && csrfToken) headers['X-CSRF-Token'] = csrfToken;
   if (opts.idempotencyKey) headers['Idempotency-Key'] = opts.idempotencyKey;
   let res: Response;
   try {
     res = await fetch(url, {
       method, headers, credentials: 'same-origin', signal: opts.signal,
-      body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
+      body: body === undefined ? undefined : raw ? (body as BodyInit) : JSON.stringify(body),
     });
   } catch (e: any) {
     if (e?.name === 'AbortError') throw e;
@@ -43,7 +45,8 @@ export async function api<T = any>(method: string, url: string, body?: unknown, 
     if (res.status === 401 && onUnauthorized && !url.startsWith('/api/auth/')) onUnauthorized();
     const fallback = [502, 503, 504].includes(res.status)
       ? 'O servidor está indisponível ou demorou para responder. Aguarde alguns segundos e tente novamente.'
-      : 'Não foi possível concluir a operação.';
+      : res.status === 413 ? 'O arquivo ou os dados enviados excedem o tamanho permitido por requisição.'
+      : `Não foi possível concluir a operação (erro ${res.status}).`;
     throw new ApiError(res.status, err?.code ?? 'HTTP_' + res.status, err?.message ?? fallback, err?.details, err?.correlationId);
   }
   return data as T;

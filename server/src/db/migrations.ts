@@ -645,4 +645,20 @@ CREATE TABLE system_settings (
   created_at TEXT NOT NULL
 );
 ` },
+  { name: '005_media_chunks_user_deletion', sql: `
+-- Envio de mídia em partes (limite de ~6 MB por requisição de Function) e exclusão de usuários.
+ALTER TABLE academy_media_assets DROP CONSTRAINT IF EXISTS academy_media_assets_state_check;
+ALTER TABLE academy_media_assets ADD CONSTRAINT academy_media_assets_state_check CHECK (state IN ('UPLOADING','PENDING','APPROVED','BLOCKED'));
+ALTER TABLE academy_media_assets ALTER COLUMN size_bytes TYPE BIGINT;
+ALTER TABLE academy_media_assets ADD COLUMN chunk_size INTEGER;
+ALTER TABLE academy_media_assets ADD COLUMN chunk_count INTEGER;
+CREATE TABLE academy_media_chunks (
+  asset_id TEXT NOT NULL REFERENCES academy_media_assets(id) ON DELETE CASCADE,
+  n INTEGER NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  PRIMARY KEY (asset_id, n)
+);
+ALTER TABLE users ADD COLUMN deleted_at TEXT;
+` },
 ];

@@ -35,12 +35,14 @@ export async function loadSession(req: FastifyRequest): Promise<AuthCtx | null> 
   const sid = req.cookies?.[SESSION_COOKIE];
   if (!sid) return null;
   const h = sha256(sid);
+  // Uma única ida ao banco: valida a sessão, atualiza last_seen e traz usuário + perfis.
   const s = await one<any>(
-    `SELECT s.*, u.email, u.name, u.status, u.mfa_enabled, u.academy_eligible FROM sessions s JOIN users u ON u.id = s.user_id
-     WHERE s.id_hash = ? AND s.revoked_at IS NULL`, h);
+    `WITH s AS (UPDATE sessions SET last_seen_at = ? WHERE id_hash = ? AND revoked_at IS NULL RETURNING *)
+     SELECT s.*, u.email, u.name, u.status, u.mfa_enabled, u.academy_eligible,
+            ARRAY(SELECT r.role FROM user_roles r WHERE r.user_id = s.user_id ORDER BY r.role) AS roles
+     FROM s JOIN users u ON u.id = s.user_id`, nowIso(), h);
   if (!s || s.status !== 'ACTIVE' || s.expires_at < nowIso()) return null;
-  const roles = (await all<any>('SELECT role FROM user_roles WHERE user_id = ? ORDER BY role', s.user_id)).map((r) => r.role);
-  await run('UPDATE sessions SET last_seen_at = ? WHERE id_hash = ?', nowIso(), h);
+  const roles = (s.roles ?? []) as Role[];
   return {
     userId: s.user_id, email: s.email, name: s.name, roles, sessionHash: h, csrf: s.csrf_token,
     mfaVerified: !!s.mfa_verified, mfaEnabled: !!s.mfa_enabled, academyEligible: !!s.academy_eligible,

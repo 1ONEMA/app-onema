@@ -16,6 +16,13 @@ function canGrant(a: AuthCtx, role: Role) {
   return ROLE_GRANTORS[role].some((r) => a.roles.includes(r));
 }
 
+// Situação dos gates de produção muda raramente: cache curto por instância (evita consultas em toda abertura do app).
+let gatesCache: { at: number; ready: boolean } | null = null;
+async function productionReadyCached() {
+  if (!gatesCache || Date.now() - gatesCache.at > 60_000) gatesCache = { at: Date.now(), ready: (await productionGates()).productionReady };
+  return gatesCache.ready;
+}
+
 export async function adminRoutes(app: FastifyInstance) {
   // Estado do ambiente para a interface (sem segredos)
   app.get('/api/system/status', async () => ({
@@ -24,7 +31,7 @@ export async function adminRoutes(app: FastifyInstance) {
     emailDeliveryConfigured: false,
     whatsappEnabled: config.whatsappEnabled,
     requireAdminMfa: config.requireAdminMfa,
-    productionReady: (await productionGates()).productionReady,
+    productionReady: await productionReadyCached(),
     roleLabels: ROLE_LABELS,
   }));
 
@@ -33,8 +40,9 @@ export async function adminRoutes(app: FastifyInstance) {
     const { q } = parse(z.object({ q: z.string().max(100).optional() }), req.query);
     const like = `%${(q ?? '').trim()}%`;
     return {
-      users: await Promise.all((await all<any>(`SELECT id, name, email, status, academy_eligible, mfa_enabled, created_at FROM users WHERE name ILIKE ? OR email ILIKE ? ORDER BY name LIMIT 100`, like, like))
-        .map(async (u) => ({ ...u, roles: (await all<any>('SELECT role FROM user_roles WHERE user_id = ?', u.id)).map((r) => r.role) }))),
+      users: await all<any>(`SELECT u.id, u.name, u.email, u.status, u.academy_eligible, u.mfa_enabled, u.created_at,
+          ARRAY(SELECT r.role FROM user_roles r WHERE r.user_id = u.id ORDER BY r.role) AS roles
+        FROM users u WHERE u.deleted_at IS NULL AND (u.name ILIKE ? OR u.email ILIKE ?) ORDER BY u.name LIMIT 200`, like, like),
       grantable: ROLES.filter((r) => r !== 'PACIENTE'),
     };
   });
@@ -106,6 +114,37 @@ export async function adminRoutes(app: FastifyInstance) {
       if (status === 'DISABLED') await run('UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL', nowIso(), id);
       await audit({ actorId: a.userId, action: 'USER_STATUS_CHANGED', subjectType: 'user', subjectId: id, correlationId: req.correlationId, meta: { status } });
       return { ok: true };
+    });
+  });
+
+  // Exclusão de usuário: remove definitivamente quando não há histórico vinculado; havendo registros
+  // (matrículas, assinaturas, certificados…), anonimiza os dados pessoais e encerra o acesso, preservando a trilha.
+  app.delete('/api/admin/users/:id', async (req) => {
+    const a = requireRoles(req, USER_ADMINS);
+    const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
+    if (id === a.userId) throw conflict('SELF_DELETE', 'Você não pode excluir a própria conta.');
+    return await tx(async () => {
+      const u = await one<any>('SELECT id FROM users WHERE id = ? AND deleted_at IS NULL', id);
+      if (!u) throw notFound();
+      const roles = (await all<any>('SELECT role FROM user_roles WHERE user_id = ?', id)).map((r) => r.role as Role);
+      for (const r of roles) if (r !== 'PACIENTE' && !canGrant(a, r)) throw forbidden(`Você não pode excluir um usuário com o perfil ${ROLE_LABELS[r]}.`);
+      await run('DELETE FROM sessions WHERE user_id = ?', id);
+      await run('DELETE FROM password_resets WHERE user_id = ?', id);
+      await run('DELETE FROM notifications WHERE user_id = ?', id);
+      await run('DELETE FROM user_roles WHERE user_id = ?', id);
+      let mode: 'removed' | 'anonymized' = 'removed';
+      try {
+        await tx(() => run('DELETE FROM users WHERE id = ?', id));
+      } catch (e: any) {
+        if (e?.code !== '23503') throw e; // 23503 = há registros vinculados
+        mode = 'anonymized';
+        const now = nowIso();
+        await run(`UPDATE users SET name = 'Usuário excluído', email = ?, password_hash = ?, status = 'DISABLED', mfa_enabled = 0, mfa_secret = NULL,
+                   academy_eligible = 0, deleted_at = ?, updated_at = ? WHERE id = ?`,
+          `excluido-${id}@removido.invalid`, hashPassword(randomToken(24)), now, now, id);
+      }
+      await audit({ actorId: a.userId, action: 'USER_DELETED', subjectType: 'user', subjectId: id, correlationId: req.correlationId, meta: { mode, roles } });
+      return { ok: true, mode };
     });
   });
 

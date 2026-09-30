@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { api } from '../../lib/api';
+import { uploadInParts } from '../../lib/upload';
 import { useAuth } from '../../lib/auth';
 import { date, dateTime, label } from '../../lib/format';
 import { useApi, useSubmit } from '../../lib/hooks';
@@ -9,14 +10,23 @@ import { Alert, Badge, Button, ErrorState, Field, Loading, PageHeader } from '..
 export function MediaPage() {
   const { has } = useAuth();
   const { data, error, loading, reload } = useApi<any>('/api/admin/academy/media');
-  const up = useSubmit<any>();
   const approve = useSubmit<any>();
+  const del = useSubmit<any>();
   const [ok, setOk] = useState<string | null>(null);
+  const [upErr, setUpErr] = useState<any>(null);
+  const [progress, setProgress] = useState<{ label: string; pct: number } | null>(null);
   async function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault(); setOk(null);
-    const fd = new FormData(e.currentTarget);
-    const r = await up.run('POST', '/api/admin/academy/media', fd);
-    if (r) { setOk(`Arquivo registrado (SHA-256 ${r.checksum.slice(0, 16)}…). Aguardando aprovação RT.`); (e.target as HTMLFormElement).reset(); reload(); }
+    e.preventDefault(); setOk(null); setUpErr(null);
+    if (progress) return;
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    const file = fd.get('file') as File | null;
+    if (!file || !file.size) { setUpErr({ message: 'Selecione um arquivo.' }); return; }
+    setProgress({ label: 'Preparando', pct: 0 });
+    try {
+      const r = await uploadInParts(file, { kind: String(fd.get('kind')), title: String(fd.get('title')), expectedChecksum: String(fd.get('expectedChecksum') ?? '') }, (label, pct) => setProgress({ label, pct }));
+      setOk(`Arquivo registrado (SHA-256 ${r.checksum.slice(0, 16)}…). Aguardando aprovação RT.`); form.reset(); reload();
+    } catch (err: any) { setUpErr(err); reload(); } finally { setProgress(null); }
   }
   async function preview(id: string) { try { const r = await api('GET', `/api/admin/academy/media/${id}/preview`); window.open(r.url, '_blank', 'noopener'); } catch (e: any) { alert(e.message); } }
   return (
@@ -31,20 +41,22 @@ export function MediaPage() {
             <Field label="Checksum SHA-256 esperado (opcional)" hint="Se informado e divergente, o arquivo é bloqueado."><input type="text" name="expectedChecksum" pattern="[a-f0-9]{64}" /></Field>
           </div>
           <Field label="Arquivo"><input type="file" name="file" required /></Field>
-          <Alert error={up.error} success={ok} />
-          <Button type="submit" className="deep" busy={up.busy}>Enviar</Button>
+          {progress && <div className="mt" role="status"><div className="small">{progress.label} · {progress.pct}%</div><progress max={100} value={progress.pct} style={{ width: '100%' }} /></div>}
+          <Alert error={upErr} success={ok} />
+          <Button type="submit" className="deep" busy={!!progress}>Enviar</Button>
         </form>
       )}
       {loading ? <Loading /> : error ? <ErrorState error={error} onRetry={reload} /> : (
         <section className="surface">
           <h2>Biblioteca</h2>
-          <Alert error={approve.error} />
+          <Alert error={approve.error || del.error} />
           {!data.assets.length ? <p className="muted">Nenhum arquivo. Os vídeos, legendas e transcrições oficiais ainda não foram entregues (P-006).</p> : (
             <div className="table-wrap"><table><thead><tr><th>Título</th><th>Tipo</th><th>Tamanho</th><th>SHA-256</th><th>Estado</th><th /></tr></thead>
-              <tbody>{data.assets.map((m: any) => <tr key={m.id}><td>{m.title}<br /><span className="small muted">{m.filename} · {dateTime(m.created_at)}</span></td><td>{m.kind}</td><td>{(m.size_bytes / 1024).toFixed(0)} KB</td><td className="mono">{m.checksum_sha256.slice(0, 16)}…</td>
+              <tbody>{data.assets.map((m: any) => <tr key={m.id}><td>{m.title}<br /><span className="small muted">{m.filename} · {dateTime(m.created_at)}</span></td><td>{m.kind}</td><td className="nowrap">{m.size_bytes > 1048576 ? `${(m.size_bytes / 1048576).toFixed(1)} MB` : `${(m.size_bytes / 1024).toFixed(0)} KB`}</td><td className="mono">{m.checksum_sha256.slice(0, 16)}…</td>
                 <td><Badge tone={m.state === 'APPROVED' ? '' : m.state === 'BLOCKED' ? 'red' : 'orange'}>{label(m.state)}</Badge></td>
-                <td className="row">{m.state !== 'BLOCKED' && <Button className="sm ghost" onClick={() => preview(m.id)}>Visualizar</Button>}
-                  {m.state === 'PENDING' && has('AVALIADOR_RT') && <Button className="sm green" busy={approve.busy} onClick={async () => { if (await approve.run('POST', `/api/admin/academy/media/${m.id}/approve`, {})) reload(); }}>Aprovar</Button>}</td></tr>)}</tbody></table></div>
+                <td className="row">{m.state !== 'BLOCKED' && m.state !== 'UPLOADING' && <Button className="sm ghost" onClick={() => preview(m.id)}>Visualizar</Button>}
+                  {m.state === 'PENDING' && has('AVALIADOR_RT') && <Button className="sm green" busy={approve.busy} onClick={async () => { if (await approve.run('POST', `/api/admin/academy/media/${m.id}/approve`, {})) reload(); }}>Aprovar</Button>}
+                  {has('GESTOR_CONTEUDO', 'ADMIN_ACADEMY') && <Button className="sm danger" busy={del.busy} onClick={async () => { if (confirm(`Excluir a mídia “${m.title}”?`) && await del.run('DELETE', `/api/admin/academy/media/${m.id}`)) reload(); }}>Excluir</Button>}</td></tr>)}</tbody></table></div>
           )}
         </section>
       )}

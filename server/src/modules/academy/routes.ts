@@ -7,7 +7,7 @@ import { audit } from '../../lib/audit.ts';
 import { idempotent, parse, requireRoles } from '../../lib/context.ts';
 import { AppError, badRequest, conflict, forbidden, notFound, unprocessable } from '../../lib/errors.ts';
 import { hmac, rateLimit, safeEqual } from '../../lib/security.ts';
-import { getObject } from '../../lib/storage.ts';
+import { chunkKey, getObject } from '../../lib/storage.ts';
 import { hashObj, nowIso, randomToken, sha256, shuffle, uid } from '../../lib/util.ts';
 import {
   activeEnrollment, assertPartner, assessmentReadiness, attemptsOf, certificateState, computeJourney,
@@ -32,6 +32,19 @@ export function signedMediaUrl(assetId: string, ttlSec = 600, preview = false) {
 export async function fileChecksum(storageKey: string) {
   const buf = await getObject(storageKey);
   return buf ? sha256(buf) : null;
+}
+
+/** Integridade: arquivo único pelo SHA-256 completo; mídia em partes pela presença e hash de cada parte. */
+export async function verifyMedia(m: any, deep = true) {
+  if (!m.chunk_count) return (await fileChecksum(m.storage_key)) === m.checksum_sha256;
+  const chunks = await all<any>('SELECT n, sha256 FROM academy_media_chunks WHERE asset_id = ? ORDER BY n', m.id);
+  if (chunks.length !== m.chunk_count) return false;
+  // Verificação por amostragem na aprovação (primeira e última parte); cada parte é verificada novamente ao ser servida.
+  if (deep) for (const c of [chunks[0], chunks[chunks.length - 1]]) {
+    const buf = await getObject(chunkKey(m.storage_key, c.n));
+    if (!buf || sha256(buf) !== c.sha256) return false;
+  }
+  return true;
 }
 
 function publicStep(s: any) {
@@ -187,7 +200,7 @@ export async function academyRoutes(app: FastifyInstance) {
         if (!id) return null;
         const m = await one<any>('SELECT id, kind, title, mime, state FROM academy_media_assets WHERE id = ?', id);
         if (!m || m.state !== 'APPROVED') return null;
-        return { id: m.id, kind: m.kind, title: m.title, mime: m.mime, url: signedMediaUrl(m.id) };
+        return { id: m.id, kind: m.kind, title: m.title, mime: m.mime, url: signedMediaUrl(m.id, 4 * 3600) };
       };
       const all_ = await lessonsOf(bound.course_version_id);
       const idx = all_.findIndex((l) => l.id === lesson.id);
@@ -261,15 +274,38 @@ export async function academyRoutes(app: FastifyInstance) {
     const m = await one<any>('SELECT * FROM academy_media_assets WHERE id = ?', id);
     if (!m) throw notFound();
     if (m.state === 'BLOCKED' || (m.state !== 'APPROVED' && q.p !== '1')) throw forbidden('Mídia indisponível.', 'MEDIA_BLOCKED');
-    const buf = await getObject(m.storage_key);
-    if (!buf || sha256(buf) !== m.checksum_sha256) {
+    const block = async () => {
       await run(`UPDATE academy_media_assets SET state = 'BLOCKED' WHERE id = ?`, id);
       await audit({ actorId: null, action: 'MEDIA_CHECKSUM_MISMATCH', subjectType: 'media', subjectId: id, correlationId: req.correlationId });
-      throw new AppError(409, 'MEDIA_INTEGRITY', 'A mídia falhou na verificação de integridade e foi bloqueada.');
-    }
+      return new AppError(409, 'MEDIA_INTEGRITY', 'A mídia falhou na verificação de integridade e foi bloqueada.');
+    };
     reply.header('Cache-Control', 'private, no-store');
     reply.header('Content-Type', m.mime);
-    return reply.send(buf);
+    reply.header('Accept-Ranges', 'bytes');
+    const total = Number(m.size_bytes);
+    const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range ?? ''));
+    if (!m.chunk_count) {
+      const buf = await getObject(m.storage_key);
+      if (!buf || sha256(buf) !== m.checksum_sha256) throw await block();
+      if (!range) return reply.send(buf);
+      const start = range[1] ? Number(range[1]) : Math.max(0, total - Number(range[2]));
+      const end = range[1] && range[2] ? Math.min(Number(range[2]), total - 1) : total - 1;
+      if (start >= total || start > end) return reply.code(416).header('Content-Range', `bytes */${total}`).send();
+      return reply.code(206).header('Content-Range', `bytes ${start}-${end}/${total}`).send(buf.subarray(start, end + 1));
+    }
+    // Mídia em partes: cada resposta entrega no máximo uma parte (limite de resposta da Function);
+    // o player do navegador pede as faixas seguintes automaticamente.
+    const start = range?.[1] ? Number(range[1]) : range?.[2] ? Math.max(0, total - Number(range[2])) : 0;
+    if (start >= total) return reply.code(416).header('Content-Range', `bytes */${total}`).send();
+    const n = Math.floor(start / m.chunk_size);
+    const c = await one<any>('SELECT sha256 FROM academy_media_chunks WHERE asset_id = ? AND n = ?', id, n);
+    const buf = c ? await getObject(chunkKey(m.storage_key, n)) : null;
+    if (!buf || sha256(buf) !== c.sha256) throw await block();
+    const chunkStart = n * m.chunk_size;
+    const reqEnd = range?.[1] && range?.[2] ? Math.min(Number(range[2]), total - 1) : total - 1;
+    const end = Math.min(reqEnd, chunkStart + buf.length - 1);
+    if (!range && m.chunk_count === 1) return reply.send(buf);
+    return reply.code(206).header('Content-Range', `bytes ${start}-${end}/${total}`).send(buf.subarray(start - chunkStart, end - chunkStart + 1));
   });
 
   // ACA-005 - Atividade integradora

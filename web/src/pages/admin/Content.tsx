@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../lib/auth';
 import { dateTime, label } from '../../lib/format';
 import { useApi, useSubmit } from '../../lib/hooks';
+import { uploadInParts } from '../../lib/upload';
 import { Alert, Badge, Button, ErrorState, Field, Loading, PageHeader, Pending } from '../../ui/ui';
 
 const tone = (s: string) => (s === 'PUBLISHED' || s === 'APPROVED' ? '' : s === 'IN_REVIEW' ? 'orange' : 'dark');
@@ -40,11 +41,24 @@ export function ContentPage() {
 
 function LessonForm({ l, editable, media, onSaved }: { l: any; editable: boolean; media: any[]; onSaved: () => void }) {
   const save = useSubmit<any>();
+  const del = useSubmit<any>();
+  const [up, setUp] = useState<{ label: string; pct: number } | null>(null);
+  const [upErr, setUpErr] = useState<any>(null);
+  const uploadFor = async (file: File | undefined, kind: string, k: 'videoAssetId' | 'captionAssetId' | 'transcriptAssetId') => {
+    if (!file) return;
+    setUpErr(null); setUp({ label: 'Preparando', pct: 0 });
+    try {
+      const r = await uploadInParts(file, { kind, title: `${l.code} · ${file.name}`, expectedChecksum: '' }, (label, pct) => setUp({ label, pct }));
+      setF((cur) => ({ ...cur, [k]: r.id }));
+      onSaved();
+    } catch (e: any) { setUpErr(e); } finally { setUp(null); }
+  };
   const [f, setF] = useState({ title: l.title, body: l.body ?? '', videoAssetId: l.video_asset_id ?? '', captionAssetId: l.caption_asset_id ?? '', transcriptAssetId: l.transcript_asset_id ?? '', completionMinPercent: l.completion_min_percent ?? '' });
   const [ok, setOk] = useState<string | null>(null);
   const opts = (kind: string) => media.filter((m) => m.kind === kind && m.state !== 'BLOCKED');
   const sel = (k: 'videoAssetId' | 'captionAssetId' | 'transcriptAssetId', kind: string, lbl: string) => (
-    <Field label={lbl}><select disabled={!editable} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })}><option value="">— nenhum —</option>{opts(kind).map((m) => <option key={m.id} value={m.id}>{m.title} ({label(m.state)})</option>)}</select></Field>
+    <Field label={lbl}><select disabled={!editable} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })}><option value="">— nenhum —</option>{opts(kind).map((m) => <option key={m.id} value={m.id}>{m.title} ({label(m.state)})</option>)}</select>
+      {editable && <label className="small" style={{ display: 'block', marginTop: 6 }}>ou enviar novo arquivo: <input type="file" disabled={!!up} accept={kind === 'VIDEO' ? 'video/mp4,video/webm' : kind === 'CAPTION' ? '.vtt,text/vtt' : '.txt,.md,.pdf'} onChange={(e) => { uploadFor(e.target.files?.[0], kind, k); e.target.value = ''; }} /></label>}</Field>
   );
   return (
     <details className="tile" style={{ marginBottom: 10 }}>
@@ -54,12 +68,14 @@ function LessonForm({ l, editable, media, onSaved }: { l: any; editable: boolean
         <Field label="Conteúdo (texto)"><textarea disabled={!editable} value={f.body} onChange={(e) => setF({ ...f, body: e.target.value })} /></Field>
         <div className="grid">{sel('videoAssetId', 'VIDEO', 'Vídeo')}{sel('captionAssetId', 'CAPTION', 'Legenda (VTT)')}{sel('transcriptAssetId', 'TRANSCRIPT', 'Transcrição')}</div>
         <Field label="Mínimo percorrido para concluir (%)" hint="Critério de conclusão da aula — decisão institucional."><input type="number" min={1} max={100} disabled={!editable} value={f.completionMinPercent} onChange={(e) => setF({ ...f, completionMinPercent: e.target.value })} /></Field>
-        <Alert error={save.error} success={ok} />
-        {editable && <Button className="sm deep" busy={save.busy} onClick={async () => {
+        {up && <div role="status"><div className="small">{up.label} · {up.pct}%</div><progress max={100} value={up.pct} style={{ width: '100%' }} /></div>}
+        <Alert error={save.error || upErr || del.error} success={ok} />
+        {editable && <div className="row"><Button className="sm deep" busy={save.busy} disabled={!!up} onClick={async () => {
           setOk(null);
           const r = await save.run('PUT', `/api/admin/academy/lessons/${l.id}`, { title: f.title, body: f.body || null, videoAssetId: f.videoAssetId || null, captionAssetId: f.captionAssetId || null, transcriptAssetId: f.transcriptAssetId || null, completionMinPercent: f.completionMinPercent === '' ? null : Number(f.completionMinPercent) });
-          if (r) { setOk('Aula salva.'); onSaved(); }
-        }}>Salvar aula</Button>}
+          if (r) { setOk('Aula salva. Novos arquivos ficam pendentes até a aprovação do RT em Mídia.'); onSaved(); }
+        }}>Salvar aula</Button>
+          <Button className="sm danger" busy={del.busy} onClick={async () => { if (confirm(`Remover a aula ${l.code} · ${l.title} deste rascunho?`) && await del.run('DELETE', `/api/admin/academy/lessons/${l.id}`)) onSaved(); }}>Remover aula</Button></div>}
       </div>
     </details>
   );
@@ -117,6 +133,7 @@ export function VersionEditor() {
   const meta = useSubmit<any>();
   const action = useSubmit<any>();
   const newAct = useSubmit<any>();
+  const addLesson = useSubmit<any>();
   const newAsm = useSubmit<any>();
   const [f, setF] = useState<any>(null);
   const [note, setNote] = useState('');
@@ -154,8 +171,11 @@ export function VersionEditor() {
         </section>
       )}
       <section className="surface">
-        <h2>Aulas</h2>
-        {data.lessons.map((l: any) => <LessonForm key={l.id + v.state} l={l} editable={editable} media={media.data?.assets ?? []} onSaved={reload} />)}
+        <div className="row between"><h2 className="mb0">Aulas</h2>
+          {editable && <Button className="sm secondary" busy={addLesson.busy} onClick={async () => { const title = prompt('Título da nova aula'); if (title && await addLesson.run('POST', `/api/admin/academy/course-versions/${id}/lessons`, { title })) reload(); }}>Adicionar aula</Button>}</div>
+        <Alert error={addLesson.error} />
+        {!editable && <p className="small muted">Para incluir ou alterar aulas, crie um rascunho da versão (botão no topo). A publicação exige aprovação do RT.</p>}
+        {data.lessons.map((l: any) => <LessonForm key={l.id + v.state} l={l} editable={editable} media={media.data?.assets ?? []} onSaved={() => { reload(); media.reload(); }} />)}
       </section>
       <section className="surface">
         <div className="row between"><h2 className="mb0">Atividades integradoras</h2>

@@ -30,7 +30,7 @@ export const STATE_LABEL: Record<string, string> = {
   APROVADA: 'Aprovada', REPROVADA: 'Reprovada', SUBMETIDA: 'Submetida', CRIADA: 'Criada', INVALIDADA: 'Invalidada',
   NAO_ELEGIVEL: 'Não elegível', ELEGIVEL: 'Elegível', EMITIDO: 'Emitido', REVOGADO: 'Revogado',
   DRAFT: 'Rascunho', IN_REVIEW: 'Em revisão', APPROVED: 'Aprovado', PUBLISHED: 'Publicado', ARCHIVED: 'Arquivado', RETIRED: 'Substituído',
-  PENDING: 'Pendente', BLOCKED: 'Bloqueado', ACTIVE: 'Ativo', INACTIVE: 'Inativo',
+  PENDING: 'Pendente', UPLOADING: 'Envio incompleto', BLOCKED: 'Bloqueado', ACTIVE: 'Ativo', INACTIVE: 'Inativo',
   CONFIRMED: 'Confirmada', FAILED: 'Não confirmada', REFUNDED: 'Estornado', PAID: 'Pago', PENDING_PAYMENT: 'Aguardando pagamento',
   REFUND_PENDING: 'Em análise', REJECTED: 'Não aprovado',
   INVITED: 'Convite enviado', ACCEPTED: 'Aceito — aguardando verificação ONEMA', VERIFIED: 'Verificado e ativo', REVOKED: 'Revogado', EXPIRED: 'Expirado',

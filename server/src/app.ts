@@ -30,6 +30,8 @@ export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean 
 
   await app.register(cookie);
   await app.register(multipart, { limits: { fileSize: 500 * 1024 * 1024, files: 1 } });
+  // Partes de mídia (envio em blocos): corpo binário bruto; o limite é definido na rota.
+  app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer' }, (_req, body, done) => done(null, body));
 
   app.decorateRequest('auth', null);
   app.decorateRequest('correlationId', '');
@@ -64,7 +66,7 @@ export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean 
     reply.header('X-Frame-Options', 'DENY');
     reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     reply.header('Content-Security-Policy',
-      "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+      "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
     if (config.isProd) reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     return payload;
   });

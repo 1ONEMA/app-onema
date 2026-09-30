@@ -8,9 +8,9 @@ import { audit } from '../../lib/audit.ts';
 import { parse, requireRoles, type AuthCtx } from '../../lib/context.ts';
 import { AppError, badRequest, conflict, forbidden, notFound, unprocessable } from '../../lib/errors.ts';
 import { hashObj, nowIso, sha256, uid } from '../../lib/util.ts';
-import { putObject } from '../../lib/storage.ts';
+import { chunkKey, deleteObjects, MEDIA_CHUNK_BYTES, putObject } from '../../lib/storage.ts';
 import { computeJourney, refreshJourneyCompletion } from './core.ts';
-import { fileChecksum, signedMediaUrl } from './routes.ts';
+import { signedMediaUrl, verifyMedia } from './routes.ts';
 
 const READERS = ['GESTOR_CONTEUDO', 'AVALIADOR_RT', 'ADMIN_ACADEMY', 'AUDITOR'] as const;
 const idParam = z.object({ id: z.string().uuid() });
@@ -104,14 +104,12 @@ export async function academyAdminRoutes(app: FastifyInstance) {
   // ---- Catálogo e versões (ACA-012) ----
   app.get('/api/admin/academy/courses', async (req) => {
     requireRoles(req, [...READERS]);
-    const courses = await all<any>('SELECT * FROM academy_courses ORDER BY sort_order');
-    return {
-      courses: await Promise.all(courses.map(async (c) => ({
-        ...c,
-        versions: await all<any>(`SELECT id, version, title, state, created_at, approved_at, published_at, activity_required, workload_text, source_note
-                            FROM academy_course_versions WHERE course_id = ? ORDER BY version DESC`, c.id),
-      }))),
-    };
+    const [courses, versions] = await Promise.all([
+      all<any>('SELECT * FROM academy_courses ORDER BY sort_order'),
+      all<any>(`SELECT id, course_id, version, title, state, created_at, approved_at, published_at, activity_required, workload_text, source_note
+                FROM academy_course_versions ORDER BY version DESC`),
+    ]);
+    return { courses: courses.map((c) => ({ ...c, versions: versions.filter((v) => v.course_id === c.id).map(({ course_id, ...v }) => v) })) };
   });
 
   app.get('/api/admin/academy/course-versions/:id', async (req) => {
@@ -212,6 +210,39 @@ export async function academyAdminRoutes(app: FastifyInstance) {
       await run(`UPDATE academy_lessons SET title = ?, body = ?, video_asset_id = ?, caption_asset_id = ?, transcript_asset_id = ?, completion_min_percent = ? WHERE id = ?`,
         body.title, body.body || null, body.videoAssetId, body.captionAssetId, body.transcriptAssetId, body.completionMinPercent, id);
       await audit({ actorId: a.userId, action: 'LESSON_EDITED', subjectType: 'course_version', subjectId: l.course_version_id, before, after: await versionSnapshot(l.course_version_id), correlationId: req.correlationId, meta: { lesson: l.code } });
+      return { ok: true };
+    });
+  });
+
+  // Inclusão/remoção de aulas em rascunho (a versão só é publicada após aprovação do RT).
+  app.post('/api/admin/academy/course-versions/:id/lessons', async (req) => {
+    const a = requireRoles(req, ['GESTOR_CONTEUDO', 'ADMIN_ACADEMY']);
+    const { id } = parse(idParam, req.params);
+    const { title } = parse(z.object({ title: z.string().trim().min(3).max(200) }), req.body);
+    return await tx(async () => {
+      const cv = await cvOrThrow(id); requireDraft(cv);
+      const before = await versionSnapshot(id);
+      const codes = (await all<any>('SELECT code, sort_order FROM academy_lessons WHERE course_version_id = ?', id));
+      const nextNo = Math.max(0, ...codes.map((l) => Number(/-A(\d+)$/.exec(l.code)?.[1] ?? 0))) + 1;
+      const order = Math.max(0, ...codes.map((l) => l.sort_order)) + 1;
+      const lessonId = uid(), code = `${cv.code}-A${String(nextNo).padStart(2, '0')}`;
+      await run('INSERT INTO academy_lessons (id, course_version_id, code, sort_order, required, title) VALUES (?,?,?,?,1,?)', lessonId, id, code, order, title);
+      await audit({ actorId: a.userId, action: 'LESSON_ADDED', subjectType: 'course_version', subjectId: id, before, after: await versionSnapshot(id), correlationId: req.correlationId, meta: { lesson: code } });
+      return { id: lessonId, code };
+    });
+  });
+
+  app.delete('/api/admin/academy/lessons/:id', async (req) => {
+    const a = requireRoles(req, ['GESTOR_CONTEUDO', 'ADMIN_ACADEMY']);
+    const { id } = parse(idParam, req.params);
+    return await tx(async () => {
+      const l = await one<any>('SELECT * FROM academy_lessons WHERE id = ?', id);
+      if (!l) throw notFound('Aula não encontrada.');
+      requireDraft(await cvOrThrow(l.course_version_id));
+      if (await one('SELECT 1 FROM academy_lesson_progress WHERE lesson_id = ? LIMIT 1', id)) throw conflict('LESSON_IN_USE', 'Aula com progresso registrado não pode ser removida.');
+      const before = await versionSnapshot(l.course_version_id);
+      await run('DELETE FROM academy_lessons WHERE id = ?', id);
+      await audit({ actorId: a.userId, action: 'LESSON_REMOVED', subjectType: 'course_version', subjectId: l.course_version_id, before, after: await versionSnapshot(l.course_version_id), correlationId: req.correlationId, meta: { lesson: l.code } });
       return { ok: true };
     });
   });
@@ -327,6 +358,80 @@ export async function academyAdminRoutes(app: FastifyInstance) {
     return { id, checksum, state: 'PENDING' };
   });
 
+  // Envio em partes (arquivos maiores que o limite de uma requisição de Function).
+  const MEDIA_ALLOWED: Record<string, RegExp> = {
+    VIDEO: /^video\/(mp4|webm)$/, AUDIO: /^audio\/(mpeg|mp4|webm|ogg)$/, CAPTION: /^(text\/vtt|application\/octet-stream)$/,
+    TRANSCRIPT: /^(text\/plain|text\/markdown|application\/pdf)$/, IMAGE: /^image\/(png|jpeg|webp)$/,
+  };
+  app.post('/api/admin/academy/media/uploads', async (req) => {
+    const a = requireRoles(req, ['GESTOR_CONTEUDO', 'ADMIN_ACADEMY']);
+    const b = parse(z.object({
+      kind: z.enum(['VIDEO', 'AUDIO', 'CAPTION', 'TRANSCRIPT', 'IMAGE']),
+      title: z.string().trim().min(3).max(200),
+      filename: z.string().trim().min(1).max(300),
+      mime: z.string().max(100),
+      size: z.number().int().min(1).max(4 * 1024 * 1024 * 1024),
+      checksum: z.string().regex(/^[a-f0-9]{64}$/),
+      expectedChecksum: z.string().regex(/^[a-f0-9]{64}$/).optional().or(z.literal('')),
+    }), req.body);
+    const mime = b.mime || (b.kind === 'CAPTION' ? 'text/vtt' : '');
+    if (!MEDIA_ALLOWED[b.kind].test(mime)) throw badRequest('INVALID_MIME', `Tipo de arquivo não permitido para ${b.kind}: ${mime || 'desconhecido'}.`);
+    const id = uid();
+    const chunkCount = Math.ceil(b.size / MEDIA_CHUNK_BYTES);
+    await run(`INSERT INTO academy_media_assets (id, kind, title, filename, storage_key, mime, size_bytes, checksum_sha256, state, created_by, created_at, chunk_size, chunk_count)
+         VALUES (?,?,?,?,?,?,?,?,'UPLOADING',?,?,?,?)`, id, b.kind, b.title, path.basename(b.filename).slice(0, 200), id,
+      mime === 'application/octet-stream' ? 'text/vtt' : mime, b.size, b.checksum, a.userId, nowIso(), MEDIA_CHUNK_BYTES, chunkCount);
+    return { id, chunkSize: MEDIA_CHUNK_BYTES, chunkCount };
+  });
+
+  app.put('/api/admin/academy/media/uploads/:id/chunks/:n', { bodyLimit: MEDIA_CHUNK_BYTES + 1024 }, async (req) => {
+    const a = requireRoles(req, ['GESTOR_CONTEUDO', 'ADMIN_ACADEMY']);
+    const { id, n } = parse(z.object({ id: z.string().uuid(), n: z.coerce.number().int().min(0).max(100000) }), req.params);
+    const m = await one<any>('SELECT * FROM academy_media_assets WHERE id = ?', id);
+    if (!m || m.created_by !== a.userId) throw notFound();
+    if (m.state !== 'UPLOADING') throw conflict('UPLOAD_CLOSED', 'Este envio já foi concluído.');
+    if (n >= m.chunk_count) throw badRequest('CHUNK_OUT_OF_RANGE', 'Parte inválida.');
+    const buf = req.body as Buffer;
+    if (!Buffer.isBuffer(buf) || !buf.length) throw badRequest('CHUNK_REQUIRED', 'Parte vazia.');
+    const expected = n < m.chunk_count - 1 ? m.chunk_size : m.size_bytes - m.chunk_size * (m.chunk_count - 1);
+    if (buf.length !== expected) throw badRequest('CHUNK_SIZE', 'Tamanho da parte não confere.');
+    await putObject(chunkKey(m.storage_key, n), buf);
+    await run(`INSERT INTO academy_media_chunks (asset_id, n, size_bytes, sha256) VALUES (?,?,?,?)
+               ON CONFLICT (asset_id, n) DO UPDATE SET size_bytes = excluded.size_bytes, sha256 = excluded.sha256`, id, n, buf.length, sha256(buf));
+    return { ok: true };
+  });
+
+  app.post('/api/admin/academy/media/uploads/:id/complete', async (req) => {
+    const a = requireRoles(req, ['GESTOR_CONTEUDO', 'ADMIN_ACADEMY']);
+    const { id } = parse(idParam, req.params);
+    const { expectedChecksum } = parse(z.object({ expectedChecksum: z.string().regex(/^[a-f0-9]{64}$/).optional().or(z.literal('')) }), req.body ?? {});
+    const m = await one<any>('SELECT * FROM academy_media_assets WHERE id = ?', id);
+    if (!m || m.created_by !== a.userId) throw notFound();
+    if (m.state !== 'UPLOADING') return { id, checksum: m.checksum_sha256, state: m.state };
+    const got = (await one<any>('SELECT COUNT(*) AS n, COALESCE(SUM(size_bytes),0) AS total FROM academy_media_chunks WHERE asset_id = ?', id))!;
+    if (got.n !== m.chunk_count || got.total !== m.size_bytes) throw conflict('UPLOAD_INCOMPLETE', `Envio incompleto (${got.n}/${m.chunk_count} partes). Tente novamente.`);
+    const mismatch = !!expectedChecksum && expectedChecksum !== m.checksum_sha256;
+    await run('UPDATE academy_media_assets SET state = ? WHERE id = ?', mismatch ? 'BLOCKED' : 'PENDING', id);
+    await audit({ actorId: a.userId, action: mismatch ? 'MEDIA_UPLOADED_CHECKSUM_MISMATCH' : 'MEDIA_UPLOADED', subjectType: 'media', subjectId: id, correlationId: req.correlationId, meta: { kind: m.kind, checksum: m.checksum_sha256, parts: m.chunk_count } });
+    if (mismatch) throw new AppError(409, 'MEDIA_INTEGRITY', 'O checksum informado não confere com o arquivo. A mídia foi registrada como BLOQUEADA.', { checksum: m.checksum_sha256 });
+    return { id, checksum: m.checksum_sha256, state: 'PENDING' };
+  });
+
+  // Exclusão de mídia não vinculada a aulas (rascunhos, envios interrompidos, arquivos errados).
+  app.delete('/api/admin/academy/media/:id', async (req) => {
+    const a = requireRoles(req, ['GESTOR_CONTEUDO', 'ADMIN_ACADEMY']);
+    const { id } = parse(idParam, req.params);
+    const m = await one<any>('SELECT * FROM academy_media_assets WHERE id = ?', id);
+    if (!m) throw notFound();
+    if (await one('SELECT 1 FROM academy_lessons WHERE video_asset_id = ? OR caption_asset_id = ? OR transcript_asset_id = ? LIMIT 1', id, id, id)) {
+      throw conflict('MEDIA_IN_USE', 'Esta mídia está vinculada a uma aula e não pode ser excluída.');
+    }
+    await run('DELETE FROM academy_media_assets WHERE id = ?', id);
+    await deleteObjects(m.storage_key, m.chunk_count ?? 0);
+    await audit({ actorId: a.userId, action: 'MEDIA_DELETED', subjectType: 'media', subjectId: id, correlationId: req.correlationId, meta: { kind: m.kind } });
+    return { ok: true };
+  });
+
   app.post('/api/admin/academy/media/:id/approve', async (req) => {
     const a = requireRoles(req, ['AVALIADOR_RT']);
     const { id } = parse(idParam, req.params);
@@ -334,7 +439,8 @@ export async function academyAdminRoutes(app: FastifyInstance) {
     if (!m) throw notFound();
     segregate(a, m.created_by);
     if (m.state === 'BLOCKED') throw conflict('MEDIA_BLOCKED', 'Mídia bloqueada não pode ser aprovada. Envie um novo arquivo.');
-    if (await fileChecksum(m.storage_key) !== m.checksum_sha256) {
+    if (m.state === 'UPLOADING') throw conflict('UPLOAD_INCOMPLETE', 'O envio desta mídia não foi concluído.');
+    if (!(await verifyMedia(m))) {
       await run(`UPDATE academy_media_assets SET state = 'BLOCKED' WHERE id = ?`, id);
       throw new AppError(409, 'MEDIA_INTEGRITY', 'Checksum divergente: mídia bloqueada.');
     }
@@ -347,7 +453,7 @@ export async function academyAdminRoutes(app: FastifyInstance) {
     requireRoles(req, ['GESTOR_CONTEUDO', 'AVALIADOR_RT', 'ADMIN_ACADEMY']);
     const { id } = parse(idParam, req.params);
     if (!await one('SELECT 1 FROM academy_media_assets WHERE id = ?', id)) throw notFound();
-    return { url: signedMediaUrl(id, 300, true) };
+    return { url: signedMediaUrl(id, 3600, true) };
   });
 
   // ---- Atividades integradoras ----

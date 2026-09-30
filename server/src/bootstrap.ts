@@ -6,6 +6,7 @@ import { config } from './config.ts';
 import { all, one, run, tx } from './db/db.ts';
 import { migrate, pendingMigrations } from './db/migrate.ts';
 import { seedDemo, seedOfficial } from './db/seed.ts';
+import { MIGRATIONS } from './db/migrations.ts';
 import { ROLES, type Role } from './lib/roles.ts';
 import { hashPassword } from './lib/security.ts';
 import { nowIso, randomToken, uid } from './lib/util.ts';
@@ -42,18 +43,28 @@ export function ensureReady(opts: ReadyOptions = {}): Promise<string[]> {
   return ready;
 }
 
+const SCHEMA_HEAD = MIGRATIONS[MIGRATIONS.length - 1].name;
+const markSchemaHead = () => run(`INSERT INTO system_settings (key, value, created_at) VALUES ('schema_head', ?, ?)
+  ON CONFLICT (key) DO UPDATE SET value = excluded.value`, SCHEMA_HEAD, nowIso());
+
 async function runInit(opts: ReadyOptions): Promise<string[]> {
   const t0 = Date.now();
   const log = (name: string) => console.log(`[bootstrap] ${name} em ${Date.now() - t0} ms`);
   // Uma consulta: versão concluída + progresso parcial (etapas já feitas em requisições anteriores).
   let settings = new Map<string, string>();
   try {
-    settings = new Map((await all<any>(`SELECT key, value FROM system_settings WHERE key IN ('bootstrap_version', 'bootstrap_progress', 'app_secret', 'payment_webhook_secret')`))
+    settings = new Map((await all<any>(`SELECT key, value FROM system_settings WHERE key IN ('bootstrap_version', 'bootstrap_progress', 'app_secret', 'payment_webhook_secret', 'schema_head')`))
       .map((r) => [r.key, r.value]));
   } catch (e: any) {
     if (e?.code !== '42P01') throw e; // 42P01 = tabela ainda não existe (banco vazio)
   }
   if (settings.get('bootstrap_version') === bootstrapKey()) {
+    // Novas migrations em bancos já inicializados (sem refazer seeds).
+    if (settings.get('schema_head') !== SCHEMA_HEAD) {
+      await migrate();
+      await markSchemaHead();
+      log('migrations novas aplicadas');
+    }
     await loadSecrets(settings);
     await bootstrapAdmin();
     log('caminho rápido concluído');
@@ -94,6 +105,7 @@ async function runInit(opts: ReadyOptions): Promise<string[]> {
                ON CONFLICT (key) DO UPDATE SET value = excluded.value`, JSON.stringify({ key: bootstrapKey(), done: progress }), nowIso());
     log(name);
   }
+  await markSchemaHead();
   await run(`INSERT INTO system_settings (key, value, created_at) VALUES ('bootstrap_version', ?, ?)
              ON CONFLICT (key) DO UPDATE SET value = excluded.value`, bootstrapKey(), nowIso());
   log('inicialização completa');

@@ -94,17 +94,57 @@ export interface CourseSummary {
   workloadText: string | null;
 }
 
+/**
+ * Dados da jornada em UMA ida ao banco (o banco pode estar distante da Function: cada consulta custa uma viagem).
+ * Mesmas regras de antes; apenas a leitura foi agrupada.
+ */
+async function journeySnapshot(enrollmentId: string | null) {
+  const r = await one<any>(`
+    WITH cvs AS (
+      SELECT current_version_id AS id FROM academy_courses WHERE current_version_id IS NOT NULL
+      UNION SELECT course_version_id FROM academy_enrollment_courses WHERE enrollment_id = ?
+    )
+    SELECT
+      (SELECT COALESCE(json_agg(c ORDER BY c.sort_order), '[]') FROM academy_courses c) AS courses,
+      (SELECT COALESCE(json_agg(v), '[]') FROM academy_course_versions v WHERE v.id IN (SELECT id FROM cvs)) AS versions,
+      (SELECT COALESCE(json_agg(ec), '[]') FROM academy_enrollment_courses ec WHERE ec.enrollment_id = ?) AS bound,
+      (SELECT COALESCE(json_agg(json_build_object('id', l.id, 'cv', l.course_version_id, 'required', l.required) ORDER BY l.sort_order), '[]')
+         FROM academy_lessons l WHERE l.course_version_id IN (SELECT id FROM cvs)) AS lessons,
+      (SELECT COALESCE(json_agg(s ORDER BY s.version DESC), '[]') FROM academy_assessments s WHERE s.course_version_id IN (SELECT id FROM cvs)) AS assessments,
+      (SELECT COALESCE(json_agg(DISTINCT a.course_version_id), '[]') FROM academy_activities a WHERE a.state = 'APPROVED' AND a.course_version_id IN (SELECT id FROM cvs)) AS approved_activity_cvs,
+      (SELECT COALESCE(json_agg(json_build_object('lesson_id', p.lesson_id, 'state', p.state)), '[]') FROM academy_lesson_progress p WHERE p.enrollment_id = ?) AS progress,
+      (SELECT COALESCE(json_agg(DISTINCT a.course_version_id), '[]') FROM academy_activity_attempts aa JOIN academy_activities a ON a.id = aa.activity_id
+         WHERE aa.enrollment_id = ? AND aa.state = 'CONCLUIDA') AS activity_done_cvs,
+      (SELECT COALESCE(json_agg(json_build_object('assessment_id', t.assessment_id, 'state', t.state)), '[]') FROM academy_assessment_attempts t WHERE t.enrollment_id = ?) AS attempts
+  `, enrollmentId, enrollmentId, enrollmentId, enrollmentId, enrollmentId);
+  const j = (v: any) => (typeof v === 'string' ? JSON.parse(v) : v) as any[];
+  return {
+    courses: j(r.courses), versions: new Map(j(r.versions).map((v) => [v.id, v])), bound: new Map(j(r.bound).map((b) => [b.course_id, b])),
+    lessons: j(r.lessons), assessments: j(r.assessments), approvedActivityCvs: new Set(j(r.approved_activity_cvs)),
+    progress: new Map(j(r.progress).map((p) => [p.lesson_id, p])), activityDoneCvs: new Set(j(r.activity_done_cvs)), attempts: j(r.attempts),
+  };
+}
+
 /** Calcula o estado de cada curso na ordem da jornada. */
 export async function computeJourney(enrollment: Enrollment | undefined, opts: { bind: boolean }) {
-  const courses = await listCourses();
+  const snap = await journeySnapshot(enrollment?.id ?? null);
+  const withCv = (ec: any) => {
+    const v = snap.versions.get(ec.course_version_id);
+    return v ? { ...ec, title: v.title, version: v.version, activity_required: v.activity_required, objectives: v.objectives, workload_text: v.workload_text } : ec;
+  };
   const out: CourseSummary[] = [];
   let prevApproved = true;
-  for (const c of courses) {
-    const published = c.current_version_id
-      ? await one<any>('SELECT * FROM academy_course_versions WHERE id = ?', c.current_version_id) : undefined;
-    let bound = enrollment ? await boundVersion(enrollment.id, c.id) : undefined;
-    if (!bound && enrollment && prevApproved && opts.bind) bound = await bindIfPossible(enrollment.id, c);
-    const cv = bound ? await one<any>('SELECT * FROM academy_course_versions WHERE id = ?', bound.course_version_id) : published;
+  for (const c of snap.courses) {
+    const published = c.current_version_id ? snap.versions.get(c.current_version_id) : undefined;
+    let bound = enrollment && snap.bound.has(c.id) ? withCv(snap.bound.get(c.id)) : undefined;
+    if (!bound && enrollment && prevApproved && opts.bind) {
+      bound = await bindIfPossible(enrollment.id, c);
+      if (bound && !snap.versions.has(bound.course_version_id)) {
+        // versão ainda não carregada (corrida com publicação): recarrega o retrato
+        return computeJourney(enrollment, opts);
+      }
+    }
+    const cv = bound ? snap.versions.get(bound.course_version_id) : published;
     const pending: string[] = [];
     let state: CourseState = 'BLOQUEADO';
     let lessonsTotal = 0, lessonsDone = 0, activityDone = false;
@@ -113,21 +153,30 @@ export async function computeJourney(enrollment: Enrollment | undefined, opts: {
     if (!cv) {
       pending.push('Nenhuma versão publicada deste curso.');
     } else {
-      const lessons = (await lessonsOf(cv.id)).filter((l) => l.required);
+      const lessons = snap.lessons.filter((l) => l.cv === cv.id && l.required);
       lessonsTotal = lessons.length;
-      const readiness = await assessmentReadiness(cv.id);
-      asm = { ready: readiness.ready, missing: readiness.missing, attemptsUsed: 0, maxAttempts: readiness.assessment?.max_attempts ?? null, id: readiness.assessment?.id ?? null };
-      if (!readiness.ready) pending.push(`Avaliação pendente de definição institucional: ${readiness.missing.join(', ')}.`);
+      const all = snap.assessments.filter((s) => s.course_version_id === cv.id);
+      const approved = all.find((s) => s.state === 'APPROVED');
+      const draft = all[0];
+      const missing: string[] = [];
+      if (!approved) {
+        if (!draft || draft.question_count == null) missing.push('número de questões');
+        if (!draft || draft.pass_min_correct == null) missing.push('nota mínima');
+        if (!draft || draft.max_attempts == null) missing.push('limite de tentativas');
+        missing.push('banco de questões aprovado pelo RT');
+      }
+      asm = { ready: !!approved, missing, attemptsUsed: 0, maxAttempts: approved?.max_attempts ?? null, id: approved?.id ?? null };
+      if (!approved) pending.push(`Avaliação pendente de definição institucional: ${missing.join(', ')}.`);
       if (cv.activity_required == null) pending.push('Obrigatoriedade da atividade integradora pendente de definição.');
-      else if (cv.activity_required === 1 && !await latestApproved('academy_activities', cv.id)) pending.push('Roteiro da atividade integradora pendente de aprovação.');
+      else if (cv.activity_required === 1 && !snap.approvedActivityCvs.has(cv.id)) pending.push('Roteiro da atividade integradora pendente de aprovação.');
 
       if (enrollment && bound) {
-        const prog = await lessonProgress(enrollment.id, lessons.map((l) => l.id));
-        lessonsDone = lessons.filter((l) => prog.get(l.id)?.state === 'CONCLUIDA').length;
-        activityDone = await activityCompleted(enrollment.id, cv.id);
-        const attempts = readiness.assessment ? await attemptsOf(enrollment.id, readiness.assessment.id) : [];
+        const prog = lessons.map((l) => snap.progress.get(l.id)).filter(Boolean);
+        lessonsDone = prog.filter((p: any) => p.state === 'CONCLUIDA').length;
+        activityDone = snap.activityDoneCvs.has(cv.id);
+        const attempts = approved ? snap.attempts.filter((t) => t.assessment_id === approved.id) : [];
         asm.attemptsUsed = attempts.filter((t) => t.state !== 'INVALIDADA').length;
-        const started = prog.size > 0 || activityDone || attempts.length > 0;
+        const started = prog.length > 0 || activityDone || attempts.length > 0;
         const lessonsOk = lessonsTotal > 0 && lessonsDone === lessonsTotal;
         const activityOk = cv.activity_required === 0 || (cv.activity_required === 1 && activityDone);
         if (!prevApproved) state = 'BLOQUEADO';
