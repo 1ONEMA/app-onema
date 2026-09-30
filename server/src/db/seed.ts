@@ -122,14 +122,17 @@ export const DEMO_USERS = [
 ] as const;
 
 let demoHash: string | null = null;
+const emailOfDemo = (k: string) => DEMO_USERS.find((u) => u.key === k)!.email;
 export const DEMO_LABEL = '[DEMONSTRAÇÃO FICTÍCIA — não é conteúdo oficial ONEMA]';
 
-export async function seedDemo() {
+/** part: 'base' (usuários e catálogo), 'academy' (conteúdo de demonstração) ou ambos. */
+export async function seedDemo(part: 'all' | 'base' | 'academy' = 'all') {
   if (config.appEnv === 'production') throw new Error('seed-demo é proibido em produção.');
-  await seedOfficial();
+  if (part === 'all') await seedOfficial();
   return await tx(async () => {
     const now = nowIso();
     const ids: Record<string, string> = {};
+    if (part === 'academy') { /* usuários já criados na etapa 'base' */ } else {
     const known = new Map((await all<any>(`SELECT id, email FROM users WHERE email IN (${DEMO_USERS.map(() => '?').join(',')})`, ...DEMO_USERS.map((u) => u.email)))
       .map((r) => [r.email, r.id]));
     const userRows: any[][] = [], roleRows: any[][] = [];
@@ -142,6 +145,13 @@ export async function seedDemo() {
     }
     await insertMany('users', ['id', 'email', 'name', 'password_hash', 'academy_eligible', 'created_at', 'updated_at'], userRows);
     await insertMany('user_roles', ['user_id', 'role', 'granted_at'], roleRows);
+    }
+    if (part === 'academy') {
+      for (const r of await all<any>(`SELECT id, email FROM users WHERE email IN (?, ?)`, emailOfDemo('gestor'), emailOfDemo('rt'))) {
+        ids[r.email === emailOfDemo('gestor') ? 'gestor' : 'rt'] = r.id;
+      }
+    }
+    if (part !== 'academy') {
     // Catálogo fictício com os valores dos critérios de aceite A04
     const demoItems: [string, string, 'SERVICO' | 'PACOTE', number][] = [
       ['DEMO-SERV-A', 'Serviço de demonstração A (fictício)', 'SERVICO', 8990],
@@ -153,21 +163,30 @@ export async function seedDemo() {
       ${demoItems.map(() => '(?,?,?,?,?,1,1,1,?,?)').join(', ')} ON CONFLICT (code) DO NOTHING`,
       ...demoItems.flatMap(([code, name, kind, price]) => [uid(), code, name, kind, price, now, now]));
 
-    // Academy: conteúdo neutro de demonstração em TODAS as aulas, aprovado pelo RT demo e publicado.
-    for (const c of await all<any>('SELECT * FROM academy_courses ORDER BY sort_order')) {
-      const cv = await one<any>(`SELECT * FROM academy_course_versions WHERE course_id = ? AND version = 1`, c.id)!;
-      if (cv.state !== 'DRAFT') continue;
-      await run(`UPDATE academy_lessons SET completion_min_percent = 100, body = ? || title || ? WHERE course_version_id = ?`,
+    }
+    if (part === 'base') return { users: DEMO_USERS.map((u) => u.email), password: DEMO_PASSWORD };
+    // Academy: conteúdo neutro de demonstração em TODAS as aulas, aprovado pelo RT demo e publicado (operações em lote).
+    const drafts = await all<any>(`SELECT c.id AS course_id, cv.id AS cv_id FROM academy_courses c
+      JOIN academy_course_versions cv ON cv.course_id = c.id AND cv.version = 1 WHERE cv.state = 'DRAFT' ORDER BY c.sort_order`);
+    if (drafts.length) {
+      const cvIds = drafts.map((d) => d.cv_id);
+      const inList = cvIds.map(() => '?').join(',');
+      await run(`UPDATE academy_lessons SET completion_min_percent = 100, body = ? || title || ? WHERE course_version_id IN (${inList})`,
         `${DEMO_LABEL}\n\nEste texto substitui temporariamente o conteúdo oficial da aula "`,
-        '", que ainda não foi disponibilizado (P-006).\n\nRole até o final e marque a aula como concluída para testar o registro de progresso.', cv.id);
-      await run('UPDATE academy_course_versions SET created_by = ?, objectives = ? WHERE id = ?', ids.gestor, `${DEMO_LABEL} Objetivos oficiais pendentes.`, cv.id);
-      const snap = {
-        cv: await one('SELECT id, version, title, objectives, activity_required, workload_text FROM academy_course_versions WHERE id = ?', cv.id),
-        lessons: await all('SELECT code, sort_order, required, title, body, video_asset_id, caption_asset_id, transcript_asset_id, completion_min_percent FROM academy_lessons WHERE course_version_id = ? ORDER BY sort_order', cv.id),
-      };
-      await run(`UPDATE academy_course_versions SET state = 'PUBLISHED', submitted_at = ?, approved_by = ?, approved_at = ?, published_at = ?, content_hash = ? WHERE id = ?`,
-        now, ids.rt, now, now, hashObj(snap), cv.id);
-      await run('UPDATE academy_courses SET current_version_id = ? WHERE id = ?', cv.id, c.id);
+        '", que ainda não foi disponibilizado (P-006).\n\nRole até o final e marque a aula como concluída para testar o registro de progresso.', ...cvIds);
+      await run(`UPDATE academy_course_versions SET created_by = ?, objectives = ? WHERE id IN (${inList})`, ids.gestor, `${DEMO_LABEL} Objetivos oficiais pendentes.`, ...cvIds);
+      // Snapshot idêntico ao de versionSnapshot() (mesmas colunas e ordem), calculado a partir do banco.
+      const cvRows = await all<any>(`SELECT id, version, title, objectives, activity_required, workload_text FROM academy_course_versions WHERE id IN (${inList})`, ...cvIds);
+      const lessonRows = await all<any>(`SELECT course_version_id, code, sort_order, required, title, body, video_asset_id, caption_asset_id, transcript_asset_id, completion_min_percent
+        FROM academy_lessons WHERE course_version_id IN (${inList}) ORDER BY sort_order`, ...cvIds);
+      const hashes = cvRows.map((cv) => {
+        const lessons = lessonRows.filter((l) => l.course_version_id === cv.id).map(({ course_version_id, ...l }) => l);
+        return [cv.id, hashObj({ cv, lessons })];
+      });
+      await run(`UPDATE academy_course_versions AS cv SET state = 'PUBLISHED', submitted_at = ?, approved_by = ?, approved_at = ?, published_at = ?, content_hash = v.h
+        FROM (VALUES ${hashes.map(() => '(?, ?)').join(', ')}) AS v(id, h) WHERE cv.id = v.id`, now, ids.rt, now, now, ...hashes.flat());
+      await run(`UPDATE academy_courses AS c SET current_version_id = v.cv FROM (VALUES ${drafts.map(() => '(?, ?)').join(', ')}) AS v(id, cv) WHERE c.id = v.id`,
+        ...drafts.flatMap((d) => [d.course_id, d.cv_id]));
     }
 
     // C01: roteiro e banco fictícios e neutros sob a REGRA OFICIAL (6 decisões; 12 questões, 10/12, 3 tentativas).

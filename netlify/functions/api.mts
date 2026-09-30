@@ -7,17 +7,24 @@ import type { Config, Context } from '@netlify/functions';
 import type { FastifyInstance } from 'fastify';
 
 let appPromise: Promise<FastifyInstance> | null = null;
+/** Orçamento da requisição (limite da Netlify: 10 s): etapas só começam se a estimativa couber até aqui. */
+const INIT_BUDGET_MS = 8000;
 
-async function getApp(siteUrl: string | undefined) {
+function applyDefaults(siteUrl: string | undefined) {
+  // Padrões seguros para o ambiente publicado (valores do painel da Netlify têm precedência).
+  process.env.APP_ENV ??= 'homologacao';
+  if (siteUrl) process.env.PUBLIC_ORIGIN ??= siteUrl;
+  process.env.DB_CONNECT_TIMEOUT_MS ??= '4000';
+}
+
+async function getApp(siteUrl: string | undefined, started: number) {
+  applyDefaults(siteUrl);
+  const { ensureReady } = await import('../../server/src/bootstrap.ts');
+  await ensureReady({ deadline: started + INIT_BUDGET_MS });
   if (!appPromise) {
     appPromise = (async () => {
-      // Padrões seguros para o ambiente publicado (valores do painel da Netlify têm precedência).
-      process.env.APP_ENV ??= 'homologacao';
-      if (siteUrl) process.env.PUBLIC_ORIGIN ??= siteUrl;
-      const { ensureReady } = await import('../../server/src/bootstrap.ts');
       const { assertProductionConfig } = await import('../../server/src/config.ts');
       const { buildApp } = await import('../../server/src/app.ts');
-      await ensureReady();
       assertProductionConfig();
       const app = await buildApp({ trustProxy: false });
       await app.ready();
@@ -25,6 +32,37 @@ async function getApp(siteUrl: string | undefined) {
     })().catch((e) => { appPromise = null; throw e; });
   }
   return appPromise;
+}
+
+/** Diagnóstico sem dados sensíveis: não depende da inicialização completa. */
+async function health(siteUrl: string | undefined) {
+  applyDefaults(siteUrl);
+  const info: Record<string, unknown> = {
+    ok: false,
+    runtime: process.version,
+    databaseConfigured: !!(process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL),
+    adminBootstrapConfigured: !!(process.env.BOOTSTRAP_ADMIN_EMAIL && process.env.BOOTSTRAP_ADMIN_PASSWORD),
+    seedDemo: process.env.SEED_DEMO === 'true',
+  };
+  if (!info.databaseConfigured) return Response.json({ ...info, problem: 'NETLIFY_DATABASE_URL não definida' }, { status: 503 });
+  try {
+    const { one } = await import('../../server/src/db/db.ts');
+    const t = Date.now();
+    await one('SELECT 1 AS ok');
+    info.dbLatencyMs = Date.now() - t;
+    try {
+      const v = await one<any>(`SELECT value FROM system_settings WHERE key = 'bootstrap_version'`);
+      info.initialized = !!v;
+      info.bootstrapVersion = v?.value ?? null;
+    } catch (e: any) {
+      info.initialized = false;
+      info.bootstrapVersion = e?.code === '42P01' ? 'banco vazio' : `erro ${e?.code ?? ''}`;
+    }
+    info.ok = true;
+    return Response.json(info, { headers: { 'Cache-Control': 'no-store' } });
+  } catch (e: any) {
+    return Response.json({ ...info, problem: `falha ao conectar no banco: ${e?.code ?? ''} ${String(e?.message ?? '').slice(0, 200)}` }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
+  }
 }
 
 const json = (status: number, code: string, message: string) =>
@@ -42,10 +80,15 @@ function describeInitError(e: any) {
 
 export default async (req: Request, context: Context) => {
   const started = Date.now();
+  if (new URL(req.url).pathname === '/api/health') return health(context.site?.url);
   let app: FastifyInstance;
   try {
-    app = await getApp(context.site?.url);
+    app = await getApp(context.site?.url, started);
   } catch (e: any) {
+    if (e?.name === 'InitPendingError' || e?.constructor?.name === 'InitPendingError' || /em preparação/.test(String(e?.message))) {
+      console.warn(`[api] ${e.message} Próximas etapas: ${(e.stepsLeft ?? []).join(', ')}`);
+      return json(503, 'INITIALIZING', `${e.message} Recarregue a página em alguns segundos.`);
+    }
     console.error(`[api] falha na inicialização após ${Date.now() - started} ms:`, e?.code ?? '', e?.message, e?.stack);
     return describeInitError(e);
   }

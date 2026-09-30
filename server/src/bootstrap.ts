@@ -3,8 +3,8 @@
  * migrations, seed oficial, administrador inicial por variáveis de ambiente e, opcionalmente, dados de demonstração.
  */
 import { config } from './config.ts';
-import { one, run, tx } from './db/db.ts';
-import { migrate } from './db/migrate.ts';
+import { all, one, run, tx } from './db/db.ts';
+import { migrate, pendingMigrations } from './db/migrate.ts';
 import { seedDemo, seedOfficial } from './db/seed.ts';
 import { ROLES, type Role } from './lib/roles.ts';
 import { hashPassword } from './lib/security.ts';
@@ -17,38 +17,87 @@ let ready: Promise<string[]> | null = null;
 const BOOTSTRAP_VERSION = '2026-09-29.1';
 const bootstrapKey = () => `${BOOTSTRAP_VERSION}${process.env.SEED_DEMO === 'true' ? '+demo' : ''}`;
 
-export function ensureReady(): Promise<string[]> {
+/** A inicialização ainda não terminou nesta requisição (o progresso fica salvo; a próxima continua). */
+export class InitPendingError extends Error {
+  constructor(public stepsDone: string[], public stepsLeft: string[]) {
+    super(`Banco de dados em preparação (${stepsDone.length}/${stepsDone.length + stepsLeft.length} etapas).`);
+  }
+}
+
+export interface ReadyOptions {
+  /** Instante (ms epoch) em que a requisição precisa ter terminado. Sem valor: sem limite (build/CLI). */
+  deadline?: number;
+}
+
+/** Custo estimado de cada etapa em idas e voltas ao banco (usado com a latência medida). */
+const STEP_COST: Record<string, number> = {
+  'migrations': 10, 'segredos': 5, 'seed oficial': 14, 'administrador inicial': 7,
+  'demonstração: usuários e catálogo': 8, 'demonstração: Academy': 18,
+};
+
+export function ensureReady(opts: ReadyOptions = {}): Promise<string[]> {
   if (!ready) {
-    ready = (async () => {
-      const t0 = Date.now();
-      const step = (name: string) => console.log(`[bootstrap] ${name} em ${Date.now() - t0} ms`);
-      // Caminho rápido: banco já inicializado nesta versão.
-      try {
-        const v = await one<{ value: string }>(`SELECT value FROM system_settings WHERE key = 'bootstrap_version'`);
-        if (v?.value === bootstrapKey()) {
-          await loadSecrets();
-          await bootstrapAdmin();
-          step('caminho rápido concluído');
-          return [];
-        }
-      } catch (e: any) {
-        if (e?.code !== '42P01') throw e; // 42P01 = tabela ainda não existe (banco vazio)
-      }
-      const applied = await migrate(); step(`migrations (${applied.join(', ') || 'nenhuma nova'})`);
-      await loadSecrets();
-      await seedOfficial(); step('seed oficial');
-      await bootstrapAdmin(); step('administrador inicial');
-      if (process.env.SEED_DEMO === 'true') {
-        if (config.appEnv === 'production') console.warn('SEED_DEMO ignorado em produção.');
-        else { await seedDemo(); step('dados de demonstração'); }
-      }
-      await run(`INSERT INTO system_settings (key, value, created_at) VALUES ('bootstrap_version', ?, ?)
-                 ON CONFLICT (key) DO UPDATE SET value = excluded.value`, bootstrapKey(), nowIso());
-      step('inicialização completa');
-      return applied;
-    })().catch((e) => { ready = null; throw e; });
+    ready = runInit(opts).catch((e) => { ready = null; throw e; });
   }
   return ready;
+}
+
+async function runInit(opts: ReadyOptions): Promise<string[]> {
+  const t0 = Date.now();
+  const log = (name: string) => console.log(`[bootstrap] ${name} em ${Date.now() - t0} ms`);
+  // Uma consulta: versão concluída + progresso parcial (etapas já feitas em requisições anteriores).
+  let settings = new Map<string, string>();
+  try {
+    settings = new Map((await all<any>(`SELECT key, value FROM system_settings WHERE key IN ('bootstrap_version', 'bootstrap_progress', 'app_secret', 'payment_webhook_secret')`))
+      .map((r) => [r.key, r.value]));
+  } catch (e: any) {
+    if (e?.code !== '42P01') throw e; // 42P01 = tabela ainda não existe (banco vazio)
+  }
+  if (settings.get('bootstrap_version') === bootstrapKey()) {
+    await loadSecrets(settings);
+    await bootstrapAdmin();
+    log('caminho rápido concluído');
+    return [];
+  }
+  // Latência medida (1 ida e volta) para decidir se a próxima etapa cabe no tempo restante.
+  const tr = Date.now(); await one('SELECT 1 AS ok'); const rtt = Math.max(5, Date.now() - tr);
+  let doneThisRequest = 0;
+  const fits = (name: string) => !opts.deadline || doneThisRequest === 0 || Date.now() + (STEP_COST[name] ?? 10) * rtt * 1.3 + 300 < opts.deadline;
+  const canContinue = () => fits('migrations');
+  const demo = process.env.SEED_DEMO === 'true' && config.appEnv !== 'production';
+  if (process.env.SEED_DEMO === 'true' && !demo) console.warn('SEED_DEMO ignorado em produção.');
+  let progress: string[] = [];
+  try { const p = JSON.parse(settings.get('bootstrap_progress') ?? '{}'); if (p.key === bootstrapKey()) progress = p.done ?? []; } catch { /* ignora */ }
+  const steps: [string, () => Promise<unknown>][] = [
+    ['migrations', async () => {
+      const applied = await migrate(canContinue);
+      if ((await pendingMigrations()).length) throw new InitPendingError(['migrations parciais'], ['migrations']);
+      return applied;
+    }],
+    ['segredos', () => loadSecrets(new Map())],
+    ['seed oficial', seedOfficial],
+    ['administrador inicial', bootstrapAdmin],
+    ...(demo ? [['demonstração: usuários e catálogo', () => seedDemo('base')], ['demonstração: Academy', () => seedDemo('academy')]] as [string, () => Promise<unknown>][] : []),
+  ];
+  let applied: string[] = [];
+  for (const [name, fn] of steps) {
+    if (progress.includes(name)) {
+      if (name === 'segredos') await loadSecrets(settings);
+      continue;
+    }
+    if (!fits(name)) throw new InitPendingError(progress, steps.map(([n]) => n).filter((n) => !progress.includes(n)));
+    const r = await fn();
+    doneThisRequest++;
+    if (name === 'migrations') applied = r as string[];
+    progress.push(name);
+    await run(`INSERT INTO system_settings (key, value, created_at) VALUES ('bootstrap_progress', ?, ?)
+               ON CONFLICT (key) DO UPDATE SET value = excluded.value`, JSON.stringify({ key: bootstrapKey(), done: progress }), nowIso());
+    log(name);
+  }
+  await run(`INSERT INTO system_settings (key, value, created_at) VALUES ('bootstrap_version', ?, ?)
+             ON CONFLICT (key) DO UPDATE SET value = excluded.value`, bootstrapKey(), nowIso());
+  log('inicialização completa');
+  return applied;
 }
 
 /**
@@ -75,8 +124,9 @@ async function bootstrapAdmin() {
 }
 
 /** APP_SECRET / PAYMENT_WEBHOOK_SECRET: variável de ambiente ou valor aleatório persistido no banco (gerado uma única vez). */
-async function loadSecrets() {
+async function loadSecrets(known: Map<string, string>) {
   const get = async (key: string) => {
+    if (known.get(key)) return known.get(key)!;
     await run('INSERT INTO system_settings (key, value, created_at) VALUES (?,?,?) ON CONFLICT (key) DO NOTHING', key, randomToken(48), nowIso());
     return (await one<{ value: string }>('SELECT value FROM system_settings WHERE key = ?', key))!.value;
   };

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, setCsrf, setUnauthorizedHandler } from './api';
 
 export type Role = 'PACIENTE' | 'ESPECIALISTA' | 'SUPORTE_ACADEMY' | 'GESTOR_CONTEUDO' | 'AVALIADOR_RT' | 'ADMIN_ACADEMY'
@@ -37,6 +37,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally { setLoading(false); }
   }, [setMe]);
   useEffect(() => { refresh(); }, [refresh]);
+  // Banco em preparação/servidor indisponível: nova tentativa automática a cada 5 s (até ~2 min).
+  const retries = useRef(0);
+  useEffect(() => {
+    if (!error?.startsWith('API_UNAVAILABLE:') || retries.current >= 24) return;
+    const t = setTimeout(() => { retries.current++; refresh(); }, 5000);
+    return () => clearTimeout(t);
+  }, [error, refresh]);
   useEffect(() => { setUnauthorizedHandler(() => setMe({ user: null })); }, [setMe]);
   const logout = useCallback(async () => {
     try { await api('POST', '/api/auth/logout', {}); } catch { /* sessão já encerrada */ }

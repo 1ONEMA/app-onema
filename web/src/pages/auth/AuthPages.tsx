@@ -37,7 +37,7 @@ export function AuthLayout({ title, children }: { title: string; children: React
           )}
           {apiDown && (
             <div className="caution" role="alert">
-              <strong>Serviço temporariamente indisponível.</strong> {error!.replace(/^API_UNAVAILABLE:/, '')} Entrar, cadastrar e demais operações ficam indisponíveis até a normalização.
+              <strong>Serviço temporariamente indisponível.</strong> {error!.replace(/^API_UNAVAILABLE:/, '')} Tentaremos novamente de forma automática a cada poucos segundos.
             </div>
           )}
           <div className="surface">

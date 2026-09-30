@@ -66,3 +66,10 @@ Recomendações: backup diário + retenção conforme política a definir (P-012
 ## Rollback
 
 Versão de código: reimplante a tag anterior (o banco é compatível para frente; migrations são somente aditivas nesta versão). Em caso de migration problemática, restaure o backup feito imediatamente antes da atualização.
+
+## Diagnóstico na Netlify (erros 502/503)
+
+- `GET /api/health` responde **sem** inicializar a aplicação e informa: `databaseConfigured` (variável `NETLIFY_DATABASE_URL`/`DATABASE_URL` presente), `dbLatencyMs`, `initialized` e `bootstrapVersion`. Não expõe segredos nem dados pessoais.
+- A inicialização (migrations, seed oficial, administrador inicial, demonstração) é **retomável**: cada requisição executa só as etapas que cabem no tempo da Function (orçamento de 8 s) e grava o progresso no banco (`system_settings.bootstrap_progress`). Enquanto não termina, a API responde `503 INITIALIZING` e o PWA tenta novamente de forma automática a cada 5 s.
+- Em geral a inicialização já é concluída no build (`npm run netlify:init`) quando o banco está disponível nessa etapa.
+- Se persistir erro: Netlify › Logs › Functions › `api` — as mensagens de inicialização e de requisições lentas aparecem ali (sem conteúdo sensível).
