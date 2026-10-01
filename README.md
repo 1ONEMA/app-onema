@@ -15,7 +15,7 @@ Aplicativo web responsivo e instalável (PWA) da ONEMA SAÚDE com dois módulos 
 - **Banco:** PostgreSQL. Na Netlify: **Netlify DB (Neon)** via driver `pg`. Em desenvolvimento e testes: **PGlite** (Postgres em WASM, sem instalar nada), persistido em `data/pglite`. Migrations em `server/src/db/migrations.ts`; acesso isolado em `server/src/db/db.ts`.
 - **Hospedagem:** Netlify — PWA estático + API como Netlify Function (`netlify/functions/api.mts`) + função agendada do motor de ciclos + Netlify Blobs para mídia. Ver `docs/IMPLANTACAO.md`.
 - **Frontend:** React 19 + React Router 7 + Vite 8, CSS próprio com tokens da identidade visual. Service worker próprio (somente app shell).
-- **Testes:** Vitest (API, 53 testes, incluindo o driver `pg` contra um servidor Postgres de protocolo real) e Playwright (E2E em celular e desktop, 9 cenários).
+- **Testes:** Vitest (API, 63 testes, incluindo o driver `pg` contra um servidor Postgres de protocolo real, backup/restauração e e-mail) e Playwright (E2E em celular, tablet e desktop, incluindo acessibilidade automatizada com axe-core e queda de rede).
 
 ## Executar localmente
 
@@ -77,7 +77,8 @@ Se o Playwright não encontrar o Chromium, defina `PW_CHROMIUM=/caminho/para/chr
 | `npm run db:seed` | seed **oficial** (somente conteúdo/regras documentados; sem usuários) |
 | `npm run user:create -- email "Nome" ADMIN_ACADEMY,ADMIN_PRIME` | cria administrador (senha temporária exibida uma vez; ou defina `NEW_USER_PASSWORD='...'` antes do comando para usar uma senha escolhida — nunca versionar) |
 | `npm run jobs:billing` | motor de ciclos PRIME (renovação, novas tentativas, suspensão, encerramento) — agendar a cada hora em produção |
-| `npm run db:backup [dir]` | exportação lógica (JSON por tabela); em Postgres gerenciado use também `pg_dump` |
+| `npm run db:backup [dir]` | backup lógico compactado (o mesmo do backup diário automático) |
+| `npm run db:restore -- arquivo.json.gz --confirmar` | restaura um backup (faz antes um backup de segurança do estado atual) |
 
 ## Estrutura
 

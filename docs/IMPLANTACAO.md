@@ -89,3 +89,19 @@ A Netlify limita cada requisição de Function a ~6 MB. Por isso o PWA envia arq
 
 - Cada consulta ao banco custa uma viagem entre a Function e o Supabase. Mantenha **a Function na mesma região do banco**: Netlify › Site configuration › Build & deploy › Functions region → **South America (São Paulo) – sa-east-1** (o banco atual está em us-east-2, região padrão das Functions).
 - Consultas agrupadas: sessão (1 consulta por requisição), lista de usuários (1), jornada do especialista (de 25 para 7).
+
+## Backup e restauração
+
+- **Automático:** a função agendada `backup` (diária) grava uma cópia compactada de todas as tabelas no Netlify Blobs (store privado `onema-backups`), mantendo as 30 mais recentes (`BACKUP_KEEP`). Sessões, limites de taxa e chaves de idempotência não entram.
+- **Manual / download:** Gestão › Backups (somente Administrador Academy/PRIME, com MFA). Todo download é auditado. O arquivo contém dados pessoais: guarde em local protegido.
+- **Restaurar** (substitui todos os dados; feito por linha de comando, nunca pela interface):
+  ```bash
+  DATABASE_URL='postgresql://...' npm run db:restore -- caminho/onema-AAAA-MM-DD....json.gz --confirmar
+  ```
+  O comando aplica migrations, salva antes um backup de segurança do estado atual em `data/backups/` e restaura tudo numa única transação (falha = nada muda). Depois, todos precisam entrar novamente.
+- Teste automatizado: `server/test/backup.test.ts` (gera → altera → restaura → compara tabela a tabela).
+- Limite: o download passa pela Function (~6 MB). Quando o backup compactado passar disso, usar `npm run db:backup` localmente com a `DATABASE_URL`, ou o backup do próprio Supabase (plano pago).
+
+## E-mail (recuperação de senha e convites)
+
+Desligado até definir no painel da Netlify `RESEND_API_KEY` e `EMAIL_FROM` (remetente de um domínio verificado no Resend). Sem isso, as mensagens ficam registradas como “não enviadas” e o PWA informa que o envio não está configurado. As mensagens não contêm informação de saúde; o link de redefinição vale 30 minutos e uso único.

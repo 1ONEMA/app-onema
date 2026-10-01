@@ -51,7 +51,7 @@ export function MediaPage() {
           <h2>Biblioteca</h2>
           <Alert error={approve.error || del.error} />
           {!data.assets.length ? <p className="muted">Nenhum arquivo. Os vídeos, legendas e transcrições oficiais ainda não foram entregues (P-006).</p> : (
-            <div className="table-wrap"><table><thead><tr><th>Título</th><th>Tipo</th><th>Tamanho</th><th>SHA-256</th><th>Estado</th><th /></tr></thead>
+            <div className="table-wrap" tabIndex={0}><table><thead><tr><th>Título</th><th>Tipo</th><th>Tamanho</th><th>SHA-256</th><th>Estado</th><th /></tr></thead>
               <tbody>{data.assets.map((m: any) => <tr key={m.id}><td>{m.title}<br /><span className="small muted">{m.filename} · {dateTime(m.created_at)}</span></td><td>{m.kind}</td><td className="nowrap">{m.size_bytes > 1048576 ? `${(m.size_bytes / 1048576).toFixed(1)} MB` : `${(m.size_bytes / 1024).toFixed(0)} KB`}</td><td className="mono">{m.checksum_sha256.slice(0, 16)}…</td>
                 <td><Badge tone={m.state === 'APPROVED' ? '' : m.state === 'BLOCKED' ? 'red' : 'orange'}>{label(m.state)}</Badge></td>
                 <td className="row">{m.state !== 'BLOCKED' && m.state !== 'UPLOADING' && <Button className="sm ghost" onClick={() => preview(m.id)}>Visualizar</Button>}
@@ -105,7 +105,7 @@ export function CertAdminPage() {
           <h2>Emitidos</h2>
           <Alert error={revoke.error} />
           {!certs.data.certificates.length ? <p className="muted">Nenhum certificado emitido.</p> : (
-            <div className="table-wrap"><table><thead><tr><th>Código</th><th>Titular</th><th>Emissão</th><th>Situação</th><th /></tr></thead>
+            <div className="table-wrap" tabIndex={0}><table><thead><tr><th>Código</th><th>Titular</th><th>Emissão</th><th>Situação</th><th /></tr></thead>
               <tbody>{certs.data.certificates.map((c: any) => <tr key={c.id}><td className="mono">{c.public_code}</td><td>{c.holder}</td><td>{date(c.issued_at)}</td><td>{c.revoked_at ? <Badge tone="red">Revogado</Badge> : <Badge>Válido</Badge>}</td>
                 <td>{!c.revoked_at && has('AVALIADOR_RT', 'ADMIN_ACADEMY') && <div className="row"><input type="text" placeholder="Motivo da revogação" value={reason} onChange={(e) => setReason(e.target.value)} /><Button className="sm danger" busy={revoke.busy} onClick={async () => { if (await revoke.run('POST', `/api/admin/academy/certificates/${c.id}/revoke`, { reason })) certs.reload(); }}>Revogar</Button></div>}</td></tr>)}</tbody></table></div>
           )}

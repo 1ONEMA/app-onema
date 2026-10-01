@@ -45,7 +45,7 @@ export function Layout({ children }: { children: ReactNode }) {
     <>
       <a href="#conteudo" className="skip-link">Pular para o conteúdo</a>
       {status && status.environment !== 'production' && (
-        <div className="env-banner">Ambiente de homologação · dados fictícios · pagamentos simulados (sandbox) · nenhuma cobrança real</div>
+        <div className="env-banner" title="Pagamentos simulados, sem cobrança real. Use apenas dados fictícios.">Versão de testes · pagamentos simulados</div>
       )}
       {!online && <div className="offline-banner" role="status">Você está sem conexão. Os dados de saúde não ficam salvos no aparelho; reconecte-se para continuar.</div>}
       {update && (

@@ -28,15 +28,32 @@ switch (cmd) {
     break;
   }
   case 'backup': {
-    // Exportação lógica (JSON por tabela). Em Postgres gerenciado, prefira também os backups/branches do provedor ou pg_dump.
+    // Backup lógico compactado (mesmo formato do backup diário automático). Em Postgres gerenciado, use também pg_dump.
+    const { compress, exportDatabase } = await import('../lib/backup.ts');
     const dir = path.resolve(args[0] ?? 'data/backups');
-    fs.mkdirSync(dir, { recursive: true });
-    const tables = (await all<any>(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY table_name`)).map((t) => t.table_name);
-    const dump: Record<string, unknown[]> = {};
-    for (const t of tables) dump[t] = await all(`SELECT * FROM "${t}"`);
-    const file = path.join(dir, `onema-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
-    fs.writeFileSync(file, JSON.stringify({ exportedAt: new Date().toISOString(), database: databaseUrl() ? 'postgres' : 'pglite', tables: dump }), { mode: 0o600 });
-    console.log('Backup lógico gerado:', file, `(${tables.length} tabelas). Use pg_dump para backup físico do Postgres.`);
+    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    const dump = await exportDatabase();
+    const file = path.join(dir, `onema-${dump.exportedAt.replace(/[:.]/g, '-')}.json.gz`);
+    fs.writeFileSync(file, compress(dump), { mode: 0o600 });
+    console.log('Backup lógico gerado:', file, `(${Object.keys(dump.tables).length} tabelas).`);
+    break;
+  }
+  case 'restore': {
+    // Restauração destrutiva: substitui os dados atuais. Exige --confirmar e faz um backup de segurança antes.
+    const { compress, decompress, exportDatabase, restoreDatabase } = await import('../lib/backup.ts');
+    const file = args.find((a) => !a.startsWith('--'));
+    if (!file || !args.includes('--confirmar')) {
+      console.error('Uso: npm run db:restore -- <arquivo.json.gz> --confirmar   (substitui TODOS os dados atuais do banco)');
+      process.exitCode = 1; break;
+    }
+    await migrate();
+    const safety = path.resolve('data/backups', `antes-da-restauracao-${new Date().toISOString().replace(/[:.]/g, '-')}.json.gz`);
+    fs.mkdirSync(path.dirname(safety), { recursive: true, mode: 0o700 });
+    fs.writeFileSync(safety, compress(await exportDatabase()), { mode: 0o600 });
+    console.log('Backup de segurança do estado atual:', safety);
+    const raw = fs.readFileSync(path.resolve(file));
+    const r = await restoreDatabase(file.endsWith('.gz') ? decompress(raw) : JSON.parse(raw.toString('utf8')));
+    console.log(`Restauração concluída: ${r.tables} tabelas, ${r.rows} linhas. Sessões foram encerradas; todos precisam entrar novamente.`);
     break;
   }
   case 'create-user': {
@@ -67,7 +84,7 @@ switch (cmd) {
     console.log('Motor de ciclos PRIME:', await tx(async () => await runBilling()));
     break;
   default:
-    console.log('Comandos: migrate | seed | seed-demo | backup [dir] | create-user <email> "<nome>" <ROLES> | billing');
+    console.log('Comandos: migrate | seed | seed-demo | backup [dir] | restore <arquivo> --confirmar | create-user <email> "<nome>" <ROLES> | billing');
 }
 
 await (await getDriver()).close();

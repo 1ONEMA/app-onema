@@ -54,7 +54,7 @@ export function CertificatesPage() {
               </div>
               <div className="certificate">
                 <h2>Conteúdo programático</h2>
-                <div className="table-wrap"><table><thead><tr><th>Curso</th><th>Versão</th><th>Carga horária</th></tr></thead>
+                <div className="table-wrap" tabIndex={0}><table><thead><tr><th>Curso</th><th>Versão</th><th>Carga horária</th></tr></thead>
                   <tbody>{c.snapshot.courses.map((x: any) => <tr key={x.code}><td>{x.code} · {x.title}</td><td>v{x.version}</td><td>{x.workload}</td></tr>)}</tbody></table></div>
                 <p className="small mt">Hash SHA-256 do conteúdo: <span className="mono">{c.contentHash}</span></p>
                 <p className="small">Verificação: {c.verifyUrl}</p>

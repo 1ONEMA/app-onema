@@ -22,7 +22,7 @@ export function FinancePage() {
             <h2>Solicitações de arrependimento e estorno (PRIME)</h2>
             <Alert error={decide.error} />
             {!prime.data.refunds.length ? <p className="muted">Nenhuma solicitação.</p> : (
-              <div className="table-wrap"><table><thead><tr><th>Protocolo</th><th>Paciente</th><th>Tipo</th><th>Valor</th><th>Cobrança original</th><th>Situação</th><th /></tr></thead>
+              <div className="table-wrap" tabIndex={0}><table><thead><tr><th>Protocolo</th><th>Paciente</th><th>Tipo</th><th>Valor</th><th>Cobrança original</th><th>Situação</th><th /></tr></thead>
                 <tbody>{prime.data.refunds.map((r: any) => <tr key={r.id}><td className="mono">{r.protocol}</td><td>{r.patient_name}</td><td>{r.type}</td><td>{money(r.amount_cents)}</td><td className="small">{dateTime(r.charge_date)}<br /><span className="mono">{r.provider_ref ?? r.order_id}</span></td>
                   <td><Badge tone={r.status === 'REFUNDED' ? '' : r.status === 'REJECTED' ? 'red' : 'orange'}>{label(r.status)}</Badge>{r.reason && <div className="small muted">{r.reason}</div>}</td>
                   <td>{canAct && r.status === 'REFUND_PENDING' && <Button className="sm secondary" onClick={() => { setDlg({ kind: 'refund', r }); setNote(''); }}>Decidir</Button>}</td></tr>)}</tbody></table></div>
@@ -31,13 +31,13 @@ export function FinancePage() {
           <section className="surface">
             <h2>Pedidos de serviços/pacotes</h2>
             <Alert error={refundOrder.error} />
-            <div className="table-wrap"><table><thead><tr><th>Data</th><th>Paciente</th><th>Item</th><th>Cheio</th><th>Desconto</th><th>Final</th><th>Base de repasse</th><th>Situação</th><th /></tr></thead>
+            <div className="table-wrap" tabIndex={0}><table><thead><tr><th>Data</th><th>Paciente</th><th>Item</th><th>Cheio</th><th>Desconto</th><th>Final</th><th>Base de repasse</th><th>Situação</th><th /></tr></thead>
               <tbody>{prime.data.orders.map((o: any) => <tr key={o.id}><td>{dateTime(o.created_at)}</td><td>{o.patient_name}</td><td>{o.item_name}</td><td>{money(o.full_price_cents)}</td><td>{money(o.discount_cents)}</td><td>{money(o.final_price_cents)}</td><td>{money(o.payout_basis_cents)}</td><td>{label(o.status)}</td>
                 <td>{canAct && o.status === 'PAID' && <Button className="sm ghost" onClick={() => { setDlg({ kind: 'order', o }); setNote(''); }}>Estornar</Button>}</td></tr>)}</tbody></table></div>
           </section>
           <section className="surface">
             <h2>Cobranças PRIME</h2>
-            <div className="table-wrap"><table><thead><tr><th>Data</th><th>Paciente</th><th>Valor</th><th>Tentativa</th><th>Situação</th><th>Referência</th></tr></thead>
+            <div className="table-wrap" tabIndex={0}><table><thead><tr><th>Data</th><th>Paciente</th><th>Valor</th><th>Tentativa</th><th>Situação</th><th>Referência</th></tr></thead>
               <tbody>{prime.data.charges.map((c: any) => <tr key={c.id}><td>{dateTime(c.created_at)}</td><td>{c.patient_name}</td><td>{money(c.amount_cents)}</td><td>{c.attempt_no}</td><td>{label(c.status)}</td><td className="mono">{c.provider}:{c.provider_ref}</td></tr>)}</tbody></table></div>
           </section>
         </>
@@ -45,7 +45,7 @@ export function FinancePage() {
       <section className="surface">
         <h2>Pedidos da taxa Academy</h2>
         {academy.loading ? <Loading lines={2} /> : academy.error ? <ErrorState error={academy.error} /> : (
-          <div className="table-wrap"><table><thead><tr><th>Data</th><th>Especialista</th><th>Valor</th><th>Situação</th><th>Provedor</th></tr></thead>
+          <div className="table-wrap" tabIndex={0}><table><thead><tr><th>Data</th><th>Especialista</th><th>Valor</th><th>Situação</th><th>Provedor</th></tr></thead>
             <tbody>{academy.data.orders.map((o: any) => <tr key={o.id}><td>{dateTime(o.created_at)}</td><td>{o.partner_name}</td><td>{money(o.amount_cents)}</td><td>{label(o.status)}</td><td>{o.provider}</td></tr>)}</tbody></table></div>
         )}
       </section>
@@ -78,7 +78,7 @@ export function SharesAdminPage() {
       {loading ? <Loading /> : error ? <ErrorState error={error} onRetry={reload} /> : (
         <section className="surface">
           {!data.grants.length ? <p className="muted">Nada nesta lista.</p> : (
-            <div className="table-wrap"><table><thead><tr><th>Titular</th><th>Responsável</th><th>Escopos</th><th>Estado</th><th /></tr></thead>
+            <div className="table-wrap" tabIndex={0}><table><thead><tr><th>Titular</th><th>Responsável</th><th>Escopos</th><th>Estado</th><th /></tr></thead>
               <tbody>{data.grants.map((g: any) => <tr key={g.id}><td>{g.patient_name}</td><td>{g.invitee_name}<br /><span className="small muted">{g.invitee_email}{g.invitee_account_name && ` · conta: ${g.invitee_account_name}`}</span></td><td>{g.scopes ?? '—'}</td><td>{label(g.status)}<div className="small muted">{dateTime(g.accepted_at ?? g.invited_at)}</div></td>
                 <td>{g.status === 'ACCEPTED' && has('OPERADOR_CENTRAL') && <Button className="sm secondary" onClick={() => { setSel(g); setNote(''); }}>Verificar</Button>}</td></tr>)}</tbody></table></div>
           )}
@@ -166,7 +166,7 @@ export function PrimeAdminPage() {
         <section className="surface">
           <h2>Textos oficiais</h2>
           <Alert error={review.error} />
-          <div className="table-wrap"><table><thead><tr><th>Texto</th><th>Versão</th><th>Aprovação RT</th><th>Revisão jurídica</th><th /></tr></thead>
+          <div className="table-wrap" tabIndex={0}><table><thead><tr><th>Texto</th><th>Versão</th><th>Aprovação RT</th><th>Revisão jurídica</th><th /></tr></thead>
             <tbody>{texts.data.texts.map((t: any) => <tr key={t.id}><td>{t.title}</td><td>{t.version}</td><td>{t.rt_approved_at ?? '—'}</td><td><Badge tone={t.legal_review === 'APROVADO' ? '' : 'orange'}>{t.legal_review === 'APROVADO' ? 'Aprovada' : 'Pendente'}</Badge></td>
               <td>{admin && t.legal_review !== 'APROVADO' && <Button className="sm ghost" busy={review.busy} onClick={async () => { const note = prompt('Registre a referência do parecer jurídico (mín. 10 caracteres):'); if (note && await review.run('POST', `/api/admin/prime/legal-texts/${t.id}/legal-review`, { status: 'APROVADO', note })) { texts.reload(); ov.reload(); } }}>Registrar parecer</Button>}</td></tr>)}</tbody></table></div>
         </section>
@@ -174,7 +174,7 @@ export function PrimeAdminPage() {
       <section className="surface">
         <div className="row between"><h2 className="mb0">Catálogo</h2>{admin && <Button className="sm secondary" onClick={() => setItem({ id: null, code: '', name: '', kind: 'SERVICO', price: '', primeEligible: true, active: true })}>Novo item</Button>}</div>
         <p className="small muted">O catálogo oficial “Preços Oficiais v3” não foi fornecido; itens marcados como FICTÍCIO existem apenas na base de demonstração.</p>
-        {cat.data && <div className="table-wrap"><table><thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Preço</th><th>PRIME</th><th>Ativo</th><th /></tr></thead>
+        {cat.data && <div className="table-wrap" tabIndex={0}><table><thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Preço</th><th>PRIME</th><th>Ativo</th><th /></tr></thead>
           <tbody>{cat.data.items.map((i: any) => <tr key={i.id}><td className="mono">{i.code}</td><td>{i.name} {i.is_demo ? <span className="demo-flag">FICTÍCIO</span> : null}</td><td>{i.kind}</td><td>{money(i.price_cents)}</td><td>{i.prime_eligible ? 'Elegível' : 'Não'}</td><td>{i.active ? 'Sim' : 'Não'}</td>
             <td>{admin && <Button className="sm ghost" onClick={() => setItem({ id: i.id, code: i.code, name: i.name, kind: i.kind, price: reais(i.price_cents), primeEligible: !!i.prime_eligible, active: !!i.active })}>Editar</Button>}</td></tr>)}</tbody></table></div>}
       </section>

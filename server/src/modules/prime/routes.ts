@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { config } from '../../config.ts';
+import { emailConfigured, layout, sendEmail } from '../../lib/email.ts';
 import { all, one, run, tx } from '../../db/db.ts';
 import { audit } from '../../lib/audit.ts';
 import { idempotent, parse, requireRoles, requireUser } from '../../lib/context.ts';
@@ -437,7 +438,8 @@ export async function primeRoutes(app: FastifyInstance) {
       scopes: scopesSchema,
       acknowledge: z.literal(true, { message: 'Confirme a declaração do convite.' }),
     }), req.body);
-    return await idempotent(req, reply, 'share-invite', async () => {
+    let inviteMail: { msgId: string; to: string; name: string; from: string } | null = null;
+    const result = await idempotent(req, reply, 'share-invite', async () => {
       if (!(await benefitState(await openSubscription(a.userId))).active) {
         throw forbidden('O convite a um responsável principal é um recurso do ONEMA PRIME ativo.', 'PRIME_REQUIRED');
       }
@@ -446,17 +448,30 @@ export async function primeRoutes(app: FastifyInstance) {
       if (await one(`SELECT 1 FROM share_grants WHERE patient_id = ? AND status IN ('INVITED','ACCEPTED','VERIFIED')`, a.userId)) {
         throw conflict('PRINCIPAL_EXISTS', 'No lançamento é permitido um único responsável principal. Revogue o atual para convidar outra pessoa.');
       }
-      const id = uid(), now = nowIso();
+      const id = uid(), now = nowIso(), msgId = uid();
       const invitee = await one<any>('SELECT id FROM users WHERE email = ?', body.email);
       await run(`INSERT INTO share_grants (id, patient_id, invitee_email, invitee_name, invitee_user_id, status, text_version, invited_at, expires_at, updated_at)
            VALUES (?,?,?,?,?,?,?,?,?,?)`, id, a.userId, body.email, body.name, null, 'INVITED', (await latestText('T3'))?.version ?? 'T3', now, addDays(now, config.shareInviteTtlDays), now);
       await applyScopes(id, body.scopes, now);
       if (invitee) await notify(invitee.id, 'ESSENCIAL', 'Convite para apoiar um paciente', `${a.name} convidou você para ser responsável principal na ONEMA. Veja em "Convites recebidos".`);
       await run(`INSERT INTO outbox_messages (id, channel, purpose, recipient_user_id, recipient_address, template, payload_json, status, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-        uid(), 'EMAIL', 'ESSENCIAL', invitee?.id ?? null, body.email, 'SHARE_INVITE', JSON.stringify({ grantId: id }), 'NAO_ENVIADO_SEM_PROVEDOR', now);
+        msgId, 'EMAIL', 'ESSENCIAL', invitee?.id ?? null, body.email, 'SHARE_INVITE', JSON.stringify({ grantId: id }), emailConfigured() ? 'PENDENTE' : 'NAO_ENVIADO_SEM_PROVEDOR', now);
+      inviteMail = { msgId, to: body.email, name: body.name, from: a.name };
       await audit({ actorId: a.userId, action: 'SHARE_INVITED', subjectType: 'share_grant', subjectId: id, correlationId: req.correlationId, meta: { scopes: body.scopes } });
       return { status: 201, body: { grant: await grantView(await one('SELECT * FROM share_grants WHERE id = ?', id)) } };
     });
+    // Envio após a confirmação da transação (e somente na primeira execução, não em repetições idempotentes).
+    if (inviteMail && emailConfigured()) {
+      const im = inviteMail as { msgId: string; to: string; name: string; from: string };
+      const m = layout('Convite para apoiar um paciente', [
+        `Olá, ${im.name.split(' ')[0]}.`,
+        `${im.from} convidou você para ser responsável principal na ONEMA SAÚDE, com acesso apenas ao que foi autorizado. O convite vale por ${config.shareInviteTtlDays} dias.`,
+        'Para aceitar, entre (ou crie sua conta) com este mesmo e-mail e abra "Convites recebidos". Depois do aceite, a ONEMA verifica a autorização antes de liberar o acesso.',
+      ], { label: 'Ver convite', url: `${config.publicOrigin}/convites` });
+      const r = await sendEmail({ to: im.to, subject: 'ONEMA SAÚDE · Convite de responsável', ...m });
+      await run('UPDATE outbox_messages SET status = ? WHERE id = ?', r.sent ? 'ENVIADO' : `FALHA_${r.error}`, im.msgId);
+    }
+    return result;
   });
 
   app.put('/api/prime/share/:id/scopes', async (req) => {

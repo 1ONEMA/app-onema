@@ -95,7 +95,7 @@ export function PrimeCenterPage() {
       <section className="surface">
         <h2>Cobranças e recibos</h2>
         {!s.charges.length ? <Empty title="Nenhuma cobrança registrada." /> : (
-          <div className="table-wrap"><table>
+          <div className="table-wrap" tabIndex={0}><table>
             <thead><tr><th>Data</th><th>Ciclo</th><th>Valor</th><th>Situação</th><th className="hide-mobile">Provedor</th></tr></thead>
             <tbody>{s.charges.map((c: any) => <tr key={c.id}><td>{dateTime(c.created_at)}</td><td>{c.cycle_no} (tentativa {c.attempt_no})</td><td>{money(c.amount_cents)}</td><td><Badge tone={c.status === 'CONFIRMED' ? '' : c.status === 'FAILED' ? 'red' : 'dark'}>{label(c.status)}</Badge></td><td className="hide-mobile">{c.provider}</td></tr>)}</tbody>
           </table></div>

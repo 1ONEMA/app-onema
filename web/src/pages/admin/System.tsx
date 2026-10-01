@@ -40,7 +40,7 @@ export function UsersPage() {
       </form>
       <Alert error={elig.error || st.error || del.error || quick.error} />
       {loading ? <Loading /> : error ? <ErrorState error={error} onRetry={reload} /> : (
-        <div className="table-wrap"><table><thead><tr><th>Nome</th><th>Perfis</th><th>Elegível Academy</th><th>MFA</th><th>Situação</th><th /></tr></thead>
+        <div className="table-wrap" tabIndex={0}><table><thead><tr><th>Nome</th><th>Perfis</th><th>Elegível Academy</th><th>MFA</th><th>Situação</th><th /></tr></thead>
           <tbody>{data.users.map((u: any) => <tr key={u.id}><td>{u.name}<br /><span className="small muted">{u.email}</span></td>
             <td><div className="row" style={{ gap: 6 }}>{u.roles.map((r: string) => <span key={r} className="row" style={{ gap: 2 }}><Badge tone="dark">{L[r] ?? r}</Badge>
               {canEdit && r !== 'PACIENTE' && <button type="button" className="icon-x" aria-label={`Remover perfil ${L[r] ?? r} de ${u.name}`} title="Remover perfil" disabled={quick.busy} onClick={() => { if (confirm(`Remover o perfil ${L[r] ?? r} de ${u.name}?`)) setRoles(u, u.roles.filter((x: string) => x !== r)); }}>×</button>}</span>)}
@@ -82,11 +82,37 @@ export function AuditPage() {
       </div>
       {loading && !data ? <Loading /> : error ? <ErrorState error={error} onRetry={reload} /> : (
         <>
-          <div className="table-wrap"><table><thead><tr><th>#</th><th>Quando</th><th>Ator</th><th>Ação</th><th>Objeto</th><th>Hash antes/depois</th><th>Correlation</th></tr></thead>
+          <div className="table-wrap" tabIndex={0}><table><thead><tr><th>#</th><th>Quando</th><th>Ator</th><th>Ação</th><th>Objeto</th><th>Hash antes/depois</th><th>Correlation</th></tr></thead>
             <tbody>{data.events.map((e: any) => <tr key={e.seq}><td>{e.seq}</td><td className="nowrap">{dateTime(e.occurred_at)}</td><td>{e.actor ?? 'sistema'}</td><td><strong>{e.action}</strong>{e.meta_json && <div className="small muted mono">{e.meta_json}</div>}</td><td className="small">{e.subject_type}<br /><span className="mono">{e.subject_id?.slice(0, 12)}</span></td>
               <td className="mono">{e.before_hash?.slice(0, 10) ?? '—'} / {e.after_hash?.slice(0, 10) ?? '—'}</td><td className="mono">{e.correlation_id?.slice(0, 8)}</td></tr>)}</tbody></table></div>
           <div className="row mt"><Button className="sm ghost" disabled={page <= 1} onClick={() => setPage(page - 1)}>Anterior</Button><span className="small">Página {page} de {Math.max(1, Math.ceil(data.total / data.pageSize))} · {data.total} eventos</span><Button className="sm ghost" disabled={page * data.pageSize >= data.total} onClick={() => setPage(page + 1)}>Próxima</Button></div>
         </>
+      )}
+    </>
+  );
+}
+
+export function BackupsPage() {
+  const { data, error, loading, reload } = useApi<any>('/api/admin/backups');
+  const make = useSubmit<any>();
+  const [ok, setOk] = useState<string | null>(null);
+  return (
+    <>
+      <PageHeader kicker="Gestão" title="Backups"><p>Cópia automática diária de todo o banco, guardada em armazenamento privado (as {data?.keep ?? 30} mais recentes). A restauração é feita por linha de comando, com backup de segurança automático antes — veja docs/IMPLANTACAO.md.</p></PageHeader>
+      <div className="surface">
+        <p className="small">O arquivo contém dados pessoais e de saúde. Baixe somente quando necessário e guarde em local protegido. Todo download fica registrado na auditoria.</p>
+        <Alert error={make.error} success={ok} />
+        <Button className="deep" busy={make.busy} onClick={async () => { setOk(null); const r = await make.run('POST', '/api/admin/backups', {}); if (r) { setOk(`Backup gerado: ${r.tables} tabelas, ${r.rows} registros.`); reload(); } }}>Gerar backup agora</Button>
+      </div>
+      {loading ? <Loading /> : error ? <ErrorState error={error} onRetry={reload} /> : (
+        <section className="surface">
+          <h2>Cópias disponíveis</h2>
+          {!data.backups.length ? <p className="muted">Nenhum backup ainda. O primeiro automático ocorre em até 24 h, ou gere agora.</p> : (
+            <div className="table-wrap" tabIndex={0}><table><thead><tr><th>Data</th><th>Tamanho</th><th /></tr></thead>
+              <tbody>{data.backups.map((b: any) => <tr key={b.key}><td>{b.createdAt ? dateTime(b.createdAt) : b.key}</td><td>{(b.size / 1024).toFixed(0)} KB</td>
+                <td><a className="btn sm ghost" href={`/api/admin/backups/${encodeURIComponent(b.key)}`} download>Baixar</a></td></tr>)}</tbody></table></div>
+          )}
+        </section>
       )}
     </>
   );

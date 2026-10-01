@@ -33,7 +33,7 @@ export function AuthLayout({ title, children }: { title: string; children: React
         <div className="auth-card">
           <img src="/icons/logo-onema-saude.png" alt="ONEMA SAÚDE" className="logo" />
           {status && status.environment !== 'production' && (
-            <p className="caution small">Ambiente de homologação. Use apenas dados fictícios. Pagamentos são simulados.</p>
+            <p className="env-note">Versão de testes · pagamentos simulados</p>
           )}
           {apiDown && (
             <div className="caution" role="alert">

@@ -65,7 +65,7 @@ export function ServicesPage() {
       <section className="surface">
         <h2>Meus pedidos</h2>
         {!orders.data?.orders.length ? <Empty title="Nenhum pedido." /> : (
-          <div className="table-wrap"><table><thead><tr><th>Data</th><th>Item</th><th>Preço cheio</th><th>Desconto</th><th>Final</th><th>Situação</th></tr></thead>
+          <div className="table-wrap" tabIndex={0}><table><thead><tr><th>Data</th><th>Item</th><th>Preço cheio</th><th>Desconto</th><th>Final</th><th>Situação</th></tr></thead>
             <tbody>{orders.data.orders.map((o: any) => <tr key={o.id}><td>{dateTime(o.created_at)}</td><td>{o.item_name}</td><td>{money(o.full_price_cents)}</td><td>{money(o.discount_cents)}</td><td>{money(o.final_price_cents)}</td><td><Badge tone={o.status === 'PAID' ? '' : o.status === 'FAILED' ? 'red' : 'dark'}>{label(o.status)}</Badge></td></tr>)}</tbody></table></div>
         )}
       </section>

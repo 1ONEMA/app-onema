@@ -48,6 +48,8 @@ export const config = {
   /** Validade provisória do convite ao responsável (não definida na fonte). */
   shareInviteTtlDays: Number(process.env.SHARE_INVITE_TTL_DAYS ?? 7),
   passwordResetTtlMinutes: 30,
+  /** Tentativas de login por IP+e-mail em 15 min (padrão 8). Ajuste apenas em ambiente de teste automatizado. */
+  loginRateLimit: process.env.APP_ENV === 'production' ? 8 : Number(process.env.LOGIN_RATE_LIMIT ?? 8),
 };
 
 export function assertProductionConfig() {

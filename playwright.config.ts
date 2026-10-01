@@ -16,9 +16,11 @@ export default defineConfig({
   projects: [
     { name: 'mobile', use: { ...devices['Pixel 7'] } },
     { name: 'desktop', use: { viewport: { width: 1366, height: 900 } } },
+    // Tablet (ACA-T033): telas principais e acessibilidade
+    { name: 'tablet', use: { ...devices['iPad (gen 7)'], browserName: 'chromium' }, testMatch: /(a11y|responsive)\.spec\.ts/ },
   ],
   webServer: {
-    command: 'rm -rf data/e2e && SEED_DEMO=true DATABASE_PATH=data/e2e/pglite MEDIA_DIR=data/e2e/media PORT=8799 PUBLIC_ORIGIN=http://127.0.0.1:8799 NODE_OPTIONS=--disable-warning=ExperimentalWarning npx tsx server/src/index.ts',
+    command: 'rm -rf data/e2e && SEED_DEMO=true LOGIN_RATE_LIMIT=50 DATABASE_PATH=data/e2e/pglite MEDIA_DIR=data/e2e/media PORT=8799 PUBLIC_ORIGIN=http://127.0.0.1:8799 NODE_OPTIONS=--disable-warning=ExperimentalWarning npx tsx server/src/index.ts',
     url: 'http://127.0.0.1:8799/api/health',
     reuseExistingServer: false,
     timeout: 60_000,

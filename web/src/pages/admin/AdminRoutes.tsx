@@ -5,7 +5,9 @@ import { ContentPage, VersionEditor, AssessmentEditor } from './Content';
 import { MediaPage, CertAdminPage } from './Media';
 import { CredentialingPage, SupportPage, ReportsPage } from './AcademyOps';
 import { FinancePage, SharesAdminPage, PrimeAdminPage } from './PrimeOps';
-import { UsersPage, AuditPage } from './System';
+import { UsersPage, AuditPage, BackupsPage } from './System';
+import { useApi } from '../../lib/hooks';
+import { dateTime } from '../../lib/format';
 
 export const SECTIONS: { to: string; label: string; roles: Role[]; desc: string }[] = [
   { to: 'conteudo', label: 'Conteúdo Academy', roles: ['GESTOR_CONTEUDO', 'AVALIADOR_RT', 'ADMIN_ACADEMY', 'AUDITOR'], desc: 'Versões de curso, aulas, atividades, avaliações e aprovação RT.' },
@@ -18,6 +20,7 @@ export const SECTIONS: { to: string; label: string; roles: Role[]; desc: string 
   { to: 'responsaveis', label: 'Verificação de responsáveis', roles: ['OPERADOR_CENTRAL', 'AUDITOR'], desc: 'Verificar autorização antes de liberar acesso.' },
   { to: 'prime', label: 'PRIME', roles: ['ADMIN_PRIME', 'FINANCEIRO', 'AUDITOR'], desc: 'Parâmetros, catálogo, fornecedor, textos e gates.' },
   { to: 'usuarios', label: 'Usuários e perfis', roles: ['ADMIN_ACADEMY', 'ADMIN_PRIME', 'AUDITOR'], desc: 'Contas administrativas, especialistas e elegibilidade.' },
+  { to: 'backups', label: 'Backups', roles: ['ADMIN_ACADEMY', 'ADMIN_PRIME'], desc: 'Cópias diárias do banco, backup manual e download.' },
   { to: 'auditoria', label: 'Auditoria', roles: ['AUDITOR', 'ADMIN_ACADEMY', 'ADMIN_PRIME'], desc: 'Trilha append-only de eventos.' },
 ];
 
@@ -47,6 +50,7 @@ export function AdminRoutes() {
         <Route path="prime" element={<PrimeAdminPage />} />
         <Route path="usuarios" element={<UsersPage />} />
         <Route path="auditoria" element={<AuditPage />} />
+        <Route path="backups" element={<BackupsPage />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
     </>
@@ -61,7 +65,35 @@ function AdminHome() {
       <PageHeader kicker="Gestão ONEMA SAÚDE" title="Painel administrativo">
         <p>Perfis: {me?.user?.roles.map((r) => status?.roleLabels[r] ?? r).join(' · ')}. Toda ação é registrada na trilha de auditoria.</p>
       </PageHeader>
+      <Overview />
       <div className="grid">{mine.map((s) => <Link key={s.to} to={`/admin/${s.to}`} className="tile link"><h3>{s.label}</h3><p className="small muted mb0">{s.desc}</p></Link>)}</div>
     </>
+  );
+}
+
+function Overview() {
+  const { has } = useAuth();
+  const { data } = useApi<any>('/api/admin/overview');
+  if (!data) return null;
+  const n = (k: string) => Number(data[k] ?? 0);
+  const items: [string, number, string | null][] = [
+    ['Usuários ativos', n('users_active'), has('ADMIN_ACADEMY', 'ADMIN_PRIME', 'AUDITOR') ? '/admin/usuarios' : null],
+    ['Especialistas', n('specialists'), null],
+    ['Pacientes', n('patients'), null],
+    ['Matrículas Academy', n('enrollments'), null],
+    ['Certificados válidos', n('certificates'), has('GESTOR_CONTEUDO', 'AVALIADOR_RT', 'ADMIN_ACADEMY', 'AUDITOR') ? '/admin/certificados' : null],
+    ['Mídias aguardando RT', n('media_pending'), has('GESTOR_CONTEUDO', 'AVALIADOR_RT', 'ADMIN_ACADEMY', 'AUDITOR') ? '/admin/midia' : null],
+    ['Versões em revisão', n('versions_in_review'), has('GESTOR_CONTEUDO', 'AVALIADOR_RT', 'ADMIN_ACADEMY', 'AUDITOR') ? '/admin/conteudo' : null],
+    ['Assinaturas PRIME', n('subscriptions_active'), null],
+    ['Chamados abertos', n('tickets_open'), has('SUPORTE_ACADEMY', 'ADMIN_ACADEMY') ? '/admin/suporte' : null],
+  ];
+  return (
+    <section className="surface" aria-label="Indicadores">
+      <div className="stats">{items.map(([label, value, to]) => {
+        const body = <><strong>{value}</strong><span>{label}</span></>;
+        return to ? <Link key={label} to={to} className="stat">{body}</Link> : <div key={label} className="stat">{body}</div>;
+      })}</div>
+      {has('ADMIN_ACADEMY', 'ADMIN_PRIME') && <p className="small muted mb0 mt">Último backup: {data.lastBackupAt ? dateTime(data.lastBackupAt) : <Link to="/admin/backups">nenhum ainda — gerar agora</Link>}</p>}
+    </section>
   );
 }

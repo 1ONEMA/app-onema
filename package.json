@@ -18,6 +18,7 @@
     "db:seed": "tsx --env-file-if-exists=.env server/src/db/cli.ts seed",
     "db:seed:demo": "tsx --env-file-if-exists=.env server/src/db/cli.ts seed-demo",
     "db:backup": "tsx --env-file-if-exists=.env server/src/db/cli.ts backup",
+    "db:restore": "tsx --env-file-if-exists=.env server/src/db/cli.ts restore",
     "user:create": "tsx --env-file-if-exists=.env server/src/db/cli.ts create-user",
     "jobs:billing": "tsx --env-file-if-exists=.env server/src/db/cli.ts billing",
     "test": "vitest run",
@@ -38,6 +39,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@electric-sql/pglite-socket": "^0.2.11",
     "@netlify/functions": "^6.0.0",
     "@playwright/test": "^1.56.1",

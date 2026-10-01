@@ -30,7 +30,7 @@ export function ContentPage() {
               {has('ADMIN_ACADEMY') && <Button className="sm ghost" busy={status.busy} onClick={async () => { if (await status.run('PUT', `/api/admin/academy/courses/${c.code}/status`, { status: c.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' })) reload(); }}>{c.status === 'ACTIVE' ? 'Desativar curso' : 'Reativar curso'}</Button>}
             </div>
           </div>
-          <div className="table-wrap mt"><table><thead><tr><th>Versão</th><th>Estado</th><th>Criada</th><th>Aprovada</th><th>Publicada</th><th /></tr></thead>
+          <div className="table-wrap mt" tabIndex={0}><table><thead><tr><th>Versão</th><th>Estado</th><th>Criada</th><th>Aprovada</th><th>Publicada</th><th /></tr></thead>
             <tbody>{c.versions.map((v: any) => <tr key={v.id}><td>v{v.version}</td><td><Badge tone={tone(v.state)}>{label(v.state)}</Badge></td><td>{dateTime(v.created_at)}</td><td>{dateTime(v.approved_at)}</td><td>{dateTime(v.published_at)}</td><td><Link to={`/admin/conteudo/versoes/${v.id}`}>Abrir</Link></td></tr>)}</tbody></table></div>
           {c.versions[0]?.source_note && <p className="small muted mt mb0">Fonte: {c.versions[0].source_note}</p>}
         </section>
@@ -187,7 +187,7 @@ export function VersionEditor() {
         <div className="row between"><h2 className="mb0">Avaliações</h2>
           {has('GESTOR_CONTEUDO', 'AVALIADOR_RT') && <Button className="sm secondary" busy={newAsm.busy} onClick={async () => { if (await newAsm.run('POST', `/api/admin/academy/course-versions/${id}/assessments`, {})) reload(); }}>Novo rascunho de avaliação</Button>}</div>
         <Alert error={newAsm.error} />
-        <div className="table-wrap mt"><table><thead><tr><th>Versão</th><th>Estado</th><th>Regra</th><th>Banco</th><th /></tr></thead>
+        <div className="table-wrap mt" tabIndex={0}><table><thead><tr><th>Versão</th><th>Estado</th><th>Regra</th><th>Banco</th><th /></tr></thead>
           <tbody>{data.assessments.map((s: any) => <tr key={s.id}><td>v{s.version}</td><td><Badge tone={tone(s.state)}>{label(s.state)}</Badge></td>
             <td className="small">{s.question_count ?? '?'} questões · mín. {s.pass_min_correct ?? '?'} · tentativas {s.max_attempts ?? 'pendente'}{s.critical_gate ? ' · críticas como gate' : ''}</td>
             <td>{s.questionTotal}</td><td>{has('AVALIADOR_RT', 'GESTOR_CONTEUDO') ? <Link to={`/admin/conteudo/avaliacoes/${s.id}`}>Banco de questões</Link> : <span className="small muted">restrito</span>}</td></tr>)}</tbody></table></div>

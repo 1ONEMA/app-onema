@@ -42,17 +42,17 @@ Situação: ✅ implementado e testado · 🟡 implementado, dependente de defin
 | T023/T024/T025/T026 certificado | academy.test ✅ |
 | T027/T028 auditoria | academy.test ✅ |
 | T029/T030 Kary | ⛔ IA não implementada (não autorizada nesta execução) |
-| T031 teclado | Parcial: foco visível, skip link, rótulos, diálogos com Esc; sem auditoria WCAG formal ⚠️ |
+| T031 teclado/acessibilidade | `e2e/a11y.spec.ts`: axe-core (WCAG 2.0/2.1 A e AA) em 25+ telas no celular, tablet e desktop, sem violações; foco visível, skip link, tabelas roláveis focáveis. Auditoria manual WCAG ainda recomendada ✅ |
 | T032 vídeo sem legenda/transcrição | academy.test ✅ |
-| T033 responsividade | e2e em Pixel 7 e 1366×900 + revisão visual ✅ (tablet não testado isoladamente) |
-| T034 perda de rede na avaliação | Idempotency-Key reaproveitada após falha de rede; sem aprovação local (código) — sem teste automatizado de rede instável ⚠️ |
+| T033 responsividade | e2e em Pixel 7, iPad e 1366×900; `e2e/responsive.spec.ts` verifica ausência de rolagem horizontal ✅ |
+| T034 perda de rede na avaliação | e2e academy: resposta do envio perdida na rede → nenhuma aprovação local; nova tentativa reaproveita a chave e recebe o resultado já registrado, sem criar segunda tentativa ✅ |
 | T035 IDOR | academy.test ✅ |
 | T036 CSRF/replay | auth.test (CSRF/Origin), idempotência ✅ |
 | T037 exportação | academy.test ✅ |
 | T039/T040 publicação/edição | academy.test ✅ |
 | T041/T042 mídia | academy.test ✅ |
 | T043/T044 integração credenciamento | academy.test ✅ |
-| T045 restore | Procedimento documentado; não executado em teste automatizado ⚠️ |
+| T045 restore | Backup diário automático + `npm run db:restore`; `backup.test.ts` gera → altera → restaura → compara todas as tabelas ✅ |
 | T046 observabilidade | correlation id em respostas/logs/auditoria; logs com redação de cookies ✅ (sem stack de observabilidade externa) |
 | T047 carga | ⛔ não executado (SLO não definido) |
 | T048 desativação de curso | academy.test ✅ |
@@ -103,3 +103,6 @@ ASSINATURA_SOLICITADA, PRIME_ACTIVE, DESCONTO_RESERVADO/USADO(/LIBERADO), PAYMEN
 | Manifest/ícones/SW/offline | `web/public/manifest.webmanifest`, `sw-template.js` | e2e pwa ✅ |
 | Estratégia de atualização | banner “Nova versão disponível” + SKIP_WAITING | manual (código) |
 | Sem cache de dados de saúde | SW ignora `/api/*`; `Cache-Control: no-store` | e2e pwa ✅ |
+| Backup diário e download auditado | `lib/backup.ts`, `netlify/functions/backup.mts`, Gestão › Backups | backup.test ✅ |
+| E-mail transacional (opcional) | `lib/email.ts` (Resend), desligado sem `RESEND_API_KEY` | email.test ✅ |
+| Envio de vídeo em partes / exclusão de usuários / aulas em rascunho | `admin.ts`, `admin/routes.ts` | media-users.test ✅ |

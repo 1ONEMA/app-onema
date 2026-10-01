@@ -19,7 +19,7 @@ export function HistoryPage() {
         <section key={e.id} className="surface">
           <div className="row between"><h2 className="mb0">{e.journey_version}</h2><Badge tone="blue">{label(e.state)}</Badge></div>
           <p className="small muted">Início {dateTime(e.started_at)}{e.completed_at && ` · conclusão ${dateTime(e.completed_at)}`}</p>
-          <div className="table-wrap">
+          <div className="table-wrap" tabIndex={0}>
             <table>
               <caption className="sr-only">Cursos e versões</caption>
               <thead><tr><th>Curso</th><th>Versão</th><th>Vinculado em</th><th>Resultado</th></tr></thead>

@@ -16,7 +16,7 @@ export function CredentialingPage() {
       {loading ? <Loading /> : error ? <ErrorState error={error} onRetry={reload} /> : (
         <section className="surface">
           {!data.partners.length ? <Empty title="Nenhum especialista cadastrado." /> : (
-            <div className="table-wrap"><table><thead><tr><th>Especialista</th><th>Elegível ONEMA ONE</th><th>Jornada</th><th>Conclusão</th><th>Decisão</th><th /></tr></thead>
+            <div className="table-wrap" tabIndex={0}><table><thead><tr><th>Especialista</th><th>Elegível ONEMA ONE</th><th>Jornada</th><th>Conclusão</th><th>Decisão</th><th /></tr></thead>
               <tbody>{data.partners.map((p: any) => <tr key={p.id}><td>{p.name}<br /><span className="small muted">{p.email}</span></td><td>{p.academy_eligible ? 'Sim' : 'Não'}</td><td>{label(p.journey_state ?? 'NAO_INICIADA')}</td><td>{date(p.completed_at)}</td>
                 <td><Badge tone={p.credentialing_decision === 'APTO' ? '' : p.credentialing_decision === 'NAO_APTO' ? 'red' : 'orange'}>{label(p.credentialing_decision ?? 'PENDENTE')}</Badge>{p.decided_at && <div className="small muted">{dateTime(p.decided_at)}</div>}</td>
                 <td>{has('CREDENCIAMENTO') && p.journey_state && <Button className="sm secondary" onClick={() => { setSel(p); setF({ decision: p.credentialing_decision ?? 'PENDENTE', note: '', otherGatesConfirmed: false }); }}>Registrar decisão</Button>}</td></tr>)}</tbody></table></div>
@@ -80,7 +80,7 @@ export function SupportPage() {
 export function ReportsPage() {
   const { data, error, loading, reload } = useApi<any>('/api/admin/academy/reports');
   const table = (rows: any[], cols: [string, string][]) => !rows.length ? <p className="muted small">Sem registros.</p> : (
-    <div className="table-wrap"><table><thead><tr>{cols.map(([, h]) => <th key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={i}>{cols.map(([k]) => <td key={k}>{k.includes('amount') ? money(r[k]) : r[k] == null ? '—' : label(String(r[k]))}</td>)}</tr>)}</tbody></table></div>
+    <div className="table-wrap" tabIndex={0}><table><thead><tr>{cols.map(([, h]) => <th key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={i}>{cols.map(([k]) => <td key={k}>{k.includes('amount') ? money(r[k]) : r[k] == null ? '—' : label(String(r[k]))}</td>)}</tr>)}</tbody></table></div>
   );
   return (
     <>

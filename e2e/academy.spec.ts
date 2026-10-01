@@ -47,6 +47,19 @@ test('especialista: pagamento sandbox, matrícula, aulas, atividade e avaliaçã
   await expect(qs).toHaveCount(12);
   for (const q of await qs.all()) await q.getByRole('radio', { name: 'Resposta esperada (demonstração)' }).check();
   await shot(page, 'academy-avaliacao', info.project.name);
+  // ACA-T034: a resposta do envio se perde na rede (o servidor processou). O aplicativo não declara aprovação
+  // localmente; a nova tentativa reaproveita a mesma chave de operação e recebe o resultado já registrado.
+  let dropped = false;
+  await page.route('**/api/academy/assessment-attempts/*/submit', async (route) => {
+    if (dropped) return route.continue();
+    dropped = true;
+    await route.fetch();
+    await route.abort('connectionreset');
+  });
+  await page.getByRole('button', { name: 'Enviar respostas' }).click();
+  await page.getByRole('button', { name: 'Confirmar envio' }).click();
+  await expect(page.getByText(/Sem conexão com o servidor/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Aprovado' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Enviar respostas' }).click();
   await page.getByRole('button', { name: 'Confirmar envio' }).click();
   await expect(page.getByText('12/12 acertos')).toBeVisible();
@@ -57,4 +70,5 @@ test('especialista: pagamento sandbox, matrícula, aulas, atividade e avaliaçã
   await expect(page.getByText(/Avaliação pendente de definição institucional/).first()).toBeVisible();
   await page.goto('/academy/historico');
   await expect(page.getByText(/tentativa 1 — Aprovada/)).toBeVisible();
+  await expect(page.getByText(/tentativa 2/)).toHaveCount(0);
 });

@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import QRCode from 'qrcode';
 import { z } from 'zod';
 import { config } from '../../config.ts';
+import { emailConfigured, layout, sendEmail } from '../../lib/email.ts';
 import { all, one, run, tx } from '../../db/db.ts';
 import { audit } from '../../lib/audit.ts';
 import { SESSION_COOKIE, needsMfa, parse, requireUser, type AuthCtx } from '../../lib/context.ts';
@@ -83,7 +84,7 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.post('/api/auth/login', { config: { public: true } }, async (req, reply) => {
     const body = parse(z.object({ email: emailSchema, password: z.string().min(1).max(200) }), req.body);
-    if (!await rateLimit(`login:${req.ip}:${body.email}`, 8, 15 * 60_000)) {
+    if (!await rateLimit(`login:${req.ip}:${body.email}`, config.loginRateLimit, 15 * 60_000)) {
       throw new AppError(429, 'RATE_LIMIT', 'Muitas tentativas de acesso. Aguarde 15 minutos e tente novamente.');
     }
     const u = await one<any>('SELECT * FROM users WHERE email = ?', body.email);
@@ -110,20 +111,31 @@ export async function authRoutes(app: FastifyInstance) {
   app.post('/api/auth/forgot', { config: { public: true } }, async (req, reply) => {
     const body = parse(z.object({ email: emailSchema }), req.body);
     if (!await rateLimit(`forgot:${req.ip}`, 5, 15 * 60_000)) throw new AppError(429, 'RATE_LIMIT', 'Muitas solicitações. Aguarde e tente novamente.');
-    const u = await one<any>('SELECT id, email FROM users WHERE email = ? AND status = ?', body.email, 'ACTIVE');
+    const u = await one<any>('SELECT id, email, name FROM users WHERE email = ? AND status = ?', body.email, 'ACTIVE');
     if (u) {
       const token = randomToken(32);
       const now = nowIso();
+      const msgId = uid();
       await tx(async () => {
         await run('INSERT INTO password_resets (token_hash, user_id, created_at, expires_at) VALUES (?,?,?,?)',
           sha256(token), u.id, now, new Date(Date.now() + config.passwordResetTtlMinutes * 60_000).toISOString());
-        // Sem provedor de e-mail configurado: a mensagem fica registrada como NÃO ENVIADA.
         await run(`INSERT INTO outbox_messages (id, channel, purpose, recipient_user_id, recipient_address, template, payload_json, status, created_at)
-             VALUES (?,?,?,?,?,?,?,?,?)`, uid(), 'EMAIL', 'ESSENCIAL', u.id, u.email, 'PASSWORD_RESET',
-          JSON.stringify({ expiresInMinutes: config.passwordResetTtlMinutes }), 'NAO_ENVIADO_SEM_PROVEDOR', now);
+             VALUES (?,?,?,?,?,?,?,?,?)`, msgId, 'EMAIL', 'ESSENCIAL', u.id, u.email, 'PASSWORD_RESET',
+          JSON.stringify({ expiresInMinutes: config.passwordResetTtlMinutes }), emailConfigured() ? 'PENDENTE' : 'NAO_ENVIADO_SEM_PROVEDOR', now);
         await audit({ actorId: u.id, action: 'PASSWORD_RESET_REQUESTED', subjectType: 'user', subjectId: u.id, correlationId: req.correlationId });
       });
-      if (!config.isProd && !config.isTest) {
+      if (emailConfigured()) {
+        // O token não é guardado: o link existe apenas na mensagem enviada.
+        const url = `${config.publicOrigin}/redefinir-senha?token=${token}`;
+        const m = layout('Redefinição de senha', [
+          `Olá, ${String(u.name).split(' ')[0]}.`,
+          `Recebemos um pedido para redefinir a senha da sua conta ONEMA SAÚDE. O link vale por ${config.passwordResetTtlMinutes} minutos e só pode ser usado uma vez.`,
+          'Se você não fez esse pedido, ignore esta mensagem: sua senha continua a mesma.',
+        ], { label: 'Criar nova senha', url });
+        const r = await sendEmail({ to: u.email, subject: 'ONEMA SAÚDE · Redefinição de senha', ...m });
+        await run('UPDATE outbox_messages SET status = ? WHERE id = ?', r.sent ? 'ENVIADO' : `FALHA_${r.error}`, msgId);
+        if (!r.sent) req.log.warn({ correlationId: req.correlationId, error: r.error }, 'falha no envio do e-mail de redefinição');
+      } else if (!config.isProd && !config.isTest) {
         req.log.warn(`[DEV] Link de redefinição (e-mail não configurado): ${config.publicOrigin}/redefinir-senha?token=${token}`);
       }
       if (config.isTest) reply.header('x-test-reset-token', token);
@@ -131,7 +143,7 @@ export async function authRoutes(app: FastifyInstance) {
     reply.code(202);
     return {
       message: 'Se o e-mail estiver cadastrado, enviaremos as instruções de redefinição.',
-      emailDeliveryConfigured: false,
+      emailDeliveryConfigured: emailConfigured(),
     };
   });
 

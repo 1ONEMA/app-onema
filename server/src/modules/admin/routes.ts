@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { config } from '../../config.ts';
 import { all, one, run, tx } from '../../db/db.ts';
 import { audit } from '../../lib/audit.ts';
+import { emailConfigured } from '../../lib/email.ts';
 import { parse, requireRoles, type AuthCtx } from '../../lib/context.ts';
 import { conflict, forbidden, notFound } from '../../lib/errors.ts';
 import { ROLES, ROLE_GRANTORS, ROLE_LABELS, type Role } from '../../lib/roles.ts';
@@ -11,6 +12,8 @@ import { nowIso, randomToken, uid } from '../../lib/util.ts';
 import { productionGates } from '../prime/admin.ts';
 
 const USER_ADMINS: Role[] = ['ADMIN_ACADEMY', 'ADMIN_PRIME'];
+
+const a_isAdmin = (req: any) => !!req.auth?.roles.some((r: Role) => USER_ADMINS.includes(r));
 
 function canGrant(a: AuthCtx, role: Role) {
   return ROLE_GRANTORS[role].some((r) => a.roles.includes(r));
@@ -28,7 +31,7 @@ export async function adminRoutes(app: FastifyInstance) {
   app.get('/api/system/status', async () => ({
     environment: config.appEnv,
     paymentProvider: config.paymentProvider,
-    emailDeliveryConfigured: false,
+    emailDeliveryConfigured: emailConfigured(),
     whatsappEnabled: config.whatsappEnabled,
     requireAdminMfa: config.requireAdminMfa,
     productionReady: await productionReadyCached(),
@@ -146,6 +149,52 @@ export async function adminRoutes(app: FastifyInstance) {
       await audit({ actorId: a.userId, action: 'USER_DELETED', subjectType: 'user', subjectId: id, correlationId: req.correlationId, meta: { mode, roles } });
       return { ok: true, mode };
     });
+  });
+
+  // ---- Backups (somente administradores com MFA; download auditado) ----
+  app.get('/api/admin/backups', async (req) => {
+    requireRoles(req, USER_ADMINS);
+    const { listBackups } = await import('../../lib/backup.ts');
+    return { backups: await listBackups(), schedule: 'diário', keep: Number(process.env.BACKUP_KEEP ?? 30) };
+  });
+
+  app.post('/api/admin/backups', async (req) => {
+    const a = requireRoles(req, USER_ADMINS);
+    const { runBackup } = await import('../../lib/backup.ts');
+    const r = await runBackup();
+    await audit({ actorId: a.userId, action: 'BACKUP_CREATED', subjectType: 'system', correlationId: req.correlationId, meta: { key: r.key, size: r.size, rows: r.rows, trigger: 'manual' } });
+    return r;
+  });
+
+  app.get('/api/admin/backups/:key', async (req, reply) => {
+    const a = requireRoles(req, USER_ADMINS);
+    const { key } = parse(z.object({ key: z.string().regex(/^onema-[0-9TZ-]+\.json\.gz$/) }), req.params);
+    const { readBackup } = await import('../../lib/backup.ts');
+    const buf = await readBackup(key);
+    if (!buf) throw notFound('Backup não encontrado.');
+    await audit({ actorId: a.userId, action: 'BACKUP_DOWNLOADED', subjectType: 'system', correlationId: req.correlationId, meta: { key } });
+    reply.header('Content-Type', 'application/gzip');
+    reply.header('Content-Disposition', `attachment; filename="${key}"`);
+    reply.header('Cache-Control', 'private, no-store');
+    return reply.send(buf);
+  });
+
+  // Painel: contagens agregadas (sem dados pessoais)
+  app.get('/api/admin/overview', async (req) => {
+    requireRoles(req, ['SUPORTE_ACADEMY', 'GESTOR_CONTEUDO', 'AVALIADOR_RT', 'ADMIN_ACADEMY', 'CREDENCIAMENTO', 'FINANCEIRO', 'AUDITOR', 'OPERADOR_CENTRAL', 'ADMIN_PRIME']);
+    const r = (await one<any>(`SELECT
+      (SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND status = 'ACTIVE') AS users_active,
+      (SELECT COUNT(DISTINCT user_id) FROM user_roles WHERE role = 'ESPECIALISTA') AS specialists,
+      (SELECT COUNT(DISTINCT user_id) FROM user_roles WHERE role = 'PACIENTE') AS patients,
+      (SELECT COUNT(*) FROM academy_enrollments WHERE state <> 'CANCELADA') AS enrollments,
+      (SELECT COUNT(*) FROM academy_certificates WHERE revoked_at IS NULL) AS certificates,
+      (SELECT COUNT(*) FROM academy_media_assets WHERE state = 'PENDING') AS media_pending,
+      (SELECT COUNT(*) FROM academy_course_versions WHERE state = 'IN_REVIEW') AS versions_in_review,
+      (SELECT COUNT(*) FROM subscriptions WHERE status IN ('ACTIVE','PAYMENT_PENDING','CANCEL_SCHEDULED')) AS subscriptions_active,
+      (SELECT COUNT(*) FROM support_tickets WHERE status = 'ABERTO') AS tickets_open`))!;
+    let lastBackupAt: string | null = null;
+    if (a_isAdmin(req)) { const { lastBackup } = await import('../../lib/backup.ts'); lastBackupAt = (await lastBackup())?.createdAt ?? null; }
+    return { ...r, lastBackupAt };
   });
 
   // Auditoria: leitura paginada, sem escrita (ACA-015 / ACA-T027 / ACA-T028)
