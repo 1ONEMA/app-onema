@@ -39,6 +39,8 @@ describe('Backup e restauração (ACA-T045)', () => {
     const seqBefore = (await one<any>('SELECT MAX(seq) AS s FROM audit_events')).s;
     // alterações após o backup
     await run(`UPDATE users SET name = 'Alterado' WHERE email = 'paciente.demo@exemplo.test'`);
+    await run(`DELETE FROM catalog_item_components`);
+    await run(`DELETE FROM catalog_item_versions`);
     await run(`DELETE FROM catalog_items`);
     const r = await restoreDatabase(decompress(zlib.gzipSync(Buffer.from(JSON.stringify(before)))));
     expect(r.rows).toBeGreaterThan(10);
@@ -46,6 +48,7 @@ describe('Backup e restauração (ACA-T045)', () => {
     for (const t of Object.keys(before.tables)) expect(after.tables[t].length, t).toBe(before.tables[t].length);
     expect((await one<any>(`SELECT name FROM users WHERE email = 'paciente.demo@exemplo.test'`)).name).not.toBe('Alterado');
     expect((await all('SELECT 1 FROM catalog_items')).length).toBe(before.tables.catalog_items.length);
+    expect((await all('SELECT 1 FROM catalog_item_components')).length).toBe(before.tables.catalog_item_components.length);
     // nova auditoria continua a sequência sem colisão
     await run(`INSERT INTO audit_events (id, action, subject_type, occurred_at) VALUES ('x-after-restore', 'TEST', 'system', '2026-01-01')`);
     expect((await one<any>(`SELECT seq FROM audit_events WHERE id = 'x-after-restore'`)).seq).toBeGreaterThan(seqBefore);

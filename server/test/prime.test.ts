@@ -90,10 +90,10 @@ describe('Desconto PRIME', () => {
 
   it('A03/A04: pedido com desconto preserva repasse; segundo pedido do ciclo sem desconto e com motivo', async () => {
     const c = await patient(); await subscribe(c);
-    const { q, o } = await order(c, 'DEMO-PACOTE');
+    const { q, o } = await order(c, 'PAC-02');
     expect(q.body).toMatchObject({ fullPriceCents: 72990, discountCents: 2000, finalPriceCents: 70990, usesRemaining: 1 });
     expect(o.body.order).toMatchObject({ status: 'PAID', discount_cents: 2000, payout_basis_cents: 72990 });
-    const second = await c.post('/api/prime/orders/quote', { itemCode: 'DEMO-SERV-A' });
+    const second = await c.post('/api/prime/orders/quote', { itemCode: 'CONT-01' });
     expect(second.body.discountCents).toBe(0);
     expect(second.body.noDiscountReason).toBe('O desconto PRIME já foi usado neste ciclo');
     const me = await c.get('/api/prime/me');
@@ -103,8 +103,8 @@ describe('Desconto PRIME', () => {
 
   it('A05: checkouts paralelos e duplo clique resultam em um único benefício por ciclo', async () => {
     const c = await patient(); await subscribe(c);
-    const q = await c.post('/api/prime/orders/quote', { itemCode: 'DEMO-SERV-B' });
-    const body = { itemCode: 'DEMO-SERV-B', paymentMethod: 'SANDBOX_APROVADO', expectedFinalPriceCents: q.body.finalPriceCents };
+    const q = await c.post('/api/prime/orders/quote', { itemCode: 'CAT-01' });
+    const body = { itemCode: 'CAT-01', paymentMethod: 'SANDBOX_APROVADO', expectedFinalPriceCents: q.body.finalPriceCents };
     const [a, b] = await Promise.all([c.post('/api/prime/orders', body, 'dup-click-1'), c.post('/api/prime/orders', body, 'dup-click-1')]);
     expect(b.body.order.id).toBe(a.body.order.id);
     const [x, y] = await Promise.all([c.post('/api/prime/orders', body, true), c.post('/api/prime/orders', body, true)]);
@@ -117,10 +117,10 @@ describe('Desconto PRIME', () => {
 
   it('falha de pagamento libera a reserva de forma auditável; estorno do pedido também', async () => {
     const c = await patient(); await subscribe(c);
-    const { o } = await order(c, 'DEMO-SERV-A', 'SANDBOX_RECUSADO');
+    const { o } = await order(c, 'CONT-01', 'SANDBOX_RECUSADO');
     expect(o.body.paid).toBe(false);
     expect(await one<any>(`SELECT status, release_reason FROM discount_reservations`)).toMatchObject({ status: 'RELEASED', release_reason: 'PAGAMENTO_NAO_CONFIRMADO' });
-    const ok = await order(c, 'DEMO-SERV-A');
+    const ok = await order(c, 'CONT-01');
     expect(ok.o.body.order.discount_cents).toBe(450);
     const fin = await loginAs(app, 'financeiro');
     const r = await fin.post(`/api/admin/prime/orders/${ok.o.body.order.id}/refund`, { note: 'Estorno de teste' });
@@ -130,7 +130,7 @@ describe('Desconto PRIME', () => {
 
   it('sem PRIME: preço cheio e nenhum desconto', async () => {
     const c = await patient();
-    const q = await c.post('/api/prime/orders/quote', { itemCode: 'DEMO-SERV-A' });
+    const q = await c.post('/api/prime/orders/quote', { itemCode: 'CONT-01' });
     expect(q.body).toMatchObject({ discountCents: 0, finalPriceCents: 8990, primeActive: false });
   });
 });
@@ -242,7 +242,7 @@ describe('Cancelamento, arrependimento e estorno (A09)', () => {
 describe('Motor de ciclos', () => {
   it('renovação, até 3 novas tentativas em 7 dias, suspensão só dos benefícios; regularização não cria segundo uso', async () => {
     const c = await patient(); await subscribe(c);
-    await order(c, 'DEMO-SERV-A'); // usa o desconto do ciclo 1
+    await order(c, 'CONT-01'); // usa o desconto do ciclo 1
     const end1 = (await one<any>('SELECT ends_at FROM subscription_cycles WHERE cycle_no = 1')).ends_at;
     await run(`UPDATE subscriptions SET payment_method = 'SANDBOX_RECUSADO'`);
     let t = addDays(end1, 0.01);

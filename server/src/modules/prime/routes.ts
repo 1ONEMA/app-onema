@@ -11,6 +11,7 @@ import {
   SANDBOX_METHODS, benefitState, chargeCycle, currentParams, cycleById, cycleUsage, fmtDate, fmtDateTime, latestSubscription,
   latestText, newSubscriptionProtocol, notify, openSubscription, paramsById, quote, receipt, sandboxCharge,
 } from './core.ts';
+import { placeOrder } from '../care/core.ts';
 
 const patient = (req: any) => requireRoles(req, ['PACIENTE']);
 const PURPOSES = ['LEMBRETES', 'RESUMO_MENSAL', 'OFERTAS'] as const;
@@ -347,52 +348,12 @@ export async function primeRoutes(app: FastifyInstance) {
       expectedFinalPriceCents: z.number().int().min(0),
     }), req.body);
     return await idempotent(req, reply, 'prime-order', async () => {
-      const q = await quote(a.userId, body.itemCode);
-      const { item, sub, cycle } = q._internal;
-      if (q.finalPriceCents !== body.expectedFinalPriceCents) {
-        const { _internal, ...fresh } = q;
-        throw conflict('PRICE_CHANGED', q.noDiscountReason
-          ? `O valor mudou desde a sua consulta: ${q.noDiscountReason}. Confira o novo total antes de pagar.`
-          : 'O valor mudou desde a sua consulta. Confira o novo total antes de pagar.', { quote: fresh });
-      }
-      const now = nowIso();
-      const orderId = uid();
-      await run(`INSERT INTO service_orders (id, patient_id, catalog_item_id, item_code, item_name, item_kind, full_price_cents, discount_cents, final_price_cents,
-           payout_basis_cents, no_discount_reason, status, provider, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-        orderId, a.userId, item.id, item.code, item.name, item.kind, q.fullPriceCents, q.discountCents, q.finalPriceCents,
-        q.fullPriceCents, q.noDiscountReason, 'PENDING_PAYMENT', config.paymentProvider, now);
-      let reservationId: string | null = null;
-      if (q.discountCents > 0) {
-        reservationId = uid();
-        try {
-          await run(`INSERT INTO discount_reservations (id, subscription_id, cycle_id, order_id, amount_cents, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
-            reservationId, sub.id, cycle.id, orderId, q.discountCents, 'RESERVED', now, now);
-        } catch {
-          throw conflict('DISCOUNT_ALREADY_USED', 'O desconto PRIME já foi usado neste ciclo');
-        }
-        await audit({ actorId: a.userId, action: 'DESCONTO_RESERVADO', subjectType: 'service_order', subjectId: orderId, correlationId: req.correlationId, meta: { cycleId: cycle.id } });
-      }
-      const pay = sandboxCharge(body.paymentMethod);
-      if (pay.ok) {
-        await run(`UPDATE service_orders SET status = 'PAID', provider_ref = ?, paid_at = ? WHERE id = ?`, pay.ref, now, orderId);
-        if (reservationId) {
-          await run(`UPDATE discount_reservations SET status = 'USED', updated_at = ? WHERE id = ?`, now, reservationId);
-          await audit({ actorId: a.userId, action: 'DESCONTO_USADO', subjectType: 'service_order', subjectId: orderId, correlationId: req.correlationId });
-        }
-        await audit({ actorId: a.userId, action: 'ORDER_PAID', subjectType: 'service_order', subjectId: orderId, correlationId: req.correlationId, meta: { item: item.code } });
-      } else {
-        await run(`UPDATE service_orders SET status = 'FAILED', provider_ref = ? WHERE id = ?`, pay.ref, orderId);
-        if (reservationId) {
-          await run(`UPDATE discount_reservations SET status = 'RELEASED', release_reason = 'PAGAMENTO_NAO_CONFIRMADO', updated_at = ? WHERE id = ?`, now, reservationId);
-          await audit({ actorId: a.userId, action: 'DESCONTO_LIBERADO', subjectType: 'service_order', subjectId: orderId, correlationId: req.correlationId });
-        }
-        await audit({ actorId: a.userId, action: 'ORDER_PAYMENT_FAILED', subjectType: 'service_order', subjectId: orderId, correlationId: req.correlationId });
-      }
-      const order = await one<any>('SELECT * FROM service_orders WHERE id = ?', orderId);
+      const r = await placeOrder({ patientId: a.userId, itemCode: body.itemCode, paymentMethod: body.paymentMethod,
+        expectedTotalCents: body.expectedFinalPriceCents, correlationId: req.correlationId });
       return {
         status: 201, body: {
-          order, paid: pay.ok,
-          message: pay.ok ? 'Pedido registrado e pagamento confirmado (simulação).' : 'Não foi possível confirmar o pagamento; nenhum benefício foi consumido. Tente novamente.',
+          order: r.order, paid: r.paid,
+          message: r.paid ? 'Pedido registrado e pagamento confirmado (simulação).' : 'Não foi possível confirmar o pagamento; nenhum benefício foi consumido. Tente novamente.',
         },
       };
     });

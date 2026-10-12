@@ -40,7 +40,7 @@ afterAll(async () => {
 describe('driver pg (produção)', () => {
   it('tipos numéricos, contagens e rollback', async () => {
     const r = await one<any>('SELECT COUNT(*) AS n, SUM(price_cents) AS s FROM catalog_items');
-    expect(r.n).toBe(4);
+    expect(r.n).toBe(19);
     expect(typeof r.s).toBe('number');
     await expect(tx(async () => { await run(`UPDATE catalog_items SET name = 'x'`); throw new Error('abort'); })).rejects.toThrow('abort');
     expect((await one<any>(`SELECT COUNT(*) AS n FROM catalog_items WHERE name = 'x'`)).n).toBe(0);
@@ -55,11 +55,11 @@ describe('driver pg (produção)', () => {
       preferences: { LEMBRETES: { enabled: false, channels: { app: false, email: false, whatsapp: false } }, RESUMO_MENSAL: { enabled: false, channels: { app: false, email: false, whatsapp: false } }, OFERTAS: { enabled: false, channels: { app: false, email: false, whatsapp: false } } },
     }, true);
     expect(s.status).toBe(201);
-    const q = await c.post('/api/prime/orders/quote', { itemCode: 'DEMO-SERV-C' });
+    const q = await c.post('/api/prime/orders/quote', { itemCode: 'CAT-04' });
     expect(q.body.discountCents).toBe(2000);
-    const o = await c.post('/api/prime/orders', { itemCode: 'DEMO-SERV-C', paymentMethod: 'SANDBOX_APROVADO', expectedFinalPriceCents: q.body.finalPriceCents }, true);
+    const o = await c.post('/api/prime/orders', { itemCode: 'CAT-04', paymentMethod: 'SANDBOX_APROVADO', expectedFinalPriceCents: q.body.finalPriceCents }, true);
     expect(o.body.order.status).toBe('PAID');
-    const dup = await c.post('/api/prime/orders', { itemCode: 'DEMO-SERV-C', paymentMethod: 'SANDBOX_APROVADO', expectedFinalPriceCents: q.body.finalPriceCents }, true);
+    const dup = await c.post('/api/prime/orders', { itemCode: 'CAT-04', paymentMethod: 'SANDBOX_APROVADO', expectedFinalPriceCents: q.body.finalPriceCents }, true);
     expect(dup.status).toBe(409);
     await expect(run('DELETE FROM audit_events')).rejects.toThrow(/append-only/);
   });

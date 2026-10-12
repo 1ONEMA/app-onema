@@ -4,6 +4,7 @@
  *    parâmetros PRIME). Nada é preenchido por estimativa: o que é pendente fica NULL/DRAFT com a referência.
  *  - seedDemo(): dados FICTÍCIOS para homologação local. Bloqueado em produção.
  */
+import { seedPricingV1 } from '../modules/care/catalog.ts';
 import { config } from '../config.ts';
 import { hashPassword } from '../lib/security.ts';
 import { hashObj, nowIso, sha256, stableJson, uid } from '../lib/util.ts';
@@ -97,6 +98,10 @@ export async function seedOfficial() {
     }
     await insertMany('legal_texts', ['id', 'code', 'version', 'title', 'body', 'content_hash', 'rt_approved_at', 'legal_review', 'created_at'], textRows);
     await run('INSERT INTO provider_identity (id, validated) VALUES (1, 0) ON CONFLICT (id) DO NOTHING');
+    // Precificação oficial v1 (Comando RT 30/09/2026): 11 serviços/continuidade + 8 pacotes, versionados.
+    const pricing = await seedPricingV1();
+    if (pricing.created) created.push(`PRECOS_V1(${pricing.created})`);
+    for (const d of pricing.divergences) console.warn(`[precificação] divergência: ${d}`);
     return created;
   });
 }
@@ -151,19 +156,7 @@ export async function seedDemo(part: 'all' | 'base' | 'academy' = 'all') {
         ids[r.email === emailOfDemo('gestor') ? 'gestor' : 'rt'] = r.id;
       }
     }
-    if (part !== 'academy') {
-    // Catálogo fictício com os valores dos critérios de aceite A04
-    const demoItems: [string, string, 'SERVICO' | 'PACOTE', number][] = [
-      ['DEMO-SERV-A', 'Serviço de demonstração A (fictício)', 'SERVICO', 8990],
-      ['DEMO-SERV-B', 'Serviço de demonstração B (fictício)', 'SERVICO', 26990],
-      ['DEMO-SERV-C', 'Serviço de demonstração C (fictício)', 'SERVICO', 44990],
-      ['DEMO-PACOTE', 'Pacote de demonstração (fictício)', 'PACOTE', 72990],
-    ];
-    await run(`INSERT INTO catalog_items (id, code, name, kind, price_cents, prime_eligible, active, is_demo, created_at, updated_at) VALUES
-      ${demoItems.map(() => '(?,?,?,?,?,1,1,1,?,?)').join(', ')} ON CONFLICT (code) DO NOTHING`,
-      ...demoItems.flatMap(([code, name, kind, price]) => [uid(), code, name, kind, price, now, now]));
-
-    }
+    // O antigo catálogo fictício (DEMO-*) foi substituído pela tabela oficial carregada em seedOfficial().
     if (part === 'base') return { users: DEMO_USERS.map((u) => u.email), password: DEMO_PASSWORD };
     // Academy: conteúdo neutro de demonstração em TODAS as aulas, aprovado pelo RT demo e publicado (operações em lote).
     const drafts = await all<any>(`SELECT c.id AS course_id, cv.id AS cv_id FROM academy_courses c

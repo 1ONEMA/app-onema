@@ -661,4 +661,147 @@ CREATE TABLE academy_media_chunks (
 );
 ALTER TABLE users ADD COLUMN deleted_at TEXT;
 ` },
+  { name: '006_care_pricing', sql: `
+-- 006: Precificação oficial (Comando RT 30/09/2026), jornada "Solicitar cuidado", eventos/repasses e avaliações.
+-- Valores em centavos. Preço, repasse, composição e elegibilidade vivem em versões imutáveis;
+-- o pedido guarda cópia dos valores aceitos (sem leitura retroativa).
+ALTER TABLE catalog_items ADD COLUMN canonical_code TEXT;
+ALTER TABLE catalog_items ADD COLUMN need TEXT;
+ALTER TABLE catalog_items ADD COLUMN modality TEXT;
+ALTER TABLE catalog_items ADD COLUMN summary TEXT;
+ALTER TABLE catalog_items ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0;
+-- Itens fictícios antigos (DEMO-*) saem de venda: o catálogo oficial passa a valer.
+UPDATE catalog_items SET active = 0, updated_at = updated_at WHERE is_demo = 1;
+
+CREATE TABLE catalog_item_versions (
+  id TEXT PRIMARY KEY,
+  catalog_item_id TEXT NOT NULL REFERENCES catalog_items(id),
+  version INTEGER NOT NULL,
+  price_cents INTEGER NOT NULL CHECK (price_cents > 0),
+  payout_total_cents INTEGER NOT NULL CHECK (payout_total_cents >= 0),
+  acts_total INTEGER NOT NULL CHECK (acts_total > 0),
+  acts_label TEXT NOT NULL,
+  prime_eligible INTEGER NOT NULL,
+  period_days INTEGER,
+  recurring TEXT CHECK (recurring IN ('MENSAL')),
+  inclusions_json TEXT NOT NULL,
+  exclusions_json TEXT NOT NULL,
+  valid_from TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  source TEXT,
+  created_by TEXT REFERENCES users(id),
+  created_at TEXT NOT NULL,
+  UNIQUE (catalog_item_id, version)
+);
+CREATE TABLE catalog_item_components (
+  id TEXT PRIMARY KEY,
+  version_id TEXT NOT NULL REFERENCES catalog_item_versions(id),
+  seq INTEGER NOT NULL,
+  act_type TEXT NOT NULL,
+  label TEXT NOT NULL,
+  modality TEXT NOT NULL CHECK (modality IN ('PRESENCIAL','REMOTO')),
+  quantity INTEGER NOT NULL CHECK (quantity > 0),
+  unit_payout_cents INTEGER NOT NULL CHECK (unit_payout_cents >= 0),
+  unit_labels_json TEXT,
+  UNIQUE (version_id, seq)
+);
+
+CREATE TABLE care_requests (
+  id TEXT PRIMARY KEY,
+  protocol TEXT NOT NULL UNIQUE,
+  requester_id TEXT NOT NULL REFERENCES users(id),
+  need TEXT NOT NULL,
+  item_code TEXT NOT NULL,
+  info_text TEXT,
+  materials TEXT NOT NULL CHECK (materials IN ('SIM','NAO','NAO_SEI')),
+  materials_detail TEXT,
+  materials_supply_requested INTEGER NOT NULL DEFAULT 0,
+  patient_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  location TEXT NOT NULL,
+  when_pref TEXT NOT NULL,
+  when_date TEXT,
+  notes TEXT,
+  for_self INTEGER NOT NULL DEFAULT 1,
+  responsible_authorized INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL CHECK (status IN ('ORCADO','ORCAMENTO_PENDENTE','ACEITO','PEDIDO_GERADO','DESISTENCIA')),
+  quote_version INTEGER NOT NULL DEFAULT 1,
+  quote_json TEXT NOT NULL,
+  quote_issued_at TEXT NOT NULL,
+  accepted_version INTEGER,
+  accepted_at TEXT,
+  order_id TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX ix_care_requests_requester ON care_requests(requester_id, created_at);
+
+ALTER TABLE service_orders ADD COLUMN request_id TEXT REFERENCES care_requests(id);
+ALTER TABLE service_orders ADD COLUMN version_id TEXT REFERENCES catalog_item_versions(id);
+ALTER TABLE service_orders ADD COLUMN version_no INTEGER;
+ALTER TABLE service_orders ADD COLUMN canonical_code TEXT;
+ALTER TABLE service_orders ADD COLUMN billing_period TEXT;
+ALTER TABLE service_orders ADD COLUMN payout_total_cents INTEGER;
+ALTER TABLE service_orders ADD COLUMN acts_total INTEGER;
+ALTER TABLE service_orders ADD COLUMN snapshot_json TEXT;
+ALTER TABLE service_orders ADD COLUMN cycle_id TEXT;
+ALTER TABLE service_orders ADD COLUMN refunded_at TEXT;
+-- Mesma oferta mensal (CAT-08/PAC-05) não pode gerar dois pedidos no mesmo período para o mesmo paciente.
+CREATE UNIQUE INDEX uq_order_canonical_period ON service_orders(patient_id, canonical_code, billing_period)
+  WHERE billing_period IS NOT NULL AND status IN ('PENDING_PAYMENT','PAID');
+-- Um pedido por solicitação em aberto/pago.
+CREATE UNIQUE INDEX uq_order_request ON service_orders(request_id) WHERE request_id IS NOT NULL AND status IN ('PENDING_PAYMENT','PAID');
+
+CREATE TABLE care_payment_events (
+  id TEXT PRIMARY KEY,
+  provider_event_id TEXT NOT NULL UNIQUE,
+  order_id TEXT NOT NULL REFERENCES service_orders(id),
+  type TEXT NOT NULL,
+  applied INTEGER NOT NULL,
+  received_at TEXT NOT NULL
+);
+
+-- Eventos filhos (atos) do pedido: quantidade finita, repasse por componente.
+CREATE TABLE care_events (
+  id TEXT PRIMARY KEY,
+  order_id TEXT NOT NULL REFERENCES service_orders(id),
+  seq INTEGER NOT NULL,
+  act_type TEXT NOT NULL,
+  label TEXT NOT NULL,
+  modality TEXT NOT NULL,
+  unit_payout_cents INTEGER NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('AGUARDANDO_PAGAMENTO','DISPONIVEL','ACEITO','CONCLUIDO','CANCELADO')),
+  specialist_id TEXT REFERENCES users(id),
+  region TEXT,
+  accepted_at TEXT,
+  completed_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE (order_id, seq)
+);
+CREATE INDEX ix_care_events_status ON care_events(status);
+
+-- Repasse reservado por evento: no máximo um por evento (sem pagar duas vezes).
+CREATE TABLE payout_entries (
+  id TEXT PRIMARY KEY,
+  order_id TEXT NOT NULL REFERENCES service_orders(id),
+  event_id TEXT NOT NULL UNIQUE REFERENCES care_events(id),
+  specialist_id TEXT REFERENCES users(id),
+  amount_cents INTEGER NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('RESERVADO','A_LIQUIDAR','CANCELADO')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- Avaliações por estrelas dos especialistas (separadas das notas da Academy).
+CREATE TABLE specialist_reviews (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL UNIQUE REFERENCES care_events(id),
+  specialist_id TEXT NOT NULL REFERENCES users(id),
+  patient_id TEXT NOT NULL REFERENCES users(id),
+  stars INTEGER NOT NULL CHECK (stars BETWEEN 1 AND 5),
+  comment TEXT,
+  created_at TEXT NOT NULL
+);
+` },
 ];

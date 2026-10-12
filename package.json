@@ -27,6 +27,7 @@
     "netlify:init": "tsx --disable-warning=ExperimentalWarning server/src/db/netlify-init.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@electric-sql/pglite": "^0.5.8",
     "@fastify/cookie": "^11.1.2",
     "@fastify/multipart": "^10.1.2",
