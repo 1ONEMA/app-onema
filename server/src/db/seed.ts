@@ -13,7 +13,7 @@ import { all, insertMany, one, run, tx } from './db.ts';
 import primeTexts from './content/prime-texts.json';
 const SRC_ACADEMY = 'Documento Mestre de Transferência Técnica ONEMA Academy v1.0 (25/09/2026)';
 
-const COURSES = [
+export const COURSES = [
   {
     code: 'C01', title: 'Excelência no Atendimento', activity: 1, lessons: [
       ['C01-A01', 'Identidade ONEMA e papel do Enfermeiro'], ['C01-A02', 'Apresentação, acolhimento e comunicação'],

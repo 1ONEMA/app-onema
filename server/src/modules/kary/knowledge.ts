@@ -5,7 +5,29 @@
  * Conteúdo editorial: revisar e aprovar pela ONEMA (pendência E-3) antes de uso com pacientes reais.
  */
 export interface KaryLink { label: string; to: string }
-export interface KaryAnswer { text: string; links?: KaryLink[]; kind: 'URGENCIA' | 'FAQ' | 'PRECO' | 'FORA_DO_ESCOPO' | 'SAUDACAO' }
+export interface KaryAnswer { text: string; links?: KaryLink[]; kind: 'URGENCIA' | 'FAQ' | 'PRECO' | 'FORA_DO_ESCOPO' | 'SAUDACAO' | 'ACADEMY' | 'ESCALONAMENTO' }
+
+/**
+ * Versão da base de respostas (Documento Mestre Academy §12: toda resposta educacional registra
+ * versão da base, limites e rota de escalonamento). Alterar a base exige nova versão.
+ */
+export const KARY_BASE_VERSION = 'KARY-BASE-v1 (12/10/2026)';
+export const KARY_LIMITS = 'Orienta conteúdo institucional e navegação. Não prescreve, não ajusta dose, não declara aptidão ou credenciamento, não revela gabarito e não substitui o RT ou profissional habilitado.';
+export const KARY_ESCALATION = { label: 'Suporte ONEMA Academy / RT pela Central ONEMA', to: '/especialista' };
+
+/** Pedidos que exigem recusa e escalonamento humano (Documento Mestre Academy §12). */
+export const GABARITO = /(gabarito|resposta (certa|correta) da (prova|avalia[çc][ãa]o|quest[ãa]o)|respostas da (prova|avalia[çc][ãa]o)|cola)/i;
+export const APTIDAO = /(estou apto|sou apto|me (credencia|aprova|libera)|aprovar meu credenciamento|liberar? (meu )?perfil|aptid[ãa]o)/i;
+export const GABARITO_ANSWER: KaryAnswer = {
+  kind: 'ESCALONAMENTO',
+  text: 'Não posso informar gabarito nem respostas das avaliações. Posso indicar a aula em que o tema é tratado para você revisar antes de responder.',
+  links: [{ label: 'Abrir a ONEMA Academy', to: '/academy' }],
+};
+export const APTIDAO_ANSWER: KaryAnswer = {
+  kind: 'ESCALONAMENTO',
+  text: 'Não declaro aptidão nem credenciamento: essa decisão é humana, feita pelo Credenciamento e pelo RT da ONEMA, depois de todos os requisitos. Concluir a Academy não credencia automaticamente.',
+  links: [{ label: 'Área do especialista', to: '/especialista' }],
+};
 
 /** Sinais de urgência: resposta fixa (nunca passa por IA). */
 export const URGENCY = /(falta de ar|n[ãa]o consigo respirar|dor no peito|dor forte no peito|desmai|perd(a|eu) (de )?consci[êe]ncia|convuls|sangramento (intenso|forte)|avc|derrame|infarto|engasg|suic[íi]d|me matar|overdose|intoxica[çc][ãa]o|emerg[êe]ncia|urg[êe]ncia|socorro)/i;
@@ -16,10 +38,10 @@ export const URGENCY_ANSWER: KaryAnswer = {
 };
 
 /** Pedidos clínicos (diagnóstico, dose, medicação): orientar sem responder clinicamente. */
-export const CLINICAL = /(qual (rem[ée]dio|medicamento)|posso tomar|dose|dosagem|quantos mg|diagn[óo]stic|[ée] grave\??|o que (eu )?tenho|sintoma|tratamento para)/i;
+export const CLINICAL = /(qual (rem[ée]dio|medicamento)|posso tomar|prescrev|receitar|dose|dosagem|quantos mg|diagn[óo]stic|[ée] grave\??|o que (eu )?tenho|sintoma|tratamento para)/i;
 export const CLINICAL_ANSWER: KaryAnswer = {
   kind: 'FORA_DO_ESCOPO',
-  text: 'Não posso orientar diagnóstico, remédios ou doses: isso exige avaliação de um profissional. Posso ajudar você a solicitar uma Avaliação de Enfermagem ou uma Orientação on-line com um enfermeiro validado. Em sinais de gravidade, ligue 192.',
+  text: 'Não posso prescrever, indicar remédio nem orientar ou ajustar dose: isso exige um profissional habilitado. Se você é paciente, solicite uma Avaliação de Enfermagem ou Orientação on-line. Se é especialista, siga a prescrição válida e escale a dúvida ao RT pela Central ONEMA. Em sinais de gravidade, ligue 192.',
   links: [{ label: 'Solicitar cuidado', to: '/solicitar' }],
 };
 

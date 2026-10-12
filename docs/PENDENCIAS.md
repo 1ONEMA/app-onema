@@ -8,7 +8,7 @@ Nenhuma destas pendências foi preenchida por suposição. O sistema exibe a pen
 |---|---|---|---|
 | E-1 | **Anexo I — Escopo Funcional Contratado** não enviado | Não é possível afirmar que o implementado corresponde ao contratado | Enviar o Anexo I para conferência item a item com `RASTREABILIDADE.md` |
 | E-2 | Pacote técnico citado no LEIA-ME (POPs65, laboratório, JSON/CSVs, hashes) não enviado | Nada de POPs65/motor foi reaproveitado | Enviar, se fizer parte do escopo |
-| E-3 | Kary (assistente) | Implementada em homologação com base de respostas própria (orientação da plataforma, sem conduta clínica; urgência → SAMU 192). IA opcional por `KARY_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` | Aprovação do texto da base pela ONEMA; decisão sobre provedor de IA e política de dados |
+| E-3 | Kary (assistente) | Implementada em homologação com base de respostas própria versionada (`KARY-BASE-v1`): orientação da plataforma e da Academy (cita aula/curso), recusa prescrição/dose, gabarito e aptidão com escalonamento ao RT; urgência → SAMU 192. IA opcional por `KARY_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` | Aprovação do texto da base pela ONEMA; decisão sobre provedor de IA e política de dados |
 
 ## ONEMA Academy (DM §15)
 
