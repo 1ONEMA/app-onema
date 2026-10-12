@@ -31,9 +31,9 @@ export function AuthLayout({ title, children }: { title: string; children: React
       </aside>
       <main className="auth-main" id="conteudo">
         <div className="auth-card">
-          <img src="/icons/logo-onema-saude.png" alt="ONEMA SAÚDE" className="logo" />
+          <Link to="/" aria-label="ONEMA SAÚDE — página inicial"><img src="/icons/logo-onema-saude.png" alt="ONEMA SAÚDE" className="logo" /></Link>
           {status && status.environment !== 'production' && (
-            <p className="env-note">Versão de testes · pagamentos simulados</p>
+            <p className="env-note">Versão de homologação · pagamentos simulados</p>
           )}
           {apiDown && (
             <div className="caution" role="alert">
@@ -50,7 +50,7 @@ export function AuthLayout({ title, children }: { title: string; children: React
   );
 }
 
-const safeReturn = (v: string | null) => (v && v.startsWith('/') && !v.startsWith('//') ? v : '/');
+const safeReturn = (v: string | null) => (v && v.startsWith('/') && !v.startsWith('//') && v !== '/' ? v : '/inicio');
 
 export function LoginPage() {
   const { me, setMe } = useAuth();
@@ -83,6 +83,8 @@ export function LoginPage() {
 export function RegisterPage() {
   const { setMe } = useAuth();
   const nav = useNavigate();
+  const [params] = useSearchParams();
+  const specialist = params.get('perfil') === 'especialista';
   const { run, busy, error } = useSubmit<Me>();
   const [f, setF] = useState({ name: '', email: '', password: '', confirm: '' });
   const [mismatch, setMismatch] = useState(false);
@@ -91,10 +93,11 @@ export function RegisterPage() {
     if (f.password !== f.confirm) { setMismatch(true); return; }
     setMismatch(false);
     const r = await run('POST', '/api/auth/register', { name: f.name, email: f.email, password: f.password });
-    if (r) { setMe(r); nav('/minha-onema', { replace: true }); }
+    if (r) { setMe(r); nav(specialist ? '/especialista' : params.get('voltar')?.startsWith('/') && !params.get('voltar')!.startsWith('//') ? params.get('voltar')! : '/minha-onema', { replace: true }); }
   }
   return (
-    <AuthLayout title="Criar cadastro de paciente">
+    <AuthLayout title={specialist ? 'Cadastro na rede ONEMA ONE' : 'Criar cadastro de paciente'}>
+      {specialist && <div className="callout small">Crie sua conta com seus dados pessoais. Em seguida, a Central ONEMA valida identidade, COREN e documentos e libera a ONEMA Academy. Só depois disso o perfil passa a receber ofertas.</div>}
       <form onSubmit={submit} noValidate>
         <Alert error={error} />
         <Field label="Nome completo" error={fieldError(error, 'name')}><input type="text" autoComplete="name" required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
@@ -107,7 +110,7 @@ export function RegisterPage() {
         </Field>
         <Button type="submit" className="block deep" busy={busy}>Criar cadastro</Button>
       </form>
-      <p className="mt small">Já tem conta? <Link to="/entrar">Entrar</Link></p>
+      <p className="mt small">Já tem conta? <Link to={`/entrar${params.get('voltar') ? `?voltar=${encodeURIComponent(params.get('voltar')!)}` : ''}`}>Entrar</Link></p>
     </AuthLayout>
   );
 }

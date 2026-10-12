@@ -15,7 +15,7 @@ async function check(page: Page, url: string) {
 }
 
 test('telas públicas', async ({ page }) => {
-  for (const u of ['/entrar', '/cadastro', '/esqueci-senha', '/verificar']) await check(page, u);
+  for (const u of ['/', '/solicitar', '/plataforma', '/especialista', '/entrar', '/cadastro', '/esqueci-senha', '/verificar']) await check(page, u);
 });
 
 test('paciente', async ({ page }) => {
@@ -33,7 +33,7 @@ test('especialista', async ({ page }) => {
 // Uma conta administrativa por dispositivo (o MFA de cada conta é ativado uma única vez nesta execução).
 const ADMIN_BY_PROJECT: Record<string, [string, string[]]> = {
   mobile: ['admin.academy.demo@exemplo.test', ['/admin', '/admin/conteudo', '/admin/midia', '/admin/usuarios', '/admin/backups', '/admin/relatorios']],
-  desktop: ['admin.prime.demo@exemplo.test', ['/admin', '/admin/prime', '/admin/usuarios', '/admin/backups', '/admin/auditoria', '/admin/financeiro']],
+  desktop: ['admin.prime.demo@exemplo.test', ['/central', '/central?aba=precos', '/central?aba=conciliacao', '/admin', '/admin/prime', '/admin/usuarios', '/admin/backups', '/admin/auditoria', '/admin/financeiro']],
   tablet: ['auditor.demo@exemplo.test', ['/admin', '/admin/conteudo', '/admin/certificados', '/admin/credenciamento', '/admin/auditoria', '/admin/relatorios']],
 };
 

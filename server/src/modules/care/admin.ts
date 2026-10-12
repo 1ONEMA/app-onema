@@ -10,7 +10,7 @@ import { EXPECTED_PAYOUT, PRICING_SOURCE, PRICING_V1, REPORT_PARAMS, SECTION7_RE
 import { audit } from '../../lib/audit.ts';
 import { parse, requireRoles } from '../../lib/context.ts';
 import { conflict, notFound, unprocessable } from '../../lib/errors.ts';
-import { nowIso, uid } from '../../lib/util.ts';
+import { brl, nowIso, uid } from '../../lib/util.ts';
 import { currentParams, discountFor } from '../prime/core.ts';
 import { components, currentVersion, insertVersion, syncItemSummary } from './catalog.ts';
 import { applyPaymentEvent, contribution } from './core.ts';
@@ -210,13 +210,13 @@ export async function careAdminRoutes(app: FastifyInstance) {
     for (const it of items) cur.set(it.code, { item: it, v: await currentVersion(it.id) });
     const serv = items.filter((i) => i.kind === 'SERVICO').length, pac = items.filter((i) => i.kind === 'PACOTE').length;
     const canon = new Set(items.filter((i) => i.code === 'CAT-08' || i.code === 'PAC-05').map((i) => i.canonical_code));
-    const priceDiffs = PRICING_V1.filter((d) => cur.get(d.code)?.v?.price_cents !== d.price).map((d) => `${d.code}: vigente ${cur.get(d.code)?.v?.price_cents ?? '—'} ≠ comando ${d.price}`);
+    const priceDiffs = PRICING_V1.filter((d) => cur.get(d.code)?.v?.price_cents !== d.price).map((d) => `${d.code}: preço vigente ${brl(cur.get(d.code)?.v?.price_cents ?? 0)} ≠ comando ${brl(d.price)} (versão nova registrada pelo painel)`);
     results.push({ id: 'P01', title: 'Carga dos registros (11 serviços + 8 pacotes; monitoramento canônico)', pass: serv === 11 && pac === 8 && canon.size === 1 && !priceDiffs.length,
       details: [`Serviços/continuidade: ${serv}`, `Pacotes: ${pac}`, `CAT-08/PAC-05 → identidade única: ${[...canon].join(', ')}`, ...priceDiffs] });
     const p2: string[] = [];
     for (const code of ['PAC-01', 'PAC-02', 'PAC-03']) {
       const v = cur.get(code)?.v; const [payout, acts] = EXPECTED_PAYOUT[code];
-      p2.push(`${code}: ${v?.acts_total} atos, repasse ${v?.payout_total_cents} (esperado ${acts} / ${payout})`);
+      p2.push(`${code}: ${v?.acts_total} atos, repasse ${brl(v?.payout_total_cents ?? 0)} (esperado ${acts} atos / ${brl(payout)})`);
       if (!v || v.acts_total !== acts || v.payout_total_cents !== payout) p2.push(`DIVERGENTE: ${code}`);
     }
     results.push({ id: 'P02', title: 'Pós-alta 7/14/30 dias: 2/4/6 atos; R$ 220/440/660', pass: !p2.some((d) => d.startsWith('DIVERGENTE')), details: p2 });
@@ -234,7 +234,7 @@ export async function careAdminRoutes(app: FastifyInstance) {
     for (const [code, [full, disc, fin]] of Object.entries(SECTION7_REFERENCE)) {
       const v = cur.get(code)?.v;
       const d = v?.prime_eligible ? discountFor(v.price_cents, params.discount_bps, params.discount_cap_cents) : 0;
-      if (!v || v.price_cents !== full || d !== disc || v.price_cents - d !== fin) p4.push(`${code}: calculado ${v?.price_cents}/${d}/${(v?.price_cents ?? 0) - d} ≠ referência ${full}/${disc}/${fin}`);
+      if (!v || v.price_cents !== full || d !== disc || v.price_cents - d !== fin) p4.push(`${code}: calculado ${brl(v?.price_cents ?? 0)} − ${brl(d)} = ${brl((v?.price_cents ?? 0) - d)} ≠ referência ${brl(full)} − ${brl(disc)} = ${brl(fin)}`);
     }
     results.push({ id: 'P04', title: 'Descontos da seção 7 (5%, teto R$ 20, centavos)', pass: !p4.length, details: p4.length ? p4 : ['19 exemplos conferidos.'] });
     return { checkedAt: nowIso(), source: PRICING_SOURCE, results, runId: uid() };
