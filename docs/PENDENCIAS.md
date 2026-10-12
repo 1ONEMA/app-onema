@@ -8,7 +8,7 @@ Nenhuma destas pendências foi preenchida por suposição. O sistema exibe a pen
 |---|---|---|---|
 | E-1 | **Anexo I — Escopo Funcional Contratado** não enviado | Não é possível afirmar que o implementado corresponde ao contratado | Enviar o Anexo I para conferência item a item com `RASTREABILIDADE.md` |
 | E-2 | Pacote técnico citado no LEIA-ME (POPs65, laboratório, JSON/CSVs, hashes) não enviado | Nada de POPs65/motor foi reaproveitado | Enviar, se fizer parte do escopo |
-| E-3 | Kary (IA educacional) | Não implementada | Autorização expressa + base versionada aprovada + provedor/política de dados |
+| E-3 | Kary (assistente) | Implementada em homologação com base de respostas própria (orientação da plataforma, sem conduta clínica; urgência → SAMU 192). IA opcional por `KARY_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` | Aprovação do texto da base pela ONEMA; decisão sobre provedor de IA e política de dados |
 
 ## ONEMA Academy (DM §15)
 
@@ -33,7 +33,7 @@ Nenhuma destas pendências foi preenchida por suposição. O sistema exibe a pen
 
 | # | Pendência | Estado |
 |---|---|---|
-| R-1 | Catálogo oficial “Preços Oficiais v3” | Catálogo vazio no seed oficial; 4 itens fictícios só na demonstração |
+| R-1 | ~~Catálogo oficial~~ | Resolvido: 19 registros do Comando de Precificação (30/09/2026) versionados; itens fictícios retirados (ver HOMOLOGACAO_PRECIFICACAO.md) |
 | R-2 | Gate G6: identificação do fornecedor (razão social, CNPJ, endereço, canal) e revisão jurídica T1–T3/Aviso de Privacidade | Produção bloqueada; cadastro disponível em Gestão › PRIME |
 | R-3 | Gateway de pagamento real + webhooks | Sandbox |
 | R-4 | Provedores de e-mail e WhatsApp oficial | Mensagens ficam na fila como “não enviado — sem provedor”; WhatsApp desabilitado |
@@ -43,8 +43,18 @@ Nenhuma destas pendências foi preenchida por suposição. O sistema exibe a pen
 | R-8 | Efeito do fim do PRIME sobre um responsável já verificado | Acesso mantido até revogação pelo titular — confirmar |
 | R-9 | Espaçamento das novas tentativas de cobrança | Distribuídas igualmente na janela de 7 dias — confirmar |
 | R-10 | Campanhas incompatíveis com o desconto | Não modeladas (nenhuma campanha definida) |
-| R-11 | Regra de repasse ao profissional | Pedido guarda “base de repasse = preço cheio”; cálculo do repasse não definido |
+| R-11 | Repasse ao profissional | Repasse integral por componente reservado no pagamento e “a liquidar” na conclusão; liquidação efetiva depende do provedor/split |
 | R-12 | Gates G7/G8 (aceites finais e decisão de produção) | Registro formal fora do sistema |
+
+## Precificação (Comando RT 30/09/2026)
+
+| # | Pendência |
+|---|---|
+| PR-1 | Confirmar se estorno total antes de qualquer ato devolve o uso PRIME do ciclo (hoje: não devolve) |
+| PR-2 | Validade do orçamento (não definida; hoje não expira) |
+| PR-3 | Margens com PRIME abaixo do aviso de 17%: CAT-02A, CONT-01, CONT-02 (apenas sinalizado) |
+| PR-4 | Credenciais Asaas (CNPJ), webhook real, split e emissor fiscal |
+| PR-5 | Revisão da seleção/tradução dos versículos do “Café com a ONEMA” |
 
 ## Identidade visual
 

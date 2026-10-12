@@ -20,3 +20,13 @@ export const IconUser = ({ size }: P) => <svg {...base(size)}><circle cx="12" cy
 export const IconHospital = ({ size }: P) => <svg {...base(size)}><path d="M5 21V4.5h14V21M3 21h18" /><path d="M10 21v-4h4v4" /><path d="M12 7.5v5M9.5 10h5" stroke={G} strokeWidth="2.2" /></svg>;
 export const IconAward = ({ size }: P) => <svg {...base(size)}><circle cx="12" cy="9" r="5.5" /><path d="M8.5 13.5L7 21l5-2.5 5 2.5-1.5-7.5" /><circle cx="12" cy="9" r="2" fill={G} stroke="none" /></svg>;
 export const IconAlert = ({ size }: P) => <svg {...base(size)}><path d="M12 3l9.5 17h-19z" /><path d="M12 10v4M12 17.2v.3" /></svg>;
+export const IconPill = ({ size }: P) => <svg {...base(size)}><rect x="3" y="8.5" width="18" height="7" rx="3.5" transform="rotate(-45 12 12)" /><path d="M9.5 9.5l5 5" stroke={G} strokeWidth="2.2" /></svg>;
+export const IconTube = ({ size }: P) => <svg {...base(size)}><path d="M8 3h8M9 3v13a3 3 0 0 0 6 0V3" /><path d="M9 9h6" stroke={G} strokeWidth="2.2" /><path d="M12 19v2" /></svg>;
+export const IconStar = ({ size, filled }: P & { filled?: boolean }) => <svg {...base(size)} fill={filled ? 'currentColor' : 'none'}><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" /></svg>;
+export const IconDownload = ({ size }: P) => <svg {...base(size)}><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5" /><path d="M4.5 16v3a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1v-3" /></svg>;
+export const IconArrowRight = ({ size }: P) => <svg {...base(size)}><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
+export const IconArrowLeft = ({ size }: P) => <svg {...base(size)}><path d="M19 12H5M11 6l-6 6 6 6" /></svg>;
+export const IconSpark = ({ size }: P) => <svg {...base(size)}><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" /><circle cx="18.5" cy="18.5" r="1.6" fill={G} stroke="none" /></svg>;
+export const IconSend = ({ size }: P) => <svg {...base(size)}><path d="M4 12l16-7-6 16-3-6.5z" /><path d="M11 14.5L20 5" /></svg>;
+export const IconChevronDown = ({ size }: P) => <svg {...base(size)}><path d="M6 9l6 6 6-6" /></svg>;
+export const IconPhone = ({ size }: P) => <svg {...base(size)}><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z" /></svg>;

@@ -59,7 +59,7 @@ export function PrimeCenterPage() {
             <li className="row between"><span>Economia desde a adesão</span><strong>{money(s.benefit.totalSavingsCents)}</strong></li>
           </ul>
           <p className="small muted">O desconto não equivale a crédito em dinheiro e não é abatido da mensalidade. Mostramos a economia real, inclusive quando é zero.</p>
-          <Link to="/servicos" className="btn secondary">Contratar serviço ou pacote</Link>
+          <Link to="/solicitar" className="btn secondary">Contratar serviço ou pacote</Link>
           {pending && (
             <div className="mt">
               <h3>Regularizar pagamento</h3>

@@ -35,14 +35,28 @@ test('paciente: cadastro, adesão PRIME, checkout com desconto, preferências, r
   await expect(page.getByText('PRIME ativo')).toBeVisible();
   await shot(page, 'prime-central', info.project.name);
 
-  await page.goto('/servicos');
-  await page.locator('li', { hasText: 'Pacote de demonstração' }).getByRole('button', { name: 'Selecionar' }).click();
+  // Solicitar cuidado com desconto PRIME (valores logo após materiais)
+  async function request(need: RegExp, offer: string) {
+    await page.goto('/solicitar');
+    await page.getByRole('button', { name: need }).click();
+    await page.getByText(offer, { exact: true }).click();
+    await page.getByRole('button', { name: /Continuar/ }).click();
+    await page.getByText('Sim, tenho os materiais').click();
+    await page.getByRole('button', { name: /Ver valores do atendimento/ }).click();
+  }
+  await request(/Pós-alta Hospitalar/, 'Pós-Alta 14 dias');
   await expect(page.getByText('− R$ 20,00')).toBeVisible();
   await expect(page.getByText('R$ 709,90').first()).toBeVisible();
-  await page.getByLabel('Meio de pagamento').selectOption('SANDBOX_APROVADO');
-  await page.getByRole('button', { name: /Confirmar e pagar/ }).click();
-  await expect(page.getByText(/pagamento confirmado \(simulação\)/)).toBeVisible();
-  await page.locator('li', { hasText: 'Serviço de demonstração A' }).getByRole('button', { name: 'Selecionar' }).click();
+  await page.getByRole('button', { name: /Continuar/ }).click();
+  await page.getByLabel('Nome do paciente').fill('Paciente E2E Fictício');
+  await page.getByLabel('Telefone').fill('(11) 98888-7777');
+  await page.getByLabel('Bairro ou CEP').fill('Moema');
+  await page.getByRole('button', { name: /Revisar solicitação/ }).click();
+  await page.getByText(/aceito este orçamento/).click();
+  await page.getByRole('button', { name: /Ir para o pagamento/ }).click();
+  await page.getByRole('button', { name: 'Confirmar e pagar R$ 709,90' }).click();
+  await expect(page.getByText(/Pagamento confirmado \(simulação\)/)).toBeVisible();
+  await request(/Monitoramento ONEMA/, 'Orientação on-line');
   await expect(page.getByText('O desconto PRIME já foi usado neste ciclo')).toBeVisible();
   await shot(page, 'servicos', info.project.name);
 

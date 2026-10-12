@@ -99,6 +99,14 @@ e2e/                        testes Playwright
 docs/                       diagnóstico, permissões, rastreabilidade, implantação, pendências, custos, design
 ```
 
+## Novidades desta versão
+
+- **Modelo do protótipo v5**: início público com “Café com a ONEMA” (versículo diário, opcional), menu Plataforma · Solicitar cuidado · Área do especialista · Central RT · Instalar e barra inferior no celular.
+- **Solicitar cuidado** com a precificação oficial (19 registros versionados), PRIME, orçamento com versão e aceite, pagamento simulado e comprovante.
+- **Área do especialista** (ofertas com repasse integral, conclusão, estrelas) e **Central RT** (`/central`: operação, precificação, conciliação, estorno e autoteste).
+- **Kary**: assistente da plataforma (base própria; IA opcional com `KARY_PROVIDER=anthropic` e `ANTHROPIC_API_KEY`).
+- Relatório para o RT: [`docs/HOMOLOGACAO_PRECIFICACAO.md`](docs/HOMOLOGACAO_PRECIFICACAO.md) e capturas em `docs/evidencias/`.
+
 ## Documentação
 
 - [`docs/DIAGNOSTICO.md`](docs/DIAGNOSTICO.md) — análise dos materiais, escopo, conflitos e decisões.

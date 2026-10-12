@@ -22,9 +22,14 @@ import { PrimeSubscribePage } from './pages/prime/PrimeSubscribePage';
 import { PrimeCenterPage } from './pages/prime/PrimeCenterPage';
 import { PreferencesPage } from './pages/prime/PreferencesPage';
 import { SharePage } from './pages/prime/SharePage';
-import { ServicesPage } from './pages/prime/ServicesPage';
 import { InvitesPage, SupportViewPage } from './pages/prime/InvitesPage';
 import { AdminRoutes } from './pages/admin/AdminRoutes';
+import { HomePage } from './pages/public/HomePage';
+import { PlatformPage } from './pages/public/PlatformPage';
+import { SpecialistPage } from './pages/public/SpecialistPage';
+import { RequestFlow } from './pages/care/RequestFlow';
+import { MyOrdersPage, RequestDetailPage } from './pages/care/OrdersPages';
+import { CentralPage } from './pages/central/CentralPage';
 
 function RequireAuth({ children, roles }: { children: ReactNode; roles?: Role[] }) {
   const { me, loading, error, has } = useAuth();
@@ -38,12 +43,14 @@ function RequireAuth({ children, roles }: { children: ReactNode; roles?: Role[] 
   return <Layout>{children}</Layout>;
 }
 
-function Home() {
+/** Destino após o login: área principal do perfil. */
+function RoleHome() {
   const { me, loading, has, isAdmin } = useAuth();
   if (loading) return <main className="page"><Loading /></main>;
   if (!me?.user) return <Navigate to="/entrar" replace />;
   if (has('PACIENTE')) return <Navigate to="/minha-onema" replace />;
   if (has('ESPECIALISTA')) return <Navigate to="/academy" replace />;
+  if (has('OPERADOR_CENTRAL', 'ADMIN_PRIME', 'FINANCEIRO', 'AVALIADOR_RT', 'AUDITOR')) return <Navigate to="/central" replace />;
   if (isAdmin) return <Navigate to="/admin" replace />;
   return <Navigate to="/conta" replace />;
 }
@@ -51,7 +58,13 @@ function Home() {
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
+      <Route path="/" element={<Layout><HomePage /></Layout>} />
+      <Route path="/inicio" element={<RoleHome />} />
+      <Route path="/plataforma" element={<Layout><PlatformPage /></Layout>} />
+      <Route path="/especialista" element={<Layout><SpecialistPage /></Layout>} />
+      <Route path="/solicitar" element={<Layout><RequestFlow /></Layout>} />
+      <Route path="/solicitacoes/:id" element={<RequireAuth roles={['PACIENTE']}><RequestDetailPage /></RequireAuth>} />
+      <Route path="/central" element={<RequireAuth roles={['OPERADOR_CENTRAL', 'ADMIN_PRIME', 'FINANCEIRO', 'AVALIADOR_RT', 'AUDITOR']}><CentralPage /></RequireAuth>} />
       <Route path="/entrar" element={<LoginPage />} />
       <Route path="/cadastro" element={<RegisterPage />} />
       <Route path="/esqueci-senha" element={<ForgotPage />} />
@@ -69,7 +82,7 @@ export default function App() {
       <Route path="/prime/assinatura" element={<RequireAuth roles={['PACIENTE']}><PrimeCenterPage /></RequireAuth>} />
       <Route path="/prime/preferencias" element={<RequireAuth roles={['PACIENTE']}><PreferencesPage /></RequireAuth>} />
       <Route path="/prime/responsavel" element={<RequireAuth roles={['PACIENTE']}><SharePage /></RequireAuth>} />
-      <Route path="/servicos" element={<RequireAuth roles={['PACIENTE']}><ServicesPage /></RequireAuth>} />
+      <Route path="/servicos" element={<RequireAuth roles={['PACIENTE']}><MyOrdersPage /></RequireAuth>} />
       <Route path="/convites" element={<RequireAuth><InvitesPage /></RequireAuth>} />
       <Route path="/apoio/:grantId" element={<RequireAuth><SupportViewPage /></RequireAuth>} />
 

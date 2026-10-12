@@ -23,7 +23,7 @@ export async function loginAdmin(page: Page, email: string, secrets: Map<string,
   }
   await page.getByLabel('Código de 6 dígitos').fill(totp(secrets.get(email)!));
   await page.getByRole('button', { name: /Ativar e continuar|Verificar/ }).click();
-  await expect(page).toHaveURL(/\/admin/);
+  await expect(page).toHaveURL(/\/(admin|central)/);
 }
 
 export async function shot(page: Page, name: string, project: string) {

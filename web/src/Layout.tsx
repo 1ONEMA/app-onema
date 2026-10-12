@@ -4,33 +4,59 @@ import { useAuth } from './lib/auth';
 import { useOnline } from './lib/hooks';
 import { get } from './lib/api';
 import { applyUpdate, onUpdateAvailable } from './sw-register';
-import { IconAward, IconBell, IconBook, IconCog, IconHeart, IconHome, IconShield, IconUser, IconWallet } from './ui/icons';
+import { Kary } from './ui/Kary';
+import { Dialog } from './ui/ui';
+import { IconBell, IconBook, IconCog, IconDownload, IconHeart, IconHome, IconNurse, IconShield, IconUser, IconWallet } from './ui/icons';
 
 interface NavItem { to: string; label: string; icon: ReactNode; end?: boolean }
 
-export function useNav(): NavItem[] {
-  const { has, isAdmin } = useAuth();
-  const items: NavItem[] = [];
-  if (has('PACIENTE')) {
-    items.push({ to: '/minha-onema', label: 'Minha ONEMA', icon: <IconHome /> });
-    items.push({ to: '/prime', label: 'PRIME', icon: <IconHeart /> });
-    items.push({ to: '/servicos', label: 'Serviços', icon: <IconWallet /> });
-  }
-  if (has('ESPECIALISTA')) {
-    items.push({ to: '/academy', label: 'Academy', icon: <IconBook />, end: true });
-    items.push({ to: '/academy/certificados', label: 'Certificados', icon: <IconAward /> });
-  }
-  if (isAdmin) items.push({ to: '/admin', label: 'Gestão', icon: <IconShield /> });
-  items.push({ to: '/avisos', label: 'Avisos', icon: <IconBell /> });
-  items.push({ to: '/conta', label: 'Conta', icon: <IconUser /> });
-  return items;
+const CENTRAL_ROLES = ['OPERADOR_CENTRAL', 'ADMIN_PRIME', 'FINANCEIRO', 'AVALIADOR_RT', 'AUDITOR'] as const;
+
+/** Navegação no modelo do protótipo v5: Plataforma · Solicitar cuidado · Área do especialista · Central RT. */
+export function useNav() {
+  const { me, has, isAdmin } = useAuth();
+  const logged = !!me?.user;
+  const top: NavItem[] = [
+    { to: '/plataforma', label: 'Plataforma', icon: <IconWallet /> },
+    { to: '/solicitar', label: 'Solicitar cuidado', icon: <IconHeart /> },
+    { to: '/especialista', label: 'Área do especialista', icon: <IconNurse /> },
+  ];
+  const mine: NavItem[] = [];
+  if (has('PACIENTE')) mine.push({ to: '/minha-onema', label: 'Minha ONEMA', icon: <IconHome /> }, { to: '/servicos', label: 'Meus pedidos', icon: <IconHeart /> }, { to: '/prime', label: 'PRIME', icon: <IconWallet /> });
+  if (has('ESPECIALISTA')) mine.push({ to: '/academy', label: 'Academy', icon: <IconBook />, end: true });
+  if (isAdmin) mine.push({ to: '/admin', label: 'Gestão', icon: <IconCog /> });
+
+  let bottom: NavItem[];
+  const home: NavItem = { to: '/', label: 'Início', icon: <IconHome />, end: true };
+  const central: NavItem = { to: '/central', label: 'Central', icon: <IconShield /> };
+  if (!logged) bottom = [home, { to: '/solicitar', label: 'Cuidado', icon: <IconHeart /> }, { to: '/especialista', label: 'Especialista', icon: <IconNurse /> }, central, { to: '/plataforma', label: 'Plataforma', icon: <IconWallet /> }];
+  else if (has('PACIENTE')) bottom = [home, { to: '/solicitar', label: 'Cuidado', icon: <IconHeart /> }, { to: '/minha-onema', label: 'Minha ONEMA', icon: <IconUser /> }, { to: '/servicos', label: 'Pedidos', icon: <IconWallet /> }, { to: '/conta', label: 'Conta', icon: <IconCog /> }];
+  else if (has('ESPECIALISTA')) bottom = [home, { to: '/especialista', label: 'Especialista', icon: <IconNurse /> }, { to: '/academy', label: 'Academy', icon: <IconBook />, end: true }, { to: '/avisos', label: 'Avisos', icon: <IconBell /> }, { to: '/conta', label: 'Conta', icon: <IconCog /> }];
+  else bottom = [home, central, { to: '/admin', label: 'Gestão', icon: <IconCog /> }, { to: '/avisos', label: 'Avisos', icon: <IconBell /> }, { to: '/conta', label: 'Conta', icon: <IconUser /> }];
+  return { top, mine, bottom, showCentral: !logged || has(...CENTRAL_ROLES) };
 }
 
-export function Layout({ children }: { children: ReactNode }) {
+/** Instalação do PWA: usa o prompt nativo quando existe; senão mostra o passo a passo. */
+function useInstall() {
+  const [prompt, setPrompt] = useState<any>(null);
+  const [installed, setInstalled] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(display-mode: standalone)').matches);
+  useEffect(() => {
+    const onPrompt = (e: Event) => { e.preventDefault(); setPrompt(e); };
+    const onInstalled = () => setInstalled(true);
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => { window.removeEventListener('beforeinstallprompt', onPrompt); window.removeEventListener('appinstalled', onInstalled); };
+  }, []);
+  return { prompt, installed, clear: () => setPrompt(null) };
+}
+
+export function Layout({ children, wide }: { children: ReactNode; wide?: boolean }) {
   const { me, status } = useAuth();
-  const nav = useNav();
+  const { top, mine, bottom, showCentral } = useNav();
   const online = useOnline();
   const loc = useLocation();
+  const install = useInstall();
+  const [howTo, setHowTo] = useState(false);
   const [update, setUpdate] = useState<ServiceWorkerRegistration | null>(null);
   const [unread, setUnread] = useState(0);
   useEffect(() => onUpdateAvailable(setUpdate) as any, []);
@@ -40,13 +66,14 @@ export function Layout({ children }: { children: ReactNode }) {
   }, [me?.user, loc.pathname]);
   useEffect(() => { window.scrollTo(0, 0); }, [loc.pathname]);
 
-  const primary = nav.filter((n) => n.to !== '/conta');
+  async function onInstall() {
+    if (install.prompt) { install.prompt.prompt(); await install.prompt.userChoice.catch(() => null); install.clear(); }
+    else setHowTo(true);
+  }
+
   return (
     <>
       <a href="#conteudo" className="skip-link">Pular para o conteúdo</a>
-      {status && status.environment !== 'production' && (
-        <div className="env-banner" title="Pagamentos simulados, sem cobrança real. Use apenas dados fictícios.">Versão de testes · pagamentos simulados</div>
-      )}
       {!online && <div className="offline-banner" role="status">Você está sem conexão. Os dados de saúde não ficam salvos no aparelho; reconecte-se para continuar.</div>}
       {update && (
         <div className="update-banner" role="status">
@@ -56,25 +83,46 @@ export function Layout({ children }: { children: ReactNode }) {
       )}
       <div className="topbar">
         <div className="topbar-inner">
-          <Link to="/" className="brand" aria-label="ONEMA SAÚDE — início"><img src="/icons/logo-onema-saude.png" alt="ONEMA SAÚDE" /></Link>
+          <Link to="/" className="brand" aria-label="ONEMA SAÚDE — início"><img src="/icons/icon-192.png" alt="ONEMA SAÚDE" /></Link>
           <nav className="topnav" aria-label="Navegação principal">
-            {primary.map((n) => <NavLink key={n.to} to={n.to} end={n.end}>{n.label}</NavLink>)}
+            {top.map((n) => <NavLink key={n.to} to={n.to} end={n.end}>{n.label}</NavLink>)}
+            {mine.map((n) => <NavLink key={n.to} to={n.to} end={n.end}>{n.label}</NavLink>)}
+            {showCentral && <NavLink to="/central" className="nav-central"><span className="nav-shield" aria-hidden><IconShield size={16} /></span>Central RT</NavLink>}
           </nav>
           <div className="top-actions">
-            {me?.user && <div className="user-chip"><strong>{me.user.name}</strong>{me.user.email}</div>}
-            <NavLink to="/avisos" className="icon-btn" aria-label={`Avisos${unread ? `: ${unread} não lidos` : ''}`}>
-              <IconBell />{unread > 0 && <span className="dot">{unread}</span>}
-            </NavLink>
-            <NavLink to="/conta" className="icon-btn" aria-label="Minha conta"><IconCog /></NavLink>
+            {!install.installed && <button className="btn-install" onClick={onInstall} aria-label="Instalar o app"><IconDownload size={17} /> <span>Instalar</span></button>}
+            {me?.user ? (
+              <>
+                <NavLink to="/avisos" className="icon-btn" aria-label={`Avisos${unread ? `: ${unread} não lidos` : ''}`}>
+                  <IconBell />{unread > 0 && <span className="dot">{unread}</span>}
+                </NavLink>
+                <NavLink to="/conta" className="icon-btn" aria-label={`Minha conta (${me.user.name})`}><IconUser /></NavLink>
+              </>
+            ) : <Link to="/entrar" className="btn sm deep">Entrar</Link>}
           </div>
         </div>
       </div>
-      <main id="conteudo" className="page" tabIndex={-1}>{children}</main>
+      <main id="conteudo" className={`page ${wide ? 'wide' : ''}`} tabIndex={-1}>
+        {status && status.environment !== 'production' && (
+          <div className="proto-banner">
+            <p><strong>Versão de homologação · {status.environment === 'homologacao' ? 'HML' : 'teste'}.</strong> Atendimento, integrações e pagamentos simulados. Use apenas dados fictícios.</p>
+            <Link to="/central" className="proto-rt"><span className="nav-shield" aria-hidden><IconShield size={16} /></span>Acesso interno RT</Link>
+          </div>
+        )}
+        {children}
+      </main>
       <nav className="bottomnav" aria-label="Navegação principal (celular)">
-        {nav.filter((n) => n.to !== '/avisos').slice(0, 5).map((n) => (
-          <NavLink key={n.to} to={n.to} end={n.end}>{n.icon}<span>{n.label}</span></NavLink>
+        {bottom.map((n) => (
+          <NavLink key={n.to} to={n.to} end={n.end}><span className="bn-icon">{n.icon}</span><span>{n.label}</span></NavLink>
         ))}
       </nav>
+      <Kary />
+      <Dialog open={howTo} title="Instalar o app ONEMA" onClose={() => setHowTo(false)}>
+        <p><strong>Android (Chrome):</strong> abra o menu ⋮ e toque em “Instalar app” ou “Adicionar à tela inicial”.</p>
+        <p><strong>iPhone (Safari):</strong> toque em Compartilhar e depois em “Adicionar à Tela de Início”.</p>
+        <p><strong>Computador (Chrome/Edge):</strong> clique no ícone de instalação na barra de endereço.</p>
+        <button className="btn deep" onClick={() => setHowTo(false)}>Entendi</button>
+      </Dialog>
     </>
   );
 }

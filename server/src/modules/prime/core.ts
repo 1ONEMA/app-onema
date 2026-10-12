@@ -12,6 +12,7 @@ import { all, one, run } from '../../db/db.ts';
 import { audit } from '../../lib/audit.ts';
 import { conflict, notFound, unprocessable } from '../../lib/errors.ts';
 import { addDays, addMonths, brl, nowIso, protocol, uid } from '../../lib/util.ts';
+import { currentVersion } from '../care/catalog.ts';
 
 export const OPEN_STATUSES = ['ASSINATURA_SOLICITADA', 'ACTIVE', 'PAYMENT_PENDING', 'SUSPENDED', 'CANCEL_SCHEDULED'];
 export const SANDBOX_METHODS = {
@@ -78,6 +79,10 @@ export async function quote(patientId: string, itemCode: string, now = nowIso())
   const item = await one<any>('SELECT * FROM catalog_items WHERE code = ?', itemCode);
   if (!item || !item.active) throw notFound('Serviço ou pacote não disponível no catálogo.');
   if ((item.valid_from && item.valid_from > now) || (item.valid_to && item.valid_to < now)) throw notFound('Item fora da vigência do catálogo.');
+  // Preço e elegibilidade vêm da versão comercial vigente (catálogo versionado); itens sem versão usam os campos do item.
+  const version = await currentVersion(item.id, now);
+  const priceCents: number = version?.price_cents ?? item.price_cents;
+  const eligible = version ? !!version.prime_eligible : !!item.prime_eligible;
   const sub = await openSubscription(patientId);
   const benefit = await benefitState(sub, now);
   const params = sub ? await paramsById(sub.parameters_id) : await currentParams();
@@ -88,20 +93,20 @@ export async function quote(patientId: string, itemCode: string, now = nowIso())
   else {
     const usage = await cycleUsage(benefit.cycle!.id);
     remaining = Math.max(0, params.uses_per_cycle - usage.used - usage.reserved);
-    if (!item.prime_eligible) reason = 'Este item não é elegível ao desconto PRIME.';
+    if (!eligible) reason = 'Este item não é elegível ao desconto PRIME.';
     else if (remaining <= 0) reason = usage.reserved ? 'Há um pedido com desconto em processamento neste ciclo.' : 'O desconto PRIME já foi usado neste ciclo';
-    else discount = discountFor(item.price_cents, params.discount_bps, params.discount_cap_cents);
+    else discount = discountFor(priceCents, params.discount_bps, params.discount_cap_cents);
   }
   return {
     item: { code: item.code, name: item.name, kind: item.kind, isDemo: !!item.is_demo },
-    fullPriceCents: item.price_cents,
+    fullPriceCents: priceCents,
     discountCents: discount,
-    finalPriceCents: item.price_cents - discount,
+    finalPriceCents: priceCents - discount,
     primeActive: benefit.active,
     usesRemaining: remaining,
     noDiscountReason: discount ? null : reason,
     rule: { bps: params.discount_bps, capCents: params.discount_cap_cents, usesPerCycle: params.uses_per_cycle },
-    _internal: { item, sub, cycle: benefit.cycle, params },
+    _internal: { item, version, sub, cycle: benefit.cycle, params },
   };
 }
 

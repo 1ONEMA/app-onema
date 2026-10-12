@@ -7,6 +7,7 @@ test('rotas protegidas, acesso direto e perfis', async ({ page }, info) => {
   await page.goto('/prime/assinatura');
   await expect(page).toHaveURL(/\/entrar\?voltar=%2Fprime%2Fassinatura/);
   await shot(page, 'login', info.project.name);
+  await page.waitForLoadState('networkidle');
   await page.getByLabel('E-mail').fill('paciente.demo@exemplo.test');
   await page.getByLabel('Senha').fill('Onema-Demo-2026');
   await page.getByRole('button', { name: 'Entrar' }).click();
