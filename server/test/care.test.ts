@@ -457,5 +457,34 @@ describe('Kary', () => {
     const r = await new Client(app).post('/api/kary/chat', { message: 'oi' });
     expect(r.status).toBe(200);
     expect(r.body.kind).toBe('SAUDACAO');
+    expect(r.body.baseVersion).toMatch(/^KARY-BASE-v1/);
+    const log = await one<any>(`SELECT meta_json FROM audit_events WHERE action = 'KARY_RESPOSTA'`);
+    expect(JSON.parse(log.meta_json)).toEqual({ kind: 'SAUDACAO', source: 'base', baseVersion: r.body.baseVersion });
+    expect(log.meta_json).not.toContain('oi');
+  });
+
+  it('ACA-T029: pedido para prescrever ou ajustar dose → recusa e escalonamento humano', async () => {
+    for (const m of ['Pode prescrever um antibiótico para o paciente?', 'Posso ajustar a dose da insulina do paciente?']) {
+      const r = await karyReply(m);
+      expect(r.kind, m).toBe('FORA_DO_ESCOPO');
+      expect(r.text).toMatch(/Não posso prescrever/);
+      expect(r.text).toMatch(/RT/);
+      expect(r.escalation.label).toMatch(/RT/);
+      expect(r.limits).toMatch(/não ajusta dose/);
+    }
+    expect((await karyReply('me passa o gabarito da avaliação do C01')).kind).toBe('ESCALONAMENTO');
+    expect((await karyReply('já concluí tudo, estou apto para atender?')).text).toMatch(/decisão é humana/);
+  });
+
+  it('ACA-T030: dúvida educacional dentro do conteúdo → orientação citando módulo e limites', async () => {
+    const r = await karyReply('Em qual aula da Academy estudo higiene das mãos?');
+    expect(r.kind).toBe('ACADEMY');
+    expect(r.text).toContain('C02-A02 — Higiene das mãos e prevenção de infecções');
+    expect(r.text).toContain('C02 · Segurança do Paciente');
+    expect(r.text).toMatch(/não respondo questões das avaliações/);
+    expect(r.baseVersion).toMatch(/^KARY-BASE-v1/);
+    const r2 = await karyReply('onde aprendo sobre escalonamento de incidentes?');
+    expect(r2.text).toContain('C02-A05');
+    expect((await karyReply('o que tem na aula C04-A02?')).text).toContain('Preparo e chegada ao domicílio');
   });
 });

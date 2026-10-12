@@ -13,7 +13,12 @@ import { parse } from '../../lib/context.ts';
 import { rateLimit } from '../../lib/security.ts';
 import { brl, nowIso } from '../../lib/util.ts';
 import { currentVersion } from '../care/catalog.ts';
-import { CLINICAL, CLINICAL_ANSWER, FALLBACK, FAQ, SYSTEM_PROMPT, URGENCY, URGENCY_ANSWER, type KaryAnswer } from './knowledge.ts';
+import { COURSES } from '../../db/seed.ts';
+import { audit } from '../../lib/audit.ts';
+import {
+  APTIDAO, APTIDAO_ANSWER, CLINICAL, CLINICAL_ANSWER, FALLBACK, FAQ, GABARITO, GABARITO_ANSWER, KARY_BASE_VERSION, KARY_ESCALATION, KARY_LIMITS,
+  SYSTEM_PROMPT, URGENCY, URGENCY_ANSWER, type KaryAnswer,
+} from './knowledge.ts';
 
 const MODEL = process.env.KARY_MODEL || 'claude-opus-5-5';
 export const karyLlmEnabled = () => process.env.KARY_PROVIDER === 'anthropic' && !!process.env.ANTHROPIC_API_KEY;
@@ -51,6 +56,36 @@ async function priceAnswer(message: string): Promise<KaryAnswer | null> {
   };
 }
 
+const STOP = new Set(['para', 'como', 'qual', 'quais', 'sobre', 'onde', 'aula', 'curso', 'tema', 'estudar', 'academy', 'onema', 'entre', 'seus', 'suas', 'mais', 'isso', 'esse', 'essa', 'tenho', 'duvida']);
+const words = (s: string) => norm(s).split(/[^a-z0-9]+/).filter((w) => w.length > 3 && !STOP.has(w));
+
+/**
+ * Dúvida educacional: indica o módulo/aula oficial (títulos aprovados da Jornada, Documento Mestre §5).
+ * Não responde conteúdo técnico nem questões de avaliação; orienta onde estudar.
+ */
+function academyAnswer(message: string): KaryAnswer | null {
+  const m = norm(message);
+  const asked = new Set(words(message));
+  let best: { code: string; title: string; course: any; score: number } | null = null;
+  for (const c of COURSES) {
+    for (const [code, title] of c.lessons) {
+      if (m.includes(norm(code))) return lessonAnswer(code, title, c);
+      const score = words(title).filter((w) => [...asked].some((a) => a.startsWith(w.slice(0, 5)) || w.startsWith(a.slice(0, 5)))).length;
+      if (score > (best?.score ?? 0)) best = { code, title, course: c, score };
+    }
+  }
+  const academyContext = /(academy|aula|curso|m[óo]dulo|estudar|jornada|avalia[çc][ãa]o|prova|atividade)/i.test(message);
+  if (best && (best.score >= 2 || (academyContext && best.score >= 1))) return lessonAnswer(best.code, best.title, best.course);
+  return null;
+}
+function lessonAnswer(code: string, title: string, course: { code: string; title: string }): KaryAnswer {
+  return {
+    kind: 'ACADEMY',
+    text: `Esse tema está na aula ${code} — ${title}, do curso ${course.code} · ${course.title}, na ONEMA Academy. Revise a aula e, se a dúvida continuar, leve-a ao Suporte ONEMA Academy ou ao RT. Eu oriento onde estudar; não respondo questões das avaliações nem defino conduta.`,
+    links: [{ label: 'Abrir a ONEMA Academy', to: '/academy' }],
+  };
+}
+
 function faqAnswer(message: string): KaryAnswer | null {
   return FAQ.find((f) => f.keywords.test(message))?.answer ?? null;
 }
@@ -83,11 +118,15 @@ async function llmAnswer(message: string, history: { role: 'user' | 'assistant';
   }
 }
 
-export async function karyReply(message: string, history: { role: 'user' | 'assistant'; text: string }[] = []) {
+async function decide(message: string, history: { role: 'user' | 'assistant'; text: string }[]) {
   if (URGENCY.test(message)) return { ...URGENCY_ANSWER, source: 'regra' as const };
+  if (GABARITO.test(message)) return { ...GABARITO_ANSWER, source: 'regra' as const };
   if (CLINICAL.test(message)) return { ...CLINICAL_ANSWER, source: 'regra' as const };
+  if (APTIDAO.test(message)) return { ...APTIDAO_ANSWER, source: 'regra' as const };
   const price = await priceAnswer(message);
   if (price) return { ...price, source: 'base' as const };
+  const academy = academyAnswer(message);
+  if (academy) return { ...academy, source: 'base' as const };
   const faq = faqAnswer(message);
   if (faq) return { ...faq, source: 'base' as const };
   if (karyLlmEnabled()) {
@@ -97,9 +136,15 @@ export async function karyReply(message: string, history: { role: 'user' | 'assi
   return { ...FALLBACK, source: 'base' as const };
 }
 
+/** Toda resposta leva a versão da base, os limites e a rota de escalonamento (Documento Mestre Academy §12). */
+export async function karyReply(message: string, history: { role: 'user' | 'assistant'; text: string }[] = []) {
+  const r = await decide(message, history);
+  return { ...r, baseVersion: KARY_BASE_VERSION, limits: KARY_LIMITS, escalation: KARY_ESCALATION };
+}
+
 export async function karyRoutes(app: FastifyInstance) {
   app.get('/api/kary/info', async () => ({
-    name: 'Kary', mode: karyLlmEnabled() ? 'IA' : 'BASE',
+    name: 'Kary', mode: karyLlmEnabled() ? 'IA' : 'BASE', baseVersion: KARY_BASE_VERSION, limits: KARY_LIMITS, escalation: KARY_ESCALATION,
     disclaimer: 'A Kary orienta sobre a plataforma. Não faz diagnóstico nem substitui atendimento. Em urgência, ligue 192. Não envie dados de saúde detalhados.',
     suggestions: ['Como solicitar cuidado?', 'Quanto custa curativo simples?', 'O que é o ONEMA PRIME?', 'Sou enfermeiro, como entro na rede?'],
   }));
@@ -110,6 +155,10 @@ export async function karyRoutes(app: FastifyInstance) {
       message: z.string().trim().min(1).max(500),
       history: z.array(z.object({ role: z.enum(['user', 'assistant']), text: z.string().max(1500) })).max(12).optional().default([]),
     }), req.body);
-    return await karyReply(b.message, b.history);
+    const r = await karyReply(b.message, b.history);
+    // Registro sem o texto da conversa (minimização): tipo, origem e versão da base.
+    await audit({ actorId: req.auth?.userId ?? null, action: 'KARY_RESPOSTA', subjectType: 'kary', correlationId: req.correlationId,
+      meta: { kind: r.kind, source: r.source, baseVersion: r.baseVersion } });
+    return r;
   });
 }

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { api, get } from '../lib/api';
 import { IconSend, IconSpark } from './icons';
 
-interface Msg { role: 'user' | 'assistant'; text: string; links?: { label: string; to: string }[]; kind?: string }
+interface Msg { role: 'user' | 'assistant'; text: string; links?: { label: string; to: string }[]; kind?: string; baseVersion?: string; escalation?: { label: string } }
 
 /** Kary — assistente da plataforma (botão flutuante + painel). Conversa não é gravada no servidor. */
 export function Kary() {
@@ -34,7 +34,7 @@ export function Kary() {
     setBusy(true);
     try {
       const r = await api<any>('POST', '/api/kary/chat', { message: m, history });
-      setMsgs((x) => [...x, { role: 'assistant', text: r.text, links: r.links, kind: r.kind }]);
+      setMsgs((x) => [...x, { role: 'assistant', text: r.text, links: r.links, kind: r.kind, baseVersion: r.baseVersion, escalation: r.escalation }]);
     } catch (e: any) {
       setMsgs((x) => [...x, { role: 'assistant', text: e?.message ?? 'Não consegui responder agora. Tente novamente.' }]);
     } finally { setBusy(false); }
@@ -69,6 +69,9 @@ export function Kary() {
                       : <Link key={l.to} to={l.to} className="btn sm secondary" onClick={() => setOpen(false)}>{l.label}</Link>)}
                   </div>
                 ) : null}
+                {m.escalation && ['ACADEMY', 'ESCALONAMENTO', 'FORA_DO_ESCOPO'].includes(m.kind ?? '') && (
+                  <small>Escalonamento: {m.escalation.label} · {m.baseVersion}</small>
+                )}
               </div>
             ))}
             {busy && <div className="kary-msg assistant typing" aria-label="Kary está digitando"><span /><span /><span /></div>}

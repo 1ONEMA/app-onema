@@ -41,7 +41,7 @@ Situação: ✅ implementado e testado · 🟡 implementado, dependente de defin
 | T021/T022 replay e sessões concorrentes | academy.test ✅ |
 | T023/T024/T025/T026 certificado | academy.test ✅ |
 | T027/T028 auditoria | academy.test ✅ |
-| T029/T030 Kary | ⛔ IA não implementada (não autorizada nesta execução) |
+| T029/T030 Kary | care.test “ACA-T029” (prescrição/dose → recusa e escalonamento ao RT; gabarito e aptidão recusados) e “ACA-T030” (dúvida educacional → aula e curso oficiais citados, com limites); toda resposta leva versão da base (`KARY-BASE-v1`), limites e rota de escalonamento, e é registrada na auditoria sem o texto da conversa ✅ (base a aprovar pela ONEMA) |
 | T031 teclado/acessibilidade | `e2e/a11y.spec.ts`: axe-core (WCAG 2.0/2.1 A e AA) em 25+ telas no celular, tablet e desktop, sem violações; foco visível, skip link, tabelas roláveis focáveis. Auditoria manual WCAG ainda recomendada ✅ |
 | T032 vídeo sem legenda/transcrição | academy.test ✅ |
 | T033 responsividade | e2e em Pixel 7, iPad e 1366×900; `e2e/responsive.spec.ts` verifica ausência de rolagem horizontal ✅ |
@@ -54,7 +54,7 @@ Situação: ✅ implementado e testado · 🟡 implementado, dependente de defin
 | T043/T044 integração credenciamento | academy.test ✅ |
 | T045 restore | Backup diário automático + `npm run db:restore`; `backup.test.ts` gera → altera → restaura → compara todas as tabelas ✅ |
 | T046 observabilidade | correlation id em respostas/logs/auditoria; logs com redação de cookies ✅ (sem stack de observabilidade externa) |
-| T047 carga | ⛔ não executado (SLO não definido) |
+| T047 carga | `scripts/carga.mjs`: medição de referência com 50 conexões simultâneas por 20 s em catálogo, jornada, curso, player da aula e vitrine — 0% de erro e jornada idêntica antes/depois (p95 ≈ 0,5 s). Ambiente local (banco PGlite de conexão única), não representativo da Netlify; SLO ainda não definido 🟡 |
 | T048 desativação de curso | academy.test ✅ |
 
 ## ONEMA PRIME — critérios de aceite (PR “Critérios verificáveis”)
