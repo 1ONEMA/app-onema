@@ -446,7 +446,9 @@ describe('Especialista e avaliações por estrelas', () => {
     const s = (await sp.get('/api/care/specialist/summary')).body;
     expect(s.rating).toEqual({ count: 1, average: 4 });
     expect(s.payouts).toEqual([{ status: 'A_LIQUIDAR', n: 1, total: 18000 }]);
-    expect((await c.get(`/api/care/requests/${req.id}`)).body.events[0].my_stars).toBe(4);
+    expect((await c.get(`/api/care/requests/${req.id}`)).body.events[0]).toMatchObject({ my_stars: 4 });
+    const shown = (await c.get(`/api/care/requests/${req.id}`)).body.events[0];
+    expect([Number(shown.specialist_rating), Number(shown.specialist_reviews)]).toEqual([4, 1]);
   });
 });
 

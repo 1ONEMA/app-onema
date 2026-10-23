@@ -114,7 +114,7 @@ export function RequestDetailPage() {
                     <span><strong>{e.label}</strong> <span className="small muted">· {e.modality === 'REMOTO' ? 'remoto' : 'presencial'}</span></span>
                     <Badge tone={EVENT_STATUS[e.status].tone}>{EVENT_STATUS[e.status].label}</Badge>
                   </div>
-                  {e.specialist_name && <div className="small muted">Especialista: {e.specialist_name}{e.completed_at ? ` · concluído em ${dateTime(e.completed_at)}` : ''}</div>}
+                  {e.specialist_name && <div className="small muted">Especialista: {e.specialist_name}{Number(e.specialist_reviews) > 0 ? ` · ${Number(e.specialist_rating).toFixed(1).replace('.', ',')} ★ (${e.specialist_reviews} ${Number(e.specialist_reviews) > 1 ? 'avaliações' : 'avaliação'})` : ''}{e.completed_at ? ` · concluído em ${dateTime(e.completed_at)}` : ''}</div>}
                   {e.status === 'CONCLUIDO' && <div className="mt"><Stars eventId={e.id} current={e.my_stars} onDone={reload} /></div>}
                 </li>
               ))}

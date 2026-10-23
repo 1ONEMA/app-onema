@@ -145,7 +145,9 @@ export async function careRoutes(app: FastifyInstance) {
     const orders = await all<any>('SELECT * FROM service_orders WHERE request_id = ? ORDER BY created_at DESC', id);
     const current = orders.find((o) => o.status !== 'FAILED') ?? orders[0];
     const events = current ? await all<any>(`SELECT e.id, e.seq, e.label, e.modality, e.status, e.completed_at, u.name AS specialist_name,
-        (SELECT stars FROM specialist_reviews s WHERE s.event_id = e.id) AS my_stars
+        (SELECT stars FROM specialist_reviews s WHERE s.event_id = e.id) AS my_stars,
+        (SELECT ROUND(AVG(s.stars), 1) FROM specialist_reviews s WHERE s.specialist_id = e.specialist_id) AS specialist_rating,
+        (SELECT COUNT(*) FROM specialist_reviews s WHERE s.specialist_id = e.specialist_id) AS specialist_reviews
         FROM care_events e LEFT JOIN users u ON u.id = e.specialist_id WHERE e.order_id = ? ORDER BY e.seq`, current.id) : [];
     return { request: requestView(r, current), attempts: orders.map(patientOrderView), events };
   });
