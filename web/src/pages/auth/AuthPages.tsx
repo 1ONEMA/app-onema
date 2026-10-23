@@ -94,7 +94,7 @@ export function RegisterPage() {
     if (f.password !== f.confirm) { setMismatch(true); return; }
     setMismatch(false);
     const r = await run('POST', '/api/auth/register', { name: f.name, email: f.email, password: f.password });
-    if (r) { setMe(r); nav(specialist ? '/especialista' : params.get('voltar')?.startsWith('/') && !params.get('voltar')!.startsWith('//') ? params.get('voltar')! : '/minha-onema', { replace: true }); }
+    if (r) { setMe(r); nav(specialist ? '/especialista/candidatura' : params.get('voltar')?.startsWith('/') && !params.get('voltar')!.startsWith('//') ? params.get('voltar')! : '/minha-onema', { replace: true }); }
   }
   return (
     <AuthLayout title={specialist ? 'Cadastro na rede ONEMA ONE' : 'Criar cadastro de paciente'}>

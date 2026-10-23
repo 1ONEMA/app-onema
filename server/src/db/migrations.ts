@@ -804,4 +804,38 @@ CREATE TABLE specialist_reviews (
   created_at TEXT NOT NULL
 );
 ` },
+  { name: '007_specialist_onboarding', sql: `
+-- 007: Candidatura à rede ONEMA ONE (CPF, COREN, documentos) com análise humana pelo Credenciamento.
+CREATE TABLE specialist_applications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  full_name TEXT NOT NULL,
+  cpf TEXT NOT NULL,
+  coren_number TEXT NOT NULL,
+  coren_uf TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  regions TEXT NOT NULL,
+  needs_json TEXT NOT NULL,
+  availability TEXT,
+  status TEXT NOT NULL CHECK (status IN ('RASCUNHO','ENVIADA','PENDENCIA','APROVADA','RECUSADA')),
+  submitted_at TEXT,
+  decision_note TEXT,
+  decided_by TEXT REFERENCES users(id),
+  decided_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX uq_specialist_application_user ON specialist_applications(user_id);
+CREATE TABLE specialist_documents (
+  id TEXT PRIMARY KEY,
+  application_id TEXT NOT NULL REFERENCES specialist_applications(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('IDENTIDADE','COREN','COMPROVANTE_ENDERECO','OUTRO')),
+  filename TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  storage_key TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+` },
 ];

@@ -71,7 +71,7 @@ test('paciente, especialista e Central: jornada completa com evidências', async
   // Especialista: oferta com repasse integral, aceite e conclusão
   const sctx = await browser.newContext({ baseURL: info.project.use.baseURL, viewport: { width: 1366, height: 900 }, locale: 'pt-BR' });
   const sp = await sctx.newPage();
-  await login(sp, 'especialista.demo@exemplo.test');
+  await login(sp, 'especialista.one.demo@exemplo.test');
   await sp.waitForURL(/academy/);
   await sp.goto('/especialista');
   await expect(sp.getByRole('heading', { name: 'Ofertas disponíveis' })).toBeVisible();

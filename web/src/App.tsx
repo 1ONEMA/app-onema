@@ -27,6 +27,7 @@ import { AdminRoutes } from './pages/admin/AdminRoutes';
 import { HomePage } from './pages/public/HomePage';
 import { PlatformPage } from './pages/public/PlatformPage';
 import { SpecialistPage } from './pages/public/SpecialistPage';
+import { ApplicationPage } from './pages/public/ApplicationPage';
 import { RequestFlow } from './pages/care/RequestFlow';
 import { MyOrdersPage, RequestDetailPage } from './pages/care/OrdersPages';
 import { CentralPage } from './pages/central/CentralPage';
@@ -67,6 +68,7 @@ export default function App() {
       <Route path="/inicio" element={<RoleHome />} />
       <Route path="/plataforma" element={<Layout><PlatformPage /></Layout>} />
       <Route path="/especialista" element={<Layout><SpecialistPage /></Layout>} />
+      <Route path="/especialista/candidatura" element={<RequireAuth><Layout><ApplicationPage /></Layout></RequireAuth>} />
       <Route path="/solicitar" element={<Layout><RequestFlow /></Layout>} />
       <Route path="/solicitacoes/:id" element={<RequireAuth roles={['PACIENTE']}><RequestDetailPage /></RequireAuth>} />
       <Route path="/central" element={<RequireAuth roles={['OPERADOR_CENTRAL', 'ADMIN_PRIME', 'FINANCEIRO', 'AVALIADOR_RT', 'AUDITOR']}><CentralPage /></RequireAuth>} />

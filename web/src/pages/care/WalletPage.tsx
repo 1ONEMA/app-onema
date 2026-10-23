@@ -47,7 +47,7 @@ export function WalletPage() {
           {!data.done.length ? <Empty title="Nenhum atendimento concluído ainda." /> : (
             <ul className="list">{data.done.map((e: any) => (
               <li key={e.id}><div className="row between"><strong>{e.label}</strong>
-                {e.my_stars ? <span className="stars" aria-label={`Sua avaliação: ${e.my_stars} de 5`}>{[1, 2, 3, 4, 5].map((i) => <IconStar key={i} size={15} filled={i <= e.my_stars} />)}</span>
+                {e.my_stars ? <span className="stars" role="img" aria-label={`Sua avaliação: ${e.my_stars} de 5`}>{[1, 2, 3, 4, 5].map((i) => <IconStar key={i} size={15} filled={i <= e.my_stars} />)}</span>
                   : <Link className="small" to={`/solicitacoes/${e.request_id}`}>Avaliar</Link>}</div>
                 <div className="small muted">{e.item_name} · {e.specialist_name} · {dateTime(e.completed_at)}</div></li>
             ))}</ul>

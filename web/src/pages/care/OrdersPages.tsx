@@ -59,7 +59,7 @@ export function MyOrdersPage() {
 function Stars({ eventId, current, onDone }: { eventId: string; current: number | null; onDone: () => void }) {
   const [stars, setStars] = useState(current ?? 0);
   const s = useSubmit<any>();
-  if (current) return <span className="stars" aria-label={`Sua avaliação: ${current} de 5 estrelas`}>{[1, 2, 3, 4, 5].map((i) => <IconStar key={i} size={18} filled={i <= current} />)}</span>;
+  if (current) return <span className="stars" role="img" aria-label={`Sua avaliação: ${current} de 5 estrelas`}>{[1, 2, 3, 4, 5].map((i) => <IconStar key={i} size={18} filled={i <= current} />)}</span>;
   return (
     <div className="row">
       <div className="stars" role="radiogroup" aria-label="Avalie o atendimento">

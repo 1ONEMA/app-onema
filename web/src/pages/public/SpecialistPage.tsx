@@ -11,7 +11,8 @@ const WHEN: Record<string, string> = { AGORA: 'Agora', HOJE: 'Hoje', PROXIMOS_DI
 
 /** Área do especialista: apresentação ONEMA ONE (pública) + ofertas, repasses e avaliações (especialista logado). */
 export function SpecialistPage() {
-  const { has } = useAuth();
+  const { has, me } = useAuth();
+  const logged = !!me?.user;
   useEffect(() => { document.title = 'Área do especialista · ONEMA SAÚDE'; }, []);
   const isSpecialist = has('ESPECIALISTA');
   return (
@@ -24,7 +25,7 @@ export function SpecialistPage() {
           <p>Cadastre-se com CPF, passe pela validação da Central ONEMA e receba ofertas compatíveis com seu perfil e região.</p>
           {isSpecialist
             ? <a href="#ofertas" className="btn green lg">Ver ofertas <IconArrowRight size={20} /></a>
-            : <Link to="/cadastro?perfil=especialista" className="btn green lg">Quero ser ONEMA ONE <IconArrowRight size={20} /></Link>}
+            : <Link to={logged ? '/especialista/candidatura' : '/cadastro?perfil=especialista'} className="btn green lg">{logged ? 'Minha candidatura' : 'Quero ser ONEMA ONE'} <IconArrowRight size={20} /></Link>}
         </div>
         <aside className="validation-card">
           <span className="need-icon"><IconNurse size={28} /></span>
@@ -78,7 +79,9 @@ function SpecialistArea() {
       </div>
       <p className="small muted">{s.note}</p>
       {!s.eligible ? (
-        <div className="caution mt">Seu perfil ainda não foi validado pela Central ONEMA. Conclua a ONEMA Academy e o credenciamento para receber ofertas.</div>
+        <div className="caution mt">{s.credentialing === 'INAPTO'
+          ? 'O credenciamento final não foi aprovado. Fale com a Central ONEMA para entender os próximos passos.'
+          : <>Seu perfil ainda não recebe ofertas. Conclua a Jornada de Integração na <Link to="/academy">ONEMA Academy</Link>; depois, o credenciamento faz a decisão final e as ofertas são liberadas.</>}</div>
       ) : offers.error ? <ErrorState error={offers.error} onRetry={offers.reload} /> : !offers.data ? <Loading /> : (
         <div className="two mt">
           <div className="surface">
@@ -106,7 +109,7 @@ function SpecialistArea() {
                   <div className="row mt">
                     <Badge tone={m.status === 'CONCLUIDO' ? 'dark' : m.status === 'CANCELADO' ? 'red' : ''}>{m.status === 'CONCLUIDO' ? 'Concluído' : m.status === 'CANCELADO' ? 'Cancelado' : 'Agendado'}</Badge>
                     {m.payout_status && <Badge tone="blue">Repasse {m.payout_status === 'A_LIQUIDAR' ? 'a liquidar' : m.payout_status === 'CANCELADO' ? 'cancelado' : 'reservado'}</Badge>}
-                    {m.stars && <span className="stars" aria-label={`${m.stars} estrelas`}>{[1, 2, 3, 4, 5].map((i) => <IconStar key={i} size={16} filled={i <= m.stars} />)}</span>}
+                    {m.stars && <span className="stars" role="img" aria-label={`${m.stars} estrelas`}>{[1, 2, 3, 4, 5].map((i) => <IconStar key={i} size={16} filled={i <= m.stars} />)}</span>}
                     {m.status === 'ACEITO' && <Button className="sm green" busy={act.busy} onClick={() => run(`/api/care/specialist/events/${m.id}/complete`)}>Registrar conclusão</Button>}
                   </div>
                 </li>

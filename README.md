@@ -43,6 +43,7 @@ Senha de todas: `Onema-Demo-2026`
 | responsavel.demo@exemplo.test | Paciente (usado como responsável convidado) |
 | especialista.demo@exemplo.test | Especialista elegível |
 | especialista2.demo@exemplo.test | Especialista **não** elegível |
+| especialista.one.demo@exemplo.test | Especialista credenciada (recebe ofertas de atendimento) |
 | gestor.demo@exemplo.test | Gestor de conteúdo |
 | rt.demo@exemplo.test | Avaliador/RT |
 | admin.academy.demo@exemplo.test | Administrador Academy |

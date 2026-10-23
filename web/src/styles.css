@@ -697,3 +697,10 @@ h3 { font-weight: 600; letter-spacing: -0.01em; }
 .footer-contact.linklike-light { font-size: 13px; }
 .eyebrow-teal { color: #006E5E; }
 .tag.amber { color: #7A4A00; }
+
+/* Candidatura ONEMA ONE */
+.checks-grid { border: 0; padding: 0; margin: 12px 0; display: grid; gap: 8px; grid-template-columns: 1fr; }
+@media (min-width: 640px) { .checks-grid { grid-template-columns: 1fr 1fr; } }
+.field-legend { font-weight: 600; margin-bottom: 6px; padding: 0; }
+.upload-btn { display: inline-flex; cursor: pointer; position: relative; }
+.upload-btn:focus-within { outline: 3px solid var(--focus, #0A5BD8); outline-offset: 2px; }

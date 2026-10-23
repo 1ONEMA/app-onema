@@ -271,9 +271,12 @@ export async function careRoutes(app: FastifyInstance) {
   });
 
   // ---------- Especialista (ONEMA ONE) ----------
-  const specialist = (req: any) => {
+  /** Ofertas só para especialista com decisão humana de credenciamento APTO (após a Academy e os demais requisitos). */
+  const credentialed = async (userId: string) =>
+    (await one<any>('SELECT credentialing_decision FROM partner_training_status WHERE partner_id = ?', userId))?.credentialing_decision === 'APTO';
+  const specialist = async (req: any) => {
     const a = requireRoles(req, ['ESPECIALISTA']);
-    if (!a.academyEligible) throw forbidden('Seu perfil ainda não foi validado pela Central ONEMA para receber ofertas.', 'NOT_ELIGIBLE');
+    if (!(await credentialed(a.userId))) throw forbidden('Seu perfil ainda não foi credenciado pela Central ONEMA para receber ofertas.', 'NOT_CREDENTIALED');
     return a;
   };
 
@@ -281,8 +284,11 @@ export async function careRoutes(app: FastifyInstance) {
     const a = requireRoles(req, ['ESPECIALISTA']);
     const rating = await one<any>('SELECT COUNT(*) AS n, AVG(stars) AS avg FROM specialist_reviews WHERE specialist_id = ?', a.userId);
     const payouts = await all<any>(`SELECT status, COUNT(*) AS n, COALESCE(SUM(amount_cents),0) AS total FROM payout_entries WHERE specialist_id = ? GROUP BY status`, a.userId);
+    const training = await one<any>('SELECT journey_state, credentialing_decision FROM partner_training_status WHERE partner_id = ?', a.userId);
     return {
-      eligible: a.academyEligible,
+      eligible: training?.credentialing_decision === 'APTO',
+      journeyState: training?.journey_state ?? 'NAO_INICIADA',
+      credentialing: training?.credentialing_decision ?? 'PENDENTE',
       rating: { count: rating?.n ?? 0, average: rating?.avg != null ? Math.round(Number(rating.avg) * 10) / 10 : null },
       payouts,
       note: 'Avaliações por estrelas são dos atendimentos e ficam separadas das notas da ONEMA Academy.',
@@ -291,7 +297,7 @@ export async function careRoutes(app: FastifyInstance) {
 
   /** Ofertas: evento, ato, requisitos e repasse integral. Sem preço ao paciente, desconto ou margem. */
   app.get('/api/care/specialist/offers', async (req) => {
-    const a = specialist(req);
+    const a = await specialist(req);
     const offers = await all<any>(`SELECT e.id, e.label, e.act_type, e.modality, e.unit_payout_cents, e.region, e.created_at, o.item_code, o.item_name,
         r.when_pref, r.when_date, r.materials FROM care_events e JOIN service_orders o ON o.id = e.order_id LEFT JOIN care_requests r ON r.id = o.request_id
         WHERE e.status = 'DISPONIVEL' AND o.status = 'PAID' ORDER BY e.created_at, e.seq LIMIT 100`);
@@ -303,7 +309,7 @@ export async function careRoutes(app: FastifyInstance) {
   });
 
   app.post('/api/care/specialist/events/:id/accept', async (req) => {
-    const a = specialist(req);
+    const a = await specialist(req);
     const { id } = parse(idParam, req.params);
     return await tx(async () => {
       const now = nowIso();
@@ -316,7 +322,7 @@ export async function careRoutes(app: FastifyInstance) {
   });
 
   app.post('/api/care/specialist/events/:id/complete', async (req) => {
-    const a = specialist(req);
+    const a = await specialist(req);
     const { id } = parse(idParam, req.params);
     return await tx(async () => {
       const now = nowIso();
