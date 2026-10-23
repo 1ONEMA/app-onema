@@ -27,9 +27,13 @@ import { AdminRoutes } from './pages/admin/AdminRoutes';
 import { HomePage } from './pages/public/HomePage';
 import { PlatformPage } from './pages/public/PlatformPage';
 import { SpecialistPage } from './pages/public/SpecialistPage';
+import { ApplicationPage } from './pages/public/ApplicationPage';
 import { RequestFlow } from './pages/care/RequestFlow';
 import { MyOrdersPage, RequestDetailPage } from './pages/care/OrdersPages';
 import { CentralPage } from './pages/central/CentralPage';
+import { Splash } from './ui/Splash';
+import { InstitutionalPage } from './pages/public/InstitutionalPage';
+import { WalletPage } from './pages/care/WalletPage';
 
 function RequireAuth({ children, roles }: { children: ReactNode; roles?: Role[] }) {
   const { me, loading, error, has } = useAuth();
@@ -57,11 +61,14 @@ function RoleHome() {
 
 export default function App() {
   return (
+    <>
+    <Splash />
     <Routes>
       <Route path="/" element={<Layout><HomePage /></Layout>} />
       <Route path="/inicio" element={<RoleHome />} />
       <Route path="/plataforma" element={<Layout><PlatformPage /></Layout>} />
       <Route path="/especialista" element={<Layout><SpecialistPage /></Layout>} />
+      <Route path="/especialista/candidatura" element={<RequireAuth><Layout><ApplicationPage /></Layout></RequireAuth>} />
       <Route path="/solicitar" element={<Layout><RequestFlow /></Layout>} />
       <Route path="/solicitacoes/:id" element={<RequireAuth roles={['PACIENTE']}><RequestDetailPage /></RequireAuth>} />
       <Route path="/central" element={<RequireAuth roles={['OPERADOR_CENTRAL', 'ADMIN_PRIME', 'FINANCEIRO', 'AVALIADOR_RT', 'AUDITOR']}><CentralPage /></RequireAuth>} />
@@ -95,7 +102,10 @@ export default function App() {
       <Route path="/academy/certificados" element={<RequireAuth roles={['ESPECIALISTA']}><CertificatesPage /></RequireAuth>} />
 
       <Route path="/admin/*" element={<RequireAuth roles={['SUPORTE_ACADEMY', 'GESTOR_CONTEUDO', 'AVALIADOR_RT', 'ADMIN_ACADEMY', 'CREDENCIAMENTO', 'FINANCEIRO', 'AUDITOR', 'OPERADOR_CENTRAL', 'ADMIN_PRIME']}><AdminRoutes /></RequireAuth>} />
+      <Route path="/institucional/:slug" element={<Layout><InstitutionalPage /></Layout>} />
+      <Route path="/carteira" element={<RequireAuth roles={['PACIENTE']}><WalletPage /></RequireAuth>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </>
   );
 }

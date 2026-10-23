@@ -145,6 +145,13 @@ export async function primeRoutes(app: FastifyInstance) {
     };
   });
 
+  /** Textos oficiais públicos (consulta antes de contratar — CDC/Decreto 7.962): Termos PRIME (T1) e Aviso de privacidade (T2). */
+  app.get('/api/public/legal/:code', async (req) => {
+    const { code } = parse(z.object({ code: z.enum(['T1', 'T2']) }), req.params);
+    const t = await latestText(code);
+    if (!t) throw notFound('Texto não encontrado.');
+    return { ...textMeta(t), body: t.body };
+  });
   app.get('/api/prime/texts/:code', async (req) => {
     requireUser(req);
     const { code } = parse(z.object({ code: z.enum(['T1', 'T2', 'T3']) }), req.params);

@@ -10,6 +10,8 @@ export function HubPage() {
   const { me } = useAuth();
   const { data, error, loading, reload } = useApi<any>('/api/prime/hub');
   const received = useApi<any>('/api/prime/share/received');
+  const wallet = useApi<any>('/api/care/wallet');
+  const next = wallet.data?.upcoming?.[0];
   if (loading && !data) return <Loading />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
   const st = data.prime ? SUB_STATUS[data.prime.status] : null;
@@ -21,8 +23,9 @@ export function HubPage() {
         {st ? <Badge tone={st.tone}>{st.label}</Badge> : <Badge tone="dark">Sem PRIME · acesso assistencial preservado</Badge>}
       </PageHeader>
       <div className="grid">
-        <div className="tile"><div className="row"><IconDoc /><h3 className="mb0">Carteira Digital</h3></div><p className="small muted mt">{data.integrations.carteiraDigital.reason}</p></div>
-        <div className="tile"><div className="row"><IconCalendar /><h3 className="mb0">Próximo agendamento</h3></div><p className="small muted mt">{data.integrations.agenda.reason}</p></div>
+        <Link to="/carteira" className="tile link"><div className="row"><IconDoc /><h3 className="mb0">Carteira Digital</h3></div><p className="small muted mt">Seus atendimentos, avaliações e comprovantes{wallet.data ? ` · ${wallet.data.done.length} realizado(s)` : ''}.</p></Link>
+        <div className="tile"><div className="row"><IconCalendar /><h3 className="mb0">Próximo atendimento</h3></div>
+          <p className="small muted mt">{next ? <>{next.label} · {next.status === 'ACEITO' ? `confirmado${next.specialist_name ? ` com ${next.specialist_name}` : ''}` : 'aguardando especialista'}{next.when_date ? ` · ${next.when_date.split('-').reverse().join('/')}` : ''}</> : wallet.data ? <>Nenhum atendimento agendado. <Link to="/solicitar">Solicitar cuidado</Link></> : data.integrations.agenda.reason}</p></div>
         <div className="tile"><div className="row"><IconHeart /><h3 className="mb0">Plano de continuidade</h3></div><p className="small muted mt">{data.integrations.continuidade.reason}</p></div>
         <Link to={data.prime && data.prime.status !== 'CANCELLED' && data.prime.status !== 'REFUNDED' ? '/prime/assinatura' : '/prime'} className="tile link">
           <div className="row"><IconUsers /><h3 className="mb0">ONEMA PRIME</h3></div>

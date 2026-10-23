@@ -23,10 +23,10 @@ test('paciente, especialista e Central: jornada completa com evidências', async
   // Kary
   await page.getByRole('button', { name: /Falar com a Kary/ }).click();
   await page.getByLabel('Mensagem para a Kary').fill('Quanto custa curativo simples?');
-  await page.getByRole('button', { name: 'Enviar' }).click();
+  await page.getByRole('button', { name: 'Enviar', exact: true }).click();
   await expect(page.getByText(/Curativo simples: R\$\s309,90/)).toBeVisible();
   await page.getByLabel('Mensagem para a Kary').fill('minha mãe está com falta de ar');
-  await page.getByRole('button', { name: 'Enviar' }).click();
+  await page.getByRole('button', { name: 'Enviar', exact: true }).click();
   await expect(page.getByText(/Ligue agora para o SAMU 192/)).toBeVisible();
   await shot(page, 'evid-02-kary', p);
   await page.getByRole('button', { name: 'Fechar a Kary' }).click();
@@ -71,7 +71,7 @@ test('paciente, especialista e Central: jornada completa com evidências', async
   // Especialista: oferta com repasse integral, aceite e conclusão
   const sctx = await browser.newContext({ baseURL: info.project.use.baseURL, viewport: { width: 1366, height: 900 }, locale: 'pt-BR' });
   const sp = await sctx.newPage();
-  await login(sp, 'especialista.demo@exemplo.test');
+  await login(sp, 'especialista.one.demo@exemplo.test');
   await sp.waitForURL(/academy/);
   await sp.goto('/especialista');
   await expect(sp.getByRole('heading', { name: 'Ofertas disponíveis' })).toBeVisible();

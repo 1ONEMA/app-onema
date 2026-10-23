@@ -115,6 +115,7 @@ export const DEMO_USERS = [
   { key: 'responsavel', email: 'responsavel.demo@exemplo.test', name: 'Responsável Demonstração', roles: ['PACIENTE'] },
   { key: 'especialista', email: 'especialista.demo@exemplo.test', name: 'Especialista Demonstração', roles: ['ESPECIALISTA'], eligible: true },
   { key: 'especialista2', email: 'especialista2.demo@exemplo.test', name: 'Especialista Não Elegível', roles: ['ESPECIALISTA'] },
+  { key: 'especialistaOne', email: 'especialista.one.demo@exemplo.test', name: 'Enf. Especialista ONE (credenciada)', roles: ['ESPECIALISTA'], eligible: true },
   { key: 'gestor', email: 'gestor.demo@exemplo.test', name: 'Gestor de Conteúdo Demo', roles: ['GESTOR_CONTEUDO'] },
   { key: 'rt', email: 'rt.demo@exemplo.test', name: 'Avaliador RT Demo', roles: ['AVALIADOR_RT'] },
   { key: 'adminAcademy', email: 'admin.academy.demo@exemplo.test', name: 'Admin Academy Demo', roles: ['ADMIN_ACADEMY'] },
@@ -150,6 +151,9 @@ export async function seedDemo(part: 'all' | 'base' | 'academy' = 'all') {
     }
     await insertMany('users', ['id', 'email', 'name', 'password_hash', 'academy_eligible', 'created_at', 'updated_at'], userRows);
     await insertMany('user_roles', ['user_id', 'role', 'granted_at'], roleRows);
+    // Demonstração: uma especialista já credenciada (APTO) para exercitar ofertas e repasses.
+    if (ids.especialistaOne) await run(`INSERT INTO partner_training_status (partner_id, journey_state, credentialing_decision, decision_note, decided_at, updated_at)
+      VALUES (?, 'NAO_INICIADA', 'APTO', ?, ?, ?) ON CONFLICT (partner_id) DO NOTHING`, ids.especialistaOne, `${DEMO_LABEL} credenciamento de demonstração`, now, now);
     }
     if (part === 'academy') {
       for (const r of await all<any>(`SELECT id, email FROM users WHERE email IN (?, ?)`, emailOfDemo('gestor'), emailOfDemo('rt'))) {

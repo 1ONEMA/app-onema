@@ -201,7 +201,7 @@ describe('P06 — Pedido falhou / estorno', () => {
     const again = await c.post(`/api/care/requests/${id}/checkout`, { quoteVersion: 1, paymentMethod: 'SANDBOX_APROVADO', expectedTotalCents: 70990 }, true);
     expect(again.status).toBe(409); // não cobra de novo
     // especialista conclui um evento; Financeiro estorna
-    const sp = new Client(app); await sp.login(emailOf('especialista'));
+    const sp = new Client(app); await sp.login(emailOf('especialistaOne'));
     const first = (await sp.get('/api/care/specialist/offers')).body.offers[0];
     await sp.post(`/api/care/specialist/events/${first.id}/accept`);
     await sp.post(`/api/care/specialist/events/${first.id}/complete`);
@@ -315,12 +315,16 @@ describe('P11 — Perfis e documentos', () => {
     const detail = JSON.stringify((await c.get(`/api/care/requests/${req.id}`)).body);
     expect(detail).not.toMatch(/payout|repasse|unit_payout|contribution/i);
     expect((await c.get('/api/admin/care/catalog')).status).toBe(403);
-    const sp = new Client(app); await sp.login(emailOf('especialista'));
+    const sp = new Client(app); await sp.login(emailOf('especialistaOne'));
     const offers = (await sp.get('/api/care/specialist/offers')).body.offers;
     expect(offers[0].unit_payout_cents).toBe(23000);
     expect(JSON.stringify(offers)).not.toMatch(/final_price|discount|price_cents/);
     const sp2 = new Client(app); await sp2.login(emailOf('especialista2'));
     expect((await sp2.get('/api/care/specialist/offers')).status).toBe(403);
+    // Academy liberada, mas sem decisão de credenciamento APTO: ainda não recebe ofertas.
+    const sp3 = new Client(app); await sp3.login(emailOf('especialista'));
+    const blocked = await sp3.get('/api/care/specialist/offers');
+    expect([blocked.status, blocked.body.error.code]).toEqual([403, 'NOT_CREDENTIALED']);
     const op = await loginAs(app, 'operador');
     const ov = await op.get('/api/admin/care/overview');
     expect(ov.status).toBe(200);
@@ -431,7 +435,7 @@ describe('Especialista e avaliações por estrelas', () => {
   it('aceite exclusivo, conclusão libera repasse, paciente avalia; separado das notas da Academy', async () => {
     const c = await patient();
     const { req } = await contract(c, 'CAT-05');
-    const sp = new Client(app); await sp.login(emailOf('especialista'));
+    const sp = new Client(app); await sp.login(emailOf('especialistaOne'));
     const ev = (await sp.get('/api/care/specialist/offers')).body.offers[0];
     expect((await sp.post(`/api/care/specialist/events/${ev.id}/accept`)).status).toBe(200);
     expect((await sp.post(`/api/care/specialist/events/${ev.id}/accept`)).status).toBe(409);
@@ -442,7 +446,9 @@ describe('Especialista e avaliações por estrelas', () => {
     const s = (await sp.get('/api/care/specialist/summary')).body;
     expect(s.rating).toEqual({ count: 1, average: 4 });
     expect(s.payouts).toEqual([{ status: 'A_LIQUIDAR', n: 1, total: 18000 }]);
-    expect((await c.get(`/api/care/requests/${req.id}`)).body.events[0].my_stars).toBe(4);
+    expect((await c.get(`/api/care/requests/${req.id}`)).body.events[0]).toMatchObject({ my_stars: 4 });
+    const shown = (await c.get(`/api/care/requests/${req.id}`)).body.events[0];
+    expect([Number(shown.specialist_rating), Number(shown.specialist_reviews)]).toEqual([4, 1]);
   });
 });
 
@@ -486,5 +492,24 @@ describe('Kary', () => {
     const r2 = await karyReply('onde aprendo sobre escalonamento de incidentes?');
     expect(r2.text).toContain('C02-A05');
     expect((await karyReply('o que tem na aula C04-A02?')).text).toContain('Preparo e chegada ao domicílio');
+  });
+});
+
+describe('Carteira Digital e textos públicos', () => {
+  it('carteira mostra só registros reais do titular; termos e aviso de privacidade são públicos', async () => {
+    const c = await patient();
+    const { req } = await contract(c, 'CAT-01');
+    const w = (await c.get('/api/care/wallet')).body;
+    expect(w.upcoming).toHaveLength(1);
+    expect(w.upcoming[0].request_id).toBe(req.id);
+    expect(w.done).toHaveLength(0);
+    expect(w.clinicalDocuments.available).toBe(false);
+    expect(JSON.stringify(w)).not.toMatch(/payout|repasse/i);
+    const other = new Client(app); await other.login(emailOf('responsavel'));
+    expect((await other.get('/api/care/wallet')).body.upcoming).toHaveLength(0);
+    const anon = new Client(app);
+    expect((await anon.get('/api/public/legal/T2')).body.code).toBe('T2');
+    expect((await anon.get('/api/public/legal/T3')).status).toBe(400);
+    expect((await anon.get('/api/care/wallet')).status).toBe(401);
   });
 });

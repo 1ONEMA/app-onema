@@ -15,13 +15,13 @@ async function check(page: Page, url: string) {
 }
 
 test('telas públicas', async ({ page }) => {
-  for (const u of ['/', '/solicitar', '/plataforma', '/especialista', '/entrar', '/cadastro', '/esqueci-senha', '/verificar']) await check(page, u);
+  for (const u of ['/', '/solicitar', '/plataforma', '/especialista', '/institucional/lgpd', '/institucional/privacidade', '/entrar', '/cadastro', '/esqueci-senha', '/verificar']) await check(page, u);
 });
 
 test('paciente', async ({ page }) => {
   await login(page, 'paciente.demo@exemplo.test');
   await page.waitForURL((u) => !u.pathname.startsWith('/entrar'));
-  for (const u of ['/minha-onema', '/prime', '/prime/adesao', '/servicos', '/avisos', '/conta', '/convites']) await check(page, u);
+  for (const u of ['/minha-onema', '/carteira', '/prime', '/prime/adesao', '/servicos', '/avisos', '/conta', '/convites']) await check(page, u);
 });
 
 test('especialista', async ({ page }) => {

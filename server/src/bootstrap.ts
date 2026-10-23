@@ -6,6 +6,7 @@ import { config } from './config.ts';
 import { all, one, run, tx } from './db/db.ts';
 import { migrate, pendingMigrations } from './db/migrate.ts';
 import { seedDemo, seedOfficial } from './db/seed.ts';
+import { seedPricingV1 } from './modules/care/catalog.ts';
 import { MIGRATIONS } from './db/migrations.ts';
 import { ROLES, type Role } from './lib/roles.ts';
 import { hashPassword } from './lib/security.ts';
@@ -16,7 +17,7 @@ let ready: Promise<string[]> | null = null;
 
 /** Versão da inicialização: quando igual à gravada no banco, a partida da Function só faz 3–4 consultas. */
 const BOOTSTRAP_VERSION = '2026-09-29.1';
-const bootstrapKey = () => `${BOOTSTRAP_VERSION}${process.env.SEED_DEMO === 'true' ? '+demo' : ''}`;
+export const bootstrapKey = () => `${BOOTSTRAP_VERSION}${process.env.SEED_DEMO === 'true' ? '+demo' : ''}`;
 
 /** A inicialização ainda não terminou nesta requisição (o progresso fica salvo; a próxima continua). */
 export class InitPendingError extends Error {
@@ -64,6 +65,11 @@ async function runInit(opts: ReadyOptions): Promise<string[]> {
       await migrate();
       await markSchemaHead();
       log('migrations novas aplicadas');
+    }
+    // Bancos inicializados antes da precificação oficial: carga v1 idempotente (uma consulta quando já existe).
+    if (!(await one('SELECT 1 AS ok FROM catalog_item_versions LIMIT 1'))) {
+      const r = await seedPricingV1();
+      log(`precificação oficial v1 carregada (${r.created} registros)`);
     }
     await loadSecrets(settings);
     await bootstrapAdmin();

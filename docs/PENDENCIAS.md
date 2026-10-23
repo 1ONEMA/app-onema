@@ -23,7 +23,7 @@ Nenhuma destas pendências foi preenchida por suposição. O sistema exibe a pen
 | P-007 | Rótulos internos C04-A03/A04 | Nota registrada na versão |
 | P-008 | Modelo final do certificado, signatários, revogação, dados do QR | Emissão bloqueada até aprovação do modelo; QR mostra nome mascarado (a confirmar) |
 | P-009 | Provedor de pagamento, fiscal, reembolso, chargeback; política de acesso com pagamento PENDENTE | Somente sandbox; matrícula exige PAGO (configurável) |
-| P-010 | Regra formal de credenciamento | Decisão humana com confirmação manual dos “demais gates” |
+| P-010 | Regra formal de credenciamento | **Parcial:** candidatura com CPF/COREN/documentos (`/especialista/candidatura`) e conferência pelo Credenciamento implantadas; ofertas só para perfil APTO. Falta o RT definir a regra formal dos “demais gates” (hoje decisão humana) |
 | P-011 | Conteúdo offline | Offline não disponibiliza dados; tela de indisponibilidade |
 | P-012 | Prazos de retenção | Sem expurgo automático |
 | A-1 | Integração ONEMA ONE (identidade/elegibilidade) | Elegibilidade registrada manualmente pelo ADMIN_ACADEMY |
@@ -60,8 +60,8 @@ Nenhuma destas pendências foi preenchida por suposição. O sistema exibe a pen
 
 | # | Pendência |
 |---|---|
-| V-1 | Arquivo licenciado da fonte Swiss721 (hoje: pilha Helvetica/Arial equivalente) |
-| V-2 | Logotipo horizontal em vetor (SVG) com fundo transparente — o app usa o PNG embutido no HTML oficial e o ícone recortado do manual |
+| V-1 | ~~Fonte~~ — adotada Inter (licença OFL, hospedada no app), igual ao site de referência do cliente; Swiss721 só se a ONEMA enviar o arquivo licenciado |
+| V-2 | ~~Logotipo~~ — logotipo oficial horizontal e ícone do app enviados pelo cliente (out/2026) aplicados; versão em vetor (SVG) ainda desejável |
 | V-3 | Confirmar grafia do slogan (“ORGÂNIZADA”) no manual |
 
 ## Infraestrutura (Netlify)

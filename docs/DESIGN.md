@@ -28,3 +28,10 @@ Tipografia: `Swiss 721` quando instalada, senão Helvetica Neue/Helvetica/Arial 
 ## Acessibilidade aplicada
 
 Link “pular para o conteúdo”, foco visível, rótulos associados (ajuda via `aria-describedby`), `aria-invalid` em erros, mensagens com `role="alert"/"status"`, diálogos modais com foco e Esc, barras de progresso com `aria-valuenow`, alvos de toque ≥ 44px, tabelas com rolagem horizontal no celular, legendas (`<track>`) e transcrição nas aulas com vídeo. Auditoria WCAG formal e testes com leitores de tela reais: pendentes.
+
+## Visual v2 (out/2026) — site de referência do cliente
+
+- Fonte **Inter** (variável, latin/latin-ext em `web/public/fonts`, licença OFL), títulos finos (400–500) em azul profundo `#0A2E7D`, acentos verdes `#00C2A8`/`#006E5E`.
+- Logotipo oficial horizontal (`/icons/logo-onema-saude.png`) no cabeçalho, login e rodapé; ícone oficial do app (quadrado azul com o S) em todos os tamanhos do PWA, incluindo maskable e apple-touch.
+- Abertura animada (`web/src/ui/Splash.tsx`) reproduz o vídeo do cliente: traço fino → contorno duplo → preenchimento azul/verde → ícone. Uma vez por sessão, toque para pular, versão curta com "reduzir movimento".
+- Página inicial no modelo do site: catálogo com "Saber mais →", informações importantes, Carteira Digital com celular ilustrativo, recursos, Life Score (exemplo ilustrativo), como funciona, sobre nós, ONEMA PRIME e rodapé institucional; Kary como botão redondo "assistente virtual".

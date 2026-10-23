@@ -4,14 +4,30 @@ import { useAuth } from '../../lib/auth';
 import { useApi } from '../../lib/hooks';
 import { money } from '../../lib/format';
 import { DailyVerse } from '../../ui/DailyVerse';
-import { IconArrowRight, IconBook, IconChat, IconCheck, IconDoc, IconHeart, IconHospital, IconNurse, IconPill, IconShield, IconTube, IconWallet } from '../../ui/icons';
+import { openKary } from '../../ui/Kary';
+import { AppIcon } from '../../ui/Brand';
+import {
+  IconArrowRight, IconBell, IconCalendar, IconChat, IconDoc, IconHeart, IconHospital, IconHome, IconNurse, IconPill, IconShield, IconTube, IconWallet,
+} from '../../ui/icons';
 
 export const NEED_ICONS: Record<string, ReactNode> = {
-  chat: <IconChat size={26} />, shield: <IconShield size={26} />, pill: <IconPill size={26} />, tube: <IconTube size={26} />,
-  hospital: <IconHospital size={26} />, nurse: <IconNurse size={26} />, heart: <IconHeart size={26} />, doc: <IconDoc size={26} />,
+  chat: <IconChat size={30} />, shield: <IconShield size={30} />, pill: <IconPill size={30} />, tube: <IconTube size={30} />,
+  hospital: <IconHome size={30} />, nurse: <IconNurse size={30} />, heart: <IconHeart size={30} />, doc: <IconDoc size={30} />,
 };
 
-/** Grafismo de semicírculos do manual, usado ao fundo dos cartões azuis. */
+/** Textos do catálogo no modelo do site de referência do cliente. */
+const NEED_TEXT: Record<string, string> = {
+  AVALIACAO: 'Uma avaliação profissional para compreender necessidades, riscos e próximos passos do cuidado.',
+  CURATIVOS: 'Avaliação e cuidado profissional da ferida, com orientação para favorecer uma evolução segura.',
+  MEDICAMENTOS: 'Administração segura do medicamento prescrito, realizada por profissional habilitado.',
+  SONDAS: 'Avaliação e assistência de enfermagem para dispositivos que exigem técnica, segurança e orientação adequada.',
+  POS_ALTA: 'Apoio profissional para organizar a transição do hospital para casa e acompanhar os próximos passos.',
+  POS_OPERATORIO: 'Acompanhamento de enfermagem para uma recuperação mais organizada, orientada e segura.',
+  CRONICOS: 'Monitoramento e orientação para o cuidado contínuo de diabetes e hipertensão.',
+  MONITORAMENTO: 'Acompanhamento planejado e remoto, com registro e continuidade do cuidado.',
+};
+
+/** Grafismo de semicírculos do manual, ao fundo dos blocos azuis. */
 export function HeroPattern() {
   return (
     <svg className="hero-pattern" viewBox="0 0 400 300" aria-hidden preserveAspectRatio="xMaxYMid slice">
@@ -24,17 +40,47 @@ export function HeroPattern() {
   );
 }
 
+/** Celular ilustrativo da Carteira Digital (dados fictícios, marcado como exemplo). */
+function PhoneMock() {
+  return (
+    <div className="phone" aria-label="Exemplo ilustrativo da Carteira Digital ONEMA no celular" role="img">
+      <div className="phone-screen">
+        <div className="phone-status"><span>9:41</span><span className="phone-notch" /><span>●●●</span></div>
+        <div className="phone-hello">
+          <span className="phone-avatar" aria-hidden>O</span>
+          <div><strong>Olá, Odete!</strong><small>Bem-vinda à sua Carteira Digital ONEMA.</small></div>
+          <span className="phone-bell" aria-hidden><IconBell size={20} /><i>2</i></span>
+        </div>
+        <div className="phone-score">
+          <div><small>ONEMA Life Score™</small><strong>82<span>/100</span></strong><small>Seu cuidado está sendo acompanhado.</small></div>
+          <span className="phone-ring" aria-hidden><IconHeart size={22} /></span>
+        </div>
+        <div className="phone-list">
+          <div className="row between"><strong>Próximos passos <i>2</i></strong><small>Ver todos ›</small></div>
+          <div className="phone-item"><span className="pi red"><IconCalendar size={18} /></span><div><b>Reavaliação de enfermagem</b><em className="tag red">Amanhã</em></div></div>
+          <div className="phone-item"><span className="pi amber"><IconDoc size={18} /></span><div><b>Atualizar acompanhamento</b><em className="tag amber">Pendente</em></div></div>
+          <div className="phone-item"><span className="pi violet"><IconWallet size={18} /></span><div><b>Próximo cuidado</b><small>24 AGO · 14:00</small></div></div>
+        </div>
+        <div className="phone-tabs"><span><IconHome size={18} />Início</span><span><IconHeart size={18} />Cuidados</span><span className="on"><IconWallet size={18} />Carteira</span><span><IconNurse size={18} />Perfil</span></div>
+      </div>
+      <span className="phone-label">Exemplo ilustrativo</span>
+    </div>
+  );
+}
+
 export function HomePage() {
   const { me, has, isAdmin } = useAuth();
   const { data } = useApi<any>('/api/care/needs');
-  useEffect(() => { document.title = 'ONEMA SAÚDE · Sua saúde não precisa esperar'; }, []);
+  useEffect(() => { document.title = 'ONEMA SAÚDE · Sua saúde organizada sempre com você'; }, []);
   const area = !me?.user ? null
-    : has('PACIENTE') ? { to: '/minha-onema', label: 'Ir para Minha ONEMA' }
-    : has('ESPECIALISTA') ? { to: '/especialista', label: 'Ir para a Área do especialista' }
-    : isAdmin ? { to: '/central', label: 'Ir para a Central' } : null;
+    : has('PACIENTE') ? { to: '/carteira', label: 'Minha Carteira Digital' }
+    : has('ESPECIALISTA') ? { to: '/especialista', label: 'Área do especialista' }
+    : isAdmin ? { to: '/central', label: 'Central RT' } : null;
+  const prime = data?.prime;
   return (
-    <>
+    <div className="home">
       <DailyVerse />
+
       <section className="hero-big">
         <HeroPattern />
         <div className="kicker">Cuidado de enfermagem em São Paulo</div>
@@ -42,67 +88,139 @@ export function HomePage() {
         <p>Conte o que precisa. A ONEMA organiza a solicitação e encontra um especialista validado para você.</p>
         <div className="row">
           <Link to="/solicitar" className="btn green lg">Preciso de cuidado <IconArrowRight size={20} /></Link>
-          {area && <Link to={area.to} className="btn ghost-light">{area.label}</Link>}
+          {area && <Link to={area.to} className="btn ghost-light lg">{area.label}</Link>}
         </div>
         <div className="hero-icons" aria-hidden><IconNurse size={56} /><IconHospital size={56} /></div>
       </section>
 
-      <section className="section">
-        <div className="eyebrow-blue">Primeiro, escolha uma necessidade</div>
-        <h2 className="display">Como podemos cuidar de você?</h2>
-        <div className="need-grid">
+      <section className="section" id="catalogo">
+        <div className="section-head">
+          <div>
+            <div className="eyebrow-teal">Catálogo</div>
+            <h2 className="display-light">Cuidados ONEMA SAÚDE</h2>
+            <p className="lead">Serviços organizados em jornadas claras, com orientação, acompanhamento e continuidade.</p>
+          </div>
+          <button className="link-teal" onClick={openKary}>Precisa de orientação? →</button>
+        </div>
+        <div className="note-bar">Receba seu orçamento após informar a necessidade de cuidado e os materiais. Você consulta o valor completo antes do pagamento.</div>
+        <div className="catalog-grid">
           {(data?.needs ?? []).map((n: any) => {
             const min = n.offers.length ? Math.min(...n.offers.map((o: any) => o.priceCents)) : null;
             return (
-              <Link key={n.key} to={`/solicitar?necessidade=${n.key}`} className="need-card">
-                <span className="need-icon">{NEED_ICONS[n.icon]}</span>
-                <span className="need-text"><strong>{n.title}</strong><span>{n.subtitle}</span>{min != null && <em>a partir de {money(min)}</em>}</span>
-                <IconArrowRight size={20} />
-              </Link>
+              <article key={n.key} className="catalog-card">
+                <span className="tile-icon">{NEED_ICONS[n.icon]}</span>
+                <div>
+                  <h3>{n.title}</h3>
+                  <p>{NEED_TEXT[n.key] ?? n.subtitle}</p>
+                  {min != null && <p className="price-from">a partir de {money(min)}</p>}
+                  <Link to={`/solicitar?necessidade=${n.key}`} className="link-teal" aria-label={`Saber mais sobre ${n.title}`}>Saber mais →</Link>
+                </div>
+              </article>
             );
           })}
         </div>
+        <div className="info-box">
+          <h3>Informações importantes</h3>
+          <p>Os serviços são realizados após análise da necessidade, das condições do paciente, da disponibilidade profissional e da região de atendimento.</p>
+          <p>Procedimentos que dependam de prescrição somente poderão ser realizados após conferência de documento válido.</p>
+          <p>Medicamentos, equipamentos, materiais especiais, exames, consultas médicas e atendimentos adicionais não estão incluídos, salvo quando descritos expressamente na contratação.</p>
+          <p>A ONEMA SAÚDE não substitui serviços de urgência e emergência. Em situações de emergência, ligue <a href="tel:192">SAMU 192</a> ou procure o serviço de emergência de sua região.</p>
+        </div>
       </section>
 
-      <section className="section how">
-        <h2>Como funciona</h2>
-        <ol className="steps">
-          <li><strong>Escolha o cuidado</strong><span>Necessidade, atendimento e materiais disponíveis.</span></li>
-          <li><strong>Veja os valores na hora</strong><span>Preço aprovado e desconto PRIME, antes de qualquer dado de pagamento.</span></li>
-          <li><strong>Revise o orçamento</strong><span>Escopo, logística, inclusões e exclusões. Edite ou desista quando quiser.</span></li>
-          <li><strong>Confirme e acompanhe</strong><span>Um especialista validado aceita o atendimento e você acompanha tudo pelo app.</span></li>
+      <section className="section wallet-band">
+        <div className="wallet-copy">
+          <div className="eyebrow-teal">Carteira Digital ONEMA</div>
+          <h2 className="display-light">Sua saúde organizada.<br /><span className="teal">Sempre com você.</span></h2>
+          <p className="lead">Um espaço seguro para reunir as informações da sua jornada de cuidado, acompanhar sua evolução e saber quais são os próximos passos.</p>
+          <div className="row">
+            <Link to="/carteira" className="btn green lg">Conheça sua Carteira Digital</Link>
+            <Link to="/#como-funciona" className="btn outline lg">Entenda como funciona</Link>
+          </div>
+        </div>
+        <PhoneMock />
+      </section>
+
+      <section className="section">
+        <div className="feature-cards">
+          {[
+            [<IconDoc size={24} />, 'Organização', 'Todas as informações do seu cuidado reunidas em um só lugar.'],
+            [<IconBell size={24} />, 'Alertas', 'Avisos importantes sobre reavaliações, cuidados e próximos passos.'],
+            [<IconCalendar size={24} />, 'Continuidade', 'Plano de cuidado e linha do tempo para acompanhar sua evolução.'],
+            [<IconShield size={24} />, 'Segurança', 'Seus dados protegidos com tecnologia e privacidade em cada etapa.'],
+          ].map(([icon, title, text]) => (
+            <div key={title as string} className="feature-card"><span className="tile-icon sm">{icon}</span><div><h3>{title}</h3><p>{text}</p></div></div>
+          ))}
+        </div>
+        <p className="tagline-pill">Tecnologia que organiza. Enfermagem que cuida. Cuidado que continua com você.</p>
+      </section>
+
+      <section className="lifescore">
+        <div className="lifescore-copy">
+          <div className="eyebrow-teal light">ONEMA Life Score™</div>
+          <h2>Sua evolução acompanhada.</h2>
+          <p>A tecnologia ONEMA organiza informações do cuidado, acompanha evolução e facilita a continuidade assistencial sem substituir a avaliação clínica do profissional.</p>
+          <ul className="checks">
+            <li>Meu Cuidado ONEMA</li><li>Care Plan e próxima ação</li><li>Pendências e timeline</li><li>Acompanhamento longitudinal</li>
+          </ul>
+          <p className="small">O ONEMA Life Score™ é um indicador longitudinal de apoio à jornada e não representa diagnóstico médico automático. Uso clínico somente após as etapas de validação e liberação da ONEMA.</p>
+        </div>
+        <div className="ls-card" role="img" aria-label="Exemplo ilustrativo do painel ONEMA Life Score">
+          <div className="ls-top"><AppIcon size={34} /><div><strong>ONEMA LIFE SCORE™</strong><small>Visão longitudinal do cuidado</small></div><em>Exemplo ilustrativo</em></div>
+          <div className="ls-body">
+            <div className="ls-dial"><svg viewBox="0 0 120 120" aria-hidden><circle cx="60" cy="60" r="50" className="ls-track" /><circle cx="60" cy="60" r="50" className="ls-value" pathLength={100} strokeDasharray="82 100" /></svg>
+              <div><strong>82</strong><small>/100</small><em>Acompanhamento ativo</em></div></div>
+            <div className="ls-right">
+              <b>Evolução do cuidado</b>
+              <ol className="ls-steps"><li className="ok">Avaliação</li><li className="ok">Care Plan</li><li className="now">Acompanhamento</li><li>Desfecho</li></ol>
+              <div className="ls-next"><small>Próxima ação</small><strong>Enfermagem · hoje, 15:30</strong><small>Orientações e pendências organizadas</small></div>
+            </div>
+          </div>
+          <div className="ls-foot"><div><small>Care Plan</small><b>Atualizado</b></div><div><small>Pendências</small><b>1 acompanhamento</b></div><div><small>Continuidade</small><b>Em andamento</b></div></div>
+        </div>
+      </section>
+
+      <section className="section center" id="como-funciona">
+        <div className="eyebrow-teal">Como funciona</div>
+        <h2 className="display-light">Uma jornada simples. Um cuidado coordenado.</h2>
+        <ol className="journey">
+          {[
+            [<IconChat size={32} />, 'Você solicita', 'Paciente ou responsável informa a necessidade.'],
+            [<IconDoc size={32} />, 'A ONEMA organiza', 'A demanda é estruturada e direcionada.'],
+            [<IconNurse size={32} />, 'O especialista cuida', 'O cuidado acontece de forma segura.'],
+            [<IconWallet size={32} />, 'A jornada continua', 'Plano de cuidado e próximos passos organizados.'],
+          ].map(([icon, title, text]) => (
+            <li key={title as string}><span className="tile-icon lg">{icon}</span><h3>{title}</h3><p>{text}</p></li>
+          ))}
         </ol>
       </section>
 
-      <div className="two">
-        <Link to="/prime" className="promo green">
-          <span className="promo-icon"><IconWallet size={26} /></span>
-          <div>
-            <div className="eyebrow-dark">ONEMA PRIME · opcional</div>
-            <h3>Organize o cuidado e economize</h3>
-            <p>{data?.prime ? `${money(data.prime.monthlyPriceCents)}/mês, adesão separada. ${data.prime.discountBps / 100}% em um pedido por ciclo, até ${money(data.prime.capCents)}.` : 'Assinatura mensal opcional.'}</p>
-          </div>
-        </Link>
-        <Link to="/especialista" className="promo">
-          <span className="promo-icon"><IconNurse size={26} /></span>
-          <div>
-            <div className="eyebrow-dark">Rede ONEMA ONE</div>
-            <h3>É enfermeiro? Atenda com liberdade</h3>
-            <p>Cadastro com CPF, validação pela Central e formação na ONEMA Academy.</p>
-          </div>
-        </Link>
-      </div>
-
-      <section className="section trust">
-        <div><IconCheck /><span>Especialistas com COREN e treinamento validados</span></div>
-        <div><IconShield /><span>Seus dados protegidos (LGPD)</span></div>
-        <div><IconBook /><span>Protocolos e formação ONEMA Academy</span></div>
+      <section className="section" id="sobre">
+        <div className="eyebrow-teal">Sobre nós</div>
+        <h2 className="display-light">Cuidado além do atendimento pontual.</h2>
+        <p className="lead wide">A ONEMA SAÚDE nasceu para tornar o cuidado fora do hospital mais organizado, seguro e contínuo. Combinamos enfermagem especializada, coordenação assistencial e tecnologia para conectar cada necessidade à próxima ação adequada.</p>
+        <p className="lead wide">Nosso foco não termina na visita. A ONEMA estrutura a jornada, acompanha necessidades, registra evolução e ajuda paciente e família a compreenderem os próximos passos.</p>
+        <div className="pill-cards">
+          <span><IconHeart size={20} />Cuidado</span><span><IconChat size={20} />Coordenação</span><span><IconDoc size={20} />Tecnologia</span><span><IconCalendar size={20} />Continuidade</span>
+        </div>
       </section>
 
-      <div className="urgent-note" role="note">
-        <span className="nav-shield" aria-hidden><IconShield size={18} /></span>
-        <p><strong>Este app não atende urgências.</strong> Em risco imediato, dor intensa, falta de ar ou perda de consciência, ligue <a href="tel:192">SAMU 192</a>.</p>
-      </div>
-    </>
+      <section className="prime-band">
+        <div className="prime-copy">
+          <div className="row prime-brand"><AppIcon size={60} /><span className="eyebrow-teal light">Benefícios e conveniência</span></div>
+          <h2>ONEMA <span className="teal">PRIME</span></h2>
+          <p className="prime-lead">Mais facilidade para organizar sua rotina e acessar vantagens em serviços elegíveis da ONEMA SAÚDE.</p>
+          <p className="small">Uma assinatura opcional de relacionamento, com agenda, lembretes, ofertas e uma visão clara dos seus benefícios.
+            {prime && <><br /><strong>{prime.discountBps / 100}% de desconto em um atendimento elegível por mês, até {money(prime.capCents)}.</strong></>}</p>
+          <p className="prime-price"><strong>{prime ? money(prime.monthlyPriceCents) : 'R$ 34,90'}</strong> por mês</p>
+          <p className="small">Renovação automática somente mediante contratação expressa.</p>
+          <Link to="/prime" className="btn white lg">Conhecer a ONEMA PRIME <IconArrowRight size={18} /></Link>
+        </div>
+        <figure className="prime-photo">
+          <img src="/img/recepcao-onema.jpg" alt="Recepção ONEMA SAÚDE" />
+          <figcaption>ONEMA SAÚDE</figcaption>
+        </figure>
+      </section>
+    </div>
   );
 }

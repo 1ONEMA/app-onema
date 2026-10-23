@@ -17,6 +17,8 @@ export function registerServiceWorker() {
   if (!('serviceWorker' in navigator) || !import.meta.env.PROD) return;
   window.addEventListener('load', async () => {
     try {
+      // Primeira instalação não deve recarregar a página (só atualizações de uma versão já em uso).
+      const hadController = !!navigator.serviceWorker.controller;
       const reg = await navigator.serviceWorker.register('/sw.js');
       const notify = () => { waiting = reg; listeners.forEach((l) => l(reg)); };
       if (reg.waiting && navigator.serviceWorker.controller) notify();
@@ -25,7 +27,7 @@ export function registerServiceWorker() {
         sw?.addEventListener('statechange', () => { if (sw.state === 'installed' && navigator.serviceWorker.controller) notify(); });
       });
       let reloading = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloading) { reloading = true; location.reload(); } });
+      navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloading) { reloading = true; location.reload(); } });
       setInterval(() => reg.update().catch(() => {}), 60 * 60 * 1000);
     } catch { /* PWA indisponível neste navegador: o app segue funcionando on-line */ }
   });

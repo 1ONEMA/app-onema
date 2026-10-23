@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, type Me } from '../../lib/auth';
 import { useSubmit } from '../../lib/hooks';
 import { Alert, Button, Field, fieldError } from '../../ui/ui';
+import { PasswordField } from '../../ui/PasswordField';
 
 /** Grafismo geométrico do manual (semicírculos Deep Blue / Health Green). */
 export function Pattern() {
@@ -70,7 +71,7 @@ export function LoginPage() {
       <form onSubmit={submit} noValidate>
         <Alert error={error} />
         <Field label="E-mail"><input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-        <Field label="Senha"><input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
+        <PasswordField label="Senha" autoComplete="current-password" value={password} onChange={setPassword} />
         <Button type="submit" className="block deep" busy={busy}>Entrar</Button>
       </form>
       <p className="mt small"><Link to="/esqueci-senha">Esqueci minha senha</Link></p>
@@ -93,7 +94,7 @@ export function RegisterPage() {
     if (f.password !== f.confirm) { setMismatch(true); return; }
     setMismatch(false);
     const r = await run('POST', '/api/auth/register', { name: f.name, email: f.email, password: f.password });
-    if (r) { setMe(r); nav(specialist ? '/especialista' : params.get('voltar')?.startsWith('/') && !params.get('voltar')!.startsWith('//') ? params.get('voltar')! : '/minha-onema', { replace: true }); }
+    if (r) { setMe(r); nav(specialist ? '/especialista/candidatura' : params.get('voltar')?.startsWith('/') && !params.get('voltar')!.startsWith('//') ? params.get('voltar')! : '/minha-onema', { replace: true }); }
   }
   return (
     <AuthLayout title={specialist ? 'Cadastro na rede ONEMA ONE' : 'Criar cadastro de paciente'}>
@@ -102,12 +103,10 @@ export function RegisterPage() {
         <Alert error={error} />
         <Field label="Nome completo" error={fieldError(error, 'name')}><input type="text" autoComplete="name" required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
         <Field label="E-mail" error={fieldError(error, 'email')}><input type="email" autoComplete="email" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></Field>
-        <Field label="Senha" hint="Mínimo de 10 caracteres, com letras e números." error={fieldError(error, 'password')}>
-          <input type="password" autoComplete="new-password" required value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
-        </Field>
-        <Field label="Confirme a senha" error={mismatch ? 'As senhas não conferem.' : null}>
-          <input type="password" autoComplete="new-password" required aria-invalid={mismatch} value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} />
-        </Field>
+        <PasswordField label="Senha" autoComplete="new-password" hint="Mínimo de 10 caracteres, com letras e números." error={fieldError(error, 'password')}
+          value={f.password} onChange={(v) => setF({ ...f, password: v })} />
+        <PasswordField label="Confirme a senha" autoComplete="new-password" error={mismatch ? 'As senhas não conferem.' : null}
+          value={f.confirm} onChange={(v) => setF({ ...f, confirm: v })} />
         <Button type="submit" className="block deep" busy={busy}>Criar cadastro</Button>
       </form>
       <p className="mt small">Já tem conta? <Link to={`/entrar${params.get('voltar') ? `?voltar=${encodeURIComponent(params.get('voltar')!)}` : ''}`}>Entrar</Link></p>
@@ -167,12 +166,8 @@ export function ResetPage() {
       ) : (
         <form onSubmit={submit} noValidate>
           <Alert error={error} />
-          <Field label="Nova senha" hint="Mínimo de 10 caracteres, com letras e números." error={fieldError(error, 'password')}>
-            <input type="password" autoComplete="new-password" value={p1} onChange={(e) => setP1(e.target.value)} />
-          </Field>
-          <Field label="Confirme a nova senha" error={mismatch ? 'As senhas não conferem.' : null}>
-            <input type="password" autoComplete="new-password" value={p2} onChange={(e) => setP2(e.target.value)} />
-          </Field>
+          <PasswordField label="Nova senha" autoComplete="new-password" hint="Mínimo de 10 caracteres, com letras e números." error={fieldError(error, 'password')} value={p1} onChange={setP1} />
+          <PasswordField label="Confirme a nova senha" autoComplete="new-password" error={mismatch ? 'As senhas não conferem.' : null} value={p2} onChange={setP2} />
           <Button type="submit" className="block deep" busy={busy}>Salvar nova senha</Button>
         </form>
       )}

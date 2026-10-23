@@ -14,6 +14,7 @@ import { authRoutes } from './modules/auth/routes.ts';
 import { careAdminRoutes } from './modules/care/admin.ts';
 import { careRoutes } from './modules/care/routes.ts';
 import { karyRoutes } from './modules/kary/routes.ts';
+import { specialistRoutes } from './modules/specialist/routes.ts';
 import { primeAdminRoutes } from './modules/prime/admin.ts';
 import { primeRoutes } from './modules/prime/routes.ts';
 
@@ -92,6 +93,7 @@ export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean 
   await app.register(careRoutes);
   await app.register(careAdminRoutes);
   await app.register(karyRoutes);
+  await app.register(specialistRoutes);
 
   app.get('/api/health', async () => ({ ok: true }));
 

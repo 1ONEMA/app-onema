@@ -13,6 +13,8 @@ export function CredentialingPage() {
   return (
     <>
       <PageHeader kicker="ONEMA ONE" title="Credenciamento"><p>A Academy atualiza somente a projeção de capacitação. Pagamento ou conclusão nunca geram aptidão automática: a decisão é humana e registrada.</p></PageHeader>
+      <ApplicationsSection />
+      <h2 className="mt">Capacitação e decisão final</h2>
       {loading ? <Loading /> : error ? <ErrorState error={error} onRetry={reload} /> : (
         <section className="surface">
           {!data.partners.length ? <Empty title="Nenhum especialista cadastrado." /> : (
@@ -97,5 +99,52 @@ export function ReportsPage() {
       )}
       <p className="small muted">Gerado em {data && dateTime(data.generatedAt)}</p>
     </>
+  );
+}
+
+const APP_STATUS: Record<string, { label: string; tone: string }> = {
+  ENVIADA: { label: 'Aguardando análise', tone: 'orange' }, PENDENCIA: { label: 'Pendência com a candidata', tone: 'orange' },
+  APROVADA: { label: 'Aprovada · Academy liberada', tone: '' }, RECUSADA: { label: 'Recusada', tone: 'red' },
+};
+const DOC_LABEL: Record<string, string> = { IDENTIDADE: 'Identidade', COREN: 'COREN', COMPROVANTE_ENDERECO: 'Comprovante de endereço', OUTRO: 'Outro' };
+
+/** Candidaturas ONEMA ONE: conferência de identidade, COREN e documentos (decisão humana). */
+function ApplicationsSection() {
+  const { has } = useAuth();
+  const { data, error, loading, reload } = useApi<any>('/api/admin/specialist-applications');
+  const decide = useSubmit<any>();
+  const [sel, setSel] = useState<any>(null);
+  const [f, setF] = useState({ decision: 'APROVADA', note: '', identityAndCorenVerified: false });
+  if (loading && !data) return <Loading />;
+  if (error) return <ErrorState error={error} onRetry={reload} />;
+  return (
+    <section className="surface">
+      <h2>Candidaturas ONEMA ONE</h2>
+      <p className="small muted">Confira identidade, situação do COREN no conselho regional e documentos antes de aprovar. A aprovação libera a ONEMA Academy; as ofertas de atendimento só começam após a decisão final de credenciamento (abaixo).</p>
+      {!data.applications.length ? <Empty title="Nenhuma candidatura enviada." /> : (
+        <ul className="list">{data.applications.map((a: any) => (
+          <li key={a.id}>
+            <div className="row between"><strong>{a.fullName}</strong><Badge tone={APP_STATUS[a.status]?.tone ?? 'dark'}>{APP_STATUS[a.status]?.label ?? a.status}</Badge></div>
+            <div className="small muted">CPF {a.cpf} · COREN-{a.corenUf} {a.corenNumber} · {a.phone} · {a.email} · enviada em {dateTime(a.submittedAt)}</div>
+            <div className="small">Regiões: {a.regions}. Áreas: {a.needs.join(', ')}.{a.availability ? ` Disponibilidade: ${a.availability}.` : ''}</div>
+            <div className="row small mt">{a.documents.map((d: any) => (
+              has('CREDENCIAMENTO', 'ADMIN_ACADEMY')
+                ? <a key={d.id} href={`/api/admin/specialist-applications/${a.id}/documents/${d.id}`} target="_blank" rel="noopener noreferrer" className="badge blue">{DOC_LABEL[d.kind]} · {d.filename}</a>
+                : <span key={d.id} className="badge dark">{DOC_LABEL[d.kind]}</span>
+            ))}</div>
+            {a.decisionNote && <div className="small muted">Última decisão: {a.decisionNote}</div>}
+            {has('CREDENCIAMENTO') && a.status === 'ENVIADA' && <Button className="sm secondary mt" onClick={() => { setSel(a); setF({ decision: 'APROVADA', note: '', identityAndCorenVerified: false }); }}>Analisar</Button>}
+          </li>
+        ))}</ul>
+      )}
+      <Dialog open={!!sel} title={`Candidatura · ${sel?.fullName}`} onClose={() => setSel(null)}>
+        <Field label="Decisão"><select value={f.decision} onChange={(e) => setF({ ...f, decision: e.target.value })}>
+          <option value="APROVADA">Aprovar (liberar a Academy)</option><option value="PENDENCIA">Pedir ajuste à candidata</option><option value="RECUSADA">Recusar</option></select></Field>
+        <Field label="Justificativa" hint="A candidata verá este texto em caso de pendência ou recusa."><textarea value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} /></Field>
+        <label className="choice"><input type="checkbox" checked={f.identityAndCorenVerified} onChange={(e) => setF({ ...f, identityAndCorenVerified: e.target.checked })} /><span>Conferi identidade, COREN ativo e documentos.</span></label>
+        <Alert error={decide.error} />
+        <Button className="deep" busy={decide.busy} onClick={async () => { if (await decide.run('POST', `/api/admin/specialist-applications/${sel.id}/decision`, f)) { setSel(null); reload(); } }}>Registrar decisão</Button>
+      </Dialog>
+    </section>
   );
 }
