@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/auth';
 import { useSubmit } from '../../lib/hooks';
 import { Alert, Badge, Button, Field, PageHeader, fieldError } from '../../ui/ui';
+import { PasswordField } from '../../ui/PasswordField';
 
 export function AccountPage() {
   const { me, status, logout } = useAuth();
@@ -35,10 +36,8 @@ export function AccountPage() {
           <h2>Alterar senha</h2>
           <form onSubmit={submit} noValidate>
             <Alert error={error} success={ok} />
-            <Field label="Senha atual"><input type="password" autoComplete="current-password" value={f.current} onChange={(e) => setF({ ...f, current: e.target.value })} /></Field>
-            <Field label="Nova senha" hint="Mínimo de 10 caracteres, com letras e números." error={fieldError(error, 'password')}>
-              <input type="password" autoComplete="new-password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
-            </Field>
+            <PasswordField label="Senha atual" autoComplete="current-password" value={f.current} onChange={(v) => setF({ ...f, current: v })} />
+            <PasswordField label="Nova senha" autoComplete="new-password" hint="Mínimo de 10 caracteres, com letras e números." error={fieldError(error, 'password')} value={f.password} onChange={(v) => setF({ ...f, password: v })} />
             <Button type="submit" className="deep" busy={busy}>Salvar</Button>
           </form>
         </section>

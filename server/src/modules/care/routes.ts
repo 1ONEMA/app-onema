@@ -231,6 +231,28 @@ export async function careRoutes(app: FastifyInstance) {
     });
   });
 
+  /**
+   * Carteira Digital (visão do titular): somente eventos efetivamente registrados na plataforma —
+   * próximos atendimentos, atendimentos realizados, pedidos e comprovantes. Sem inferência clínica;
+   * documentos clínicos assinados dependem da integração com o sistema oficial da Carteira.
+   */
+  app.get('/api/care/wallet', async (req) => {
+    const a = patient(req);
+    const events = await all<any>(`SELECT e.id, e.label, e.modality, e.status, e.accepted_at, e.completed_at, o.item_code, o.item_name, o.id AS order_id,
+        r.id AS request_id, r.when_pref, r.when_date, u.name AS specialist_name, (SELECT stars FROM specialist_reviews s WHERE s.event_id = e.id) AS my_stars
+        FROM care_events e JOIN service_orders o ON o.id = e.order_id LEFT JOIN care_requests r ON r.id = o.request_id LEFT JOIN users u ON u.id = e.specialist_id
+        WHERE o.patient_id = ? AND o.status IN ('PAID','REFUNDED') ORDER BY e.created_at DESC, e.seq LIMIT 300`, a.userId);
+    const open = await all<any>(`SELECT id, protocol, status, item_code, quote_json, created_at FROM care_requests WHERE requester_id = ? AND status IN ('ORCADO','ORCAMENTO_PENDENTE','ACEITO') ORDER BY created_at DESC`, a.userId);
+    const receipts = await all<any>('SELECT id, kind, protocol, text, created_at FROM prime_receipts WHERE patient_id = ? ORDER BY created_at DESC LIMIT 50', a.userId);
+    return {
+      upcoming: events.filter((e) => e.status === 'ACEITO' || e.status === 'DISPONIVEL'),
+      done: events.filter((e) => e.status === 'CONCLUIDO'),
+      pendingRequests: open.map((r) => ({ id: r.id, protocol: r.protocol, status: r.status, itemName: JSON.parse(r.quote_json).offer.name, createdAt: r.created_at })),
+      receipts,
+      clinicalDocuments: { available: false, reason: 'Documentos clínicos assinados (evolução, plano de cuidado, relatórios) aparecem aqui após a integração com o sistema oficial da Carteira Digital ONEMA.' },
+    };
+  });
+
   /** Avaliação por estrelas do atendimento concluído (separada das notas da Academy). */
   app.post('/api/care/events/:id/review', async (req) => {
     const a = patient(req);

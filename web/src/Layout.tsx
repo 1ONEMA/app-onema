@@ -5,6 +5,8 @@ import { useOnline } from './lib/hooks';
 import { get } from './lib/api';
 import { applyUpdate, onUpdateAvailable } from './sw-register';
 import { Kary } from './ui/Kary';
+import { Footer } from './ui/Footer';
+import { Logo } from './ui/Brand';
 import { Dialog } from './ui/ui';
 import { IconBell, IconBook, IconCog, IconDownload, IconHeart, IconHome, IconNurse, IconShield, IconUser, IconWallet } from './ui/icons';
 
@@ -22,7 +24,7 @@ export function useNav() {
     { to: '/especialista', label: 'Área do especialista', icon: <IconNurse /> },
   ];
   const mine: NavItem[] = [];
-  if (has('PACIENTE')) mine.push({ to: '/minha-onema', label: 'Minha ONEMA', icon: <IconHome /> }, { to: '/servicos', label: 'Meus pedidos', icon: <IconHeart /> }, { to: '/prime', label: 'PRIME', icon: <IconWallet /> });
+  if (has('PACIENTE')) mine.push({ to: '/carteira', label: 'Carteira', icon: <IconWallet /> }, { to: '/servicos', label: 'Meus pedidos', icon: <IconHeart /> }, { to: '/prime', label: 'PRIME', icon: <IconWallet /> });
   if (has('ESPECIALISTA')) mine.push({ to: '/academy', label: 'Academy', icon: <IconBook />, end: true });
   if (isAdmin) mine.push({ to: '/admin', label: 'Gestão', icon: <IconCog /> });
 
@@ -30,7 +32,7 @@ export function useNav() {
   const home: NavItem = { to: '/', label: 'Início', icon: <IconHome />, end: true };
   const central: NavItem = { to: '/central', label: 'Central', icon: <IconShield /> };
   if (!logged) bottom = [home, { to: '/solicitar', label: 'Cuidado', icon: <IconHeart /> }, { to: '/especialista', label: 'Especialista', icon: <IconNurse /> }, central, { to: '/plataforma', label: 'Plataforma', icon: <IconWallet /> }];
-  else if (has('PACIENTE')) bottom = [home, { to: '/solicitar', label: 'Cuidado', icon: <IconHeart /> }, { to: '/minha-onema', label: 'Minha ONEMA', icon: <IconUser /> }, { to: '/servicos', label: 'Pedidos', icon: <IconWallet /> }, { to: '/conta', label: 'Conta', icon: <IconCog /> }];
+  else if (has('PACIENTE')) bottom = [home, { to: '/solicitar', label: 'Cuidados', icon: <IconHeart /> }, { to: '/carteira', label: 'Carteira', icon: <IconWallet /> }, { to: '/servicos', label: 'Pedidos', icon: <IconHome /> }, { to: '/conta', label: 'Perfil', icon: <IconUser /> }];
   else if (has('ESPECIALISTA')) bottom = [home, { to: '/especialista', label: 'Especialista', icon: <IconNurse /> }, { to: '/academy', label: 'Academy', icon: <IconBook />, end: true }, { to: '/avisos', label: 'Avisos', icon: <IconBell /> }, { to: '/conta', label: 'Conta', icon: <IconCog /> }];
   else bottom = [home, central, { to: '/admin', label: 'Gestão', icon: <IconCog /> }, { to: '/avisos', label: 'Avisos', icon: <IconBell /> }, { to: '/conta', label: 'Conta', icon: <IconUser /> }];
   return { top, mine, bottom, showCentral: !logged || has(...CENTRAL_ROLES) };
@@ -64,7 +66,15 @@ export function Layout({ children, wide }: { children: ReactNode; wide?: boolean
     if (!me?.user) return;
     get<any>('/api/notifications').then((r) => setUnread(r.items.filter((n: any) => !n.read_at).length)).catch(() => {});
   }, [me?.user, loc.pathname]);
-  useEffect(() => { window.scrollTo(0, 0); }, [loc.pathname]);
+  useEffect(() => {
+    // Âncoras (/#catalogo, /#sobre): rola até a seção depois que a página renderiza.
+    if (loc.hash) {
+      const id = decodeURIComponent(loc.hash.slice(1));
+      const t = setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+      return () => clearTimeout(t);
+    }
+    window.scrollTo(0, 0);
+  }, [loc.pathname, loc.hash]);
 
   async function onInstall() {
     if (install.prompt) { install.prompt.prompt(); await install.prompt.userChoice.catch(() => null); install.clear(); }
@@ -83,7 +93,7 @@ export function Layout({ children, wide }: { children: ReactNode; wide?: boolean
       )}
       <div className="topbar">
         <div className="topbar-inner">
-          <Link to="/" className="brand" aria-label="ONEMA SAÚDE — início"><img src="/icons/icon-192.png" alt="ONEMA SAÚDE" /></Link>
+          <Link to="/" className="brand" aria-label="ONEMA SAÚDE — início"><Logo height={44} /></Link>
           <nav className="topnav" aria-label="Navegação principal">
             {top.map((n) => <NavLink key={n.to} to={n.to} end={n.end}>{n.label}</NavLink>)}
             {mine.map((n) => <NavLink key={n.to} to={n.to} end={n.end}>{n.label}</NavLink>)}
@@ -111,6 +121,7 @@ export function Layout({ children, wide }: { children: ReactNode; wide?: boolean
         )}
         {children}
       </main>
+      <Footer />
       <nav className="bottomnav" aria-label="Navegação principal (celular)">
         {bottom.map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end}><span className="bn-icon">{n.icon}</span><span>{n.label}</span></NavLink>

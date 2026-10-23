@@ -30,6 +30,9 @@ import { SpecialistPage } from './pages/public/SpecialistPage';
 import { RequestFlow } from './pages/care/RequestFlow';
 import { MyOrdersPage, RequestDetailPage } from './pages/care/OrdersPages';
 import { CentralPage } from './pages/central/CentralPage';
+import { Splash } from './ui/Splash';
+import { InstitutionalPage } from './pages/public/InstitutionalPage';
+import { WalletPage } from './pages/care/WalletPage';
 
 function RequireAuth({ children, roles }: { children: ReactNode; roles?: Role[] }) {
   const { me, loading, error, has } = useAuth();
@@ -57,6 +60,8 @@ function RoleHome() {
 
 export default function App() {
   return (
+    <>
+    <Splash />
     <Routes>
       <Route path="/" element={<Layout><HomePage /></Layout>} />
       <Route path="/inicio" element={<RoleHome />} />
@@ -95,7 +100,10 @@ export default function App() {
       <Route path="/academy/certificados" element={<RequireAuth roles={['ESPECIALISTA']}><CertificatesPage /></RequireAuth>} />
 
       <Route path="/admin/*" element={<RequireAuth roles={['SUPORTE_ACADEMY', 'GESTOR_CONTEUDO', 'AVALIADOR_RT', 'ADMIN_ACADEMY', 'CREDENCIAMENTO', 'FINANCEIRO', 'AUDITOR', 'OPERADOR_CENTRAL', 'ADMIN_PRIME']}><AdminRoutes /></RequireAuth>} />
+      <Route path="/institucional/:slug" element={<Layout><InstitutionalPage /></Layout>} />
+      <Route path="/carteira" element={<RequireAuth roles={['PACIENTE']}><WalletPage /></RequireAuth>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </>
   );
 }

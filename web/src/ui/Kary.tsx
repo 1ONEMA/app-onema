@@ -5,9 +5,17 @@ import { IconSend, IconSpark } from './icons';
 
 interface Msg { role: 'user' | 'assistant'; text: string; links?: { label: string; to: string }[]; kind?: string; baseVersion?: string; escalation?: { label: string } }
 
+/** Abre a Kary de qualquer ponto do app (ex.: "Precisa de orientação?", "Enviar mensagem"). */
+export const openKary = () => window.dispatchEvent(new Event('kary:open'));
+
 /** Kary — assistente da plataforma (botão flutuante + painel). Conversa não é gravada no servidor. */
 export function Kary() {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const on = () => setOpen(true);
+    window.addEventListener('kary:open', on);
+    return () => window.removeEventListener('kary:open', on);
+  }, []);
   const [info, setInfo] = useState<any>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState('');
@@ -43,15 +51,15 @@ export function Kary() {
   return (
     <>
       {!open && (
-        <button className="kary-fab" onClick={() => setOpen(true)} aria-label="Falar com a Kary, assistente ONEMA">
-          <IconSpark size={22} /><span>Kary</span>
+        <button className="kary-fab" onClick={() => setOpen(true)} aria-label="Falar com a Kary, assistente virtual ONEMA">
+          <span className="kary-star" aria-hidden>✦</span><strong>KARY</strong><small>assistente virtual</small>
         </button>
       )}
       {open && (
         <div className="kary-panel" role="dialog" aria-modal="false" aria-labelledby="kary-title">
           <header className="kary-head">
             <span className="kary-avatar" aria-hidden><IconSpark size={20} /></span>
-            <div><strong id="kary-title">Kary</strong><span>Assistente ONEMA</span></div>
+            <div><strong id="kary-title">Kary</strong><span>Assistente virtual ONEMA</span></div>
             <button className="kary-close" onClick={() => setOpen(false)} aria-label="Fechar a Kary">✕</button>
           </header>
           <div className="kary-list" ref={listRef} aria-live="polite">

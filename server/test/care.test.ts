@@ -488,3 +488,22 @@ describe('Kary', () => {
     expect((await karyReply('o que tem na aula C04-A02?')).text).toContain('Preparo e chegada ao domicílio');
   });
 });
+
+describe('Carteira Digital e textos públicos', () => {
+  it('carteira mostra só registros reais do titular; termos e aviso de privacidade são públicos', async () => {
+    const c = await patient();
+    const { req } = await contract(c, 'CAT-01');
+    const w = (await c.get('/api/care/wallet')).body;
+    expect(w.upcoming).toHaveLength(1);
+    expect(w.upcoming[0].request_id).toBe(req.id);
+    expect(w.done).toHaveLength(0);
+    expect(w.clinicalDocuments.available).toBe(false);
+    expect(JSON.stringify(w)).not.toMatch(/payout|repasse/i);
+    const other = new Client(app); await other.login(emailOf('responsavel'));
+    expect((await other.get('/api/care/wallet')).body.upcoming).toHaveLength(0);
+    const anon = new Client(app);
+    expect((await anon.get('/api/public/legal/T2')).body.code).toBe('T2');
+    expect((await anon.get('/api/public/legal/T3')).status).toBe(400);
+    expect((await anon.get('/api/care/wallet')).status).toBe(401);
+  });
+});

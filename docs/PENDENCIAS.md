@@ -60,8 +60,8 @@ Nenhuma destas pendências foi preenchida por suposição. O sistema exibe a pen
 
 | # | Pendência |
 |---|---|
-| V-1 | Arquivo licenciado da fonte Swiss721 (hoje: pilha Helvetica/Arial equivalente) |
-| V-2 | Logotipo horizontal em vetor (SVG) com fundo transparente — o app usa o PNG embutido no HTML oficial e o ícone recortado do manual |
+| V-1 | ~~Fonte~~ — adotada Inter (licença OFL, hospedada no app), igual ao site de referência do cliente; Swiss721 só se a ONEMA enviar o arquivo licenciado |
+| V-2 | ~~Logotipo~~ — logotipo oficial horizontal e ícone do app enviados pelo cliente (out/2026) aplicados; versão em vetor (SVG) ainda desejável |
 | V-3 | Confirmar grafia do slogan (“ORGÂNIZADA”) no manual |
 
 ## Infraestrutura (Netlify)
