@@ -22,6 +22,11 @@ interface Ctx {
 }
 const AuthContext = createContext<Ctx>(null as any);
 
+/** Rascunhos com dados pessoais (ex.: nome, telefone e endereço da solicitação) não ficam no aparelho após sair. */
+function clearPersonalDrafts() {
+  try { sessionStorage.removeItem('onema.solicitacao.rascunho'); } catch { /* sem armazenamento */ }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [me, setMeState] = useState<Me | null>(null);
   const [status, setStatus] = useState<SystemStatus | null>(null);
@@ -44,9 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const t = setTimeout(() => { retries.current++; refresh(); }, 5000);
     return () => clearTimeout(t);
   }, [error, refresh]);
-  useEffect(() => { setUnauthorizedHandler(() => setMe({ user: null })); }, [setMe]);
+  useEffect(() => { setUnauthorizedHandler(() => { clearPersonalDrafts(); setMe({ user: null }); }); }, [setMe]);
   const logout = useCallback(async () => {
     try { await api('POST', '/api/auth/logout', {}); } catch { /* sessão já encerrada */ }
+    clearPersonalDrafts();
     setMe({ user: null });
   }, [setMe]);
   const value = useMemo<Ctx>(() => {

@@ -9,7 +9,7 @@ import { SESSION_COOKIE, isBlockedDemoStaff, needsMfa, parse, requireUser, type 
 import { AppError, badRequest, conflict, forbidden, unauthorized } from '../../lib/errors.ts';
 import { ADMIN_ROLES } from '../../lib/roles.ts';
 import {
-  DUMMY_HASH, hashPassword, newTotpSecret, rateLimit, verifyPassword, verifyTotp,
+  DUMMY_HASH, hashPassword, needsRehash, newTotpSecret, openField, rateLimit, sealField, totpStep, verifyPassword,
 } from '../../lib/security.ts';
 import { addHours, nowIso, randomToken, sha256, uid } from '../../lib/util.ts';
 
@@ -84,7 +84,8 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.post('/api/auth/login', { config: { public: true } }, async (req, reply) => {
     const body = parse(z.object({ email: emailSchema, password: z.string().min(1).max(200) }), req.body);
-    if (!await rateLimit(`login:${req.ip}:${body.email}`, config.loginRateLimit, 15 * 60_000)) {
+    if (!await rateLimit(`login:${req.ip}:${body.email}`, config.loginRateLimit, 15 * 60_000)
+      || !await rateLimit(`login-account:${body.email}`, config.loginRateLimit * 4, 15 * 60_000)) {
       throw new AppError(429, 'RATE_LIMIT', 'Muitas tentativas de acesso. Aguarde 15 minutos e tente novamente.');
     }
     const u = await one<any>('SELECT * FROM users WHERE email = ?', body.email);
@@ -93,6 +94,7 @@ export async function authRoutes(app: FastifyInstance) {
       await audit({ actorId: u?.id ?? null, action: 'LOGIN_FAILED', subjectType: 'user', subjectId: u?.id ?? null, correlationId: req.correlationId });
       throw unauthorized('E-mail ou senha incorretos.');
     }
+    if (needsRehash(u.password_hash)) await run('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', hashPassword(body.password), nowIso(), u.id);
     const roles = (await all<any>('SELECT role FROM user_roles WHERE user_id = ?', u.id)).map((r) => r.role);
     if (isBlockedDemoStaff(u.email, roles)) {
       await audit({ actorId: u.id, action: 'LOGIN_BLOCKED_DEMO_STAFF', subjectType: 'user', subjectId: u.id, correlationId: req.correlationId });
@@ -140,7 +142,8 @@ export async function authRoutes(app: FastifyInstance) {
         const r = await sendEmail({ to: u.email, subject: 'ONEMA SAÚDE · Redefinição de senha', ...m });
         await run('UPDATE outbox_messages SET status = ? WHERE id = ?', r.sent ? 'ENVIADO' : `FALHA_${r.error}`, msgId);
         if (!r.sent) req.log.warn({ correlationId: req.correlationId, error: r.error }, 'falha no envio do e-mail de redefinição');
-      } else if (!config.isProd && !config.isTest) {
+      } else if (!config.isProd && !config.isTest && !config.secureCookies) {
+        // Somente em desenvolvimento local (HTTP): nunca grava o link no log do ambiente publicado.
         req.log.warn(`[DEV] Link de redefinição (e-mail não configurado): ${config.publicOrigin}/redefinir-senha?token=${token}`);
       }
       if (config.isTest) reply.header('x-test-reset-token', token);
@@ -187,7 +190,7 @@ export async function authRoutes(app: FastifyInstance) {
     const u = await one<any>('SELECT mfa_enabled FROM users WHERE id = ?', a.userId)!;
     if (u.mfa_enabled) throw conflict('MFA_ALREADY_ENABLED', 'O segundo fator já está ativo nesta conta.');
     const secret = newTotpSecret();
-    await run('UPDATE users SET mfa_secret = ?, updated_at = ? WHERE id = ?', secret, nowIso(), a.userId);
+    await run('UPDATE users SET mfa_secret = ?, updated_at = ? WHERE id = ?', sealField(secret), nowIso(), a.userId);
     const otpauth = `otpauth://totp/${encodeURIComponent('ONEMA SAÚDE')}:${encodeURIComponent(a.email)}?secret=${secret}&issuer=${encodeURIComponent('ONEMA SAÚDE')}`;
     return { secret, otpauth, qrDataUrl: await QRCode.toDataURL(otpauth, { margin: 1, width: 220 }) };
   });
@@ -197,9 +200,10 @@ export async function authRoutes(app: FastifyInstance) {
     const { code } = parse(z.object({ code: z.string().trim() }), req.body);
     const u = await one<any>('SELECT mfa_secret, mfa_enabled FROM users WHERE id = ?', a.userId)!;
     if (u.mfa_enabled) throw conflict('MFA_ALREADY_ENABLED', 'O segundo fator já está ativo.');
-    if (!u.mfa_secret || !verifyTotp(u.mfa_secret, code)) throw badRequest('INVALID_CODE', 'Código inválido. Confira o horário do dispositivo e tente novamente.');
+    const step = u.mfa_secret ? totpStep(openField(u.mfa_secret), code) : -1;
+    if (step < 0) throw badRequest('INVALID_CODE', 'Código inválido. Confira o horário do dispositivo e tente novamente.');
     await tx(async () => {
-      await run('UPDATE users SET mfa_enabled = 1, updated_at = ? WHERE id = ?', nowIso(), a.userId);
+      await run('UPDATE users SET mfa_enabled = 1, mfa_last_step = ?, updated_at = ? WHERE id = ?', step, nowIso(), a.userId);
       await run('UPDATE sessions SET mfa_verified = 1 WHERE id_hash = ?', a.sessionHash);
       await audit({ actorId: a.userId, action: 'MFA_ENABLED', subjectType: 'user', subjectId: a.userId, correlationId: req.correlationId });
     });
@@ -211,8 +215,12 @@ export async function authRoutes(app: FastifyInstance) {
     const a = requireUser(req);
     if (!await rateLimit(`mfa:${a.userId}`, 6, 10 * 60_000)) throw new AppError(429, 'RATE_LIMIT', 'Muitas tentativas. Aguarde 10 minutos.');
     const { code } = parse(z.object({ code: z.string().trim() }), req.body);
-    const u = await one<any>('SELECT mfa_secret, mfa_enabled FROM users WHERE id = ?', a.userId)!;
-    if (!u.mfa_enabled || !verifyTotp(u.mfa_secret, code)) {
+    const u = await one<any>('SELECT mfa_secret, mfa_enabled, mfa_last_step FROM users WHERE id = ?', a.userId)!;
+    const step = u.mfa_enabled ? totpStep(openField(u.mfa_secret), code) : -1;
+    // Código já usado (mesma janela ou anterior) é recusado: impede reaproveitar um código capturado.
+    const fresh = step >= 0 && (u.mfa_last_step == null || step > Number(u.mfa_last_step))
+      && (await run('UPDATE users SET mfa_last_step = ? WHERE id = ? AND (mfa_last_step IS NULL OR mfa_last_step < ?)', step, a.userId, step)).changes > 0;
+    if (!fresh) {
       await audit({ actorId: a.userId, action: 'MFA_FAILED', subjectType: 'user', subjectId: a.userId, correlationId: req.correlationId });
       throw badRequest('INVALID_CODE', 'Código inválido.');
     }

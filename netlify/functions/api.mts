@@ -47,15 +47,10 @@ async function getApp(siteUrl: string | undefined, started: number) {
 /** Diagnóstico sem dados sensíveis: não depende da inicialização completa. */
 async function health(siteUrl: string | undefined) {
   applyDefaults(siteUrl);
-  const info: Record<string, unknown> = {
-    ok: false,
-    runtime: process.version,
-    databaseConfigured: !!(process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL),
-    databaseVariables: dbVarNames(),
-    adminBootstrapConfigured: !!(process.env.BOOTSTRAP_ADMIN_EMAIL && process.env.BOOTSTRAP_ADMIN_PASSWORD),
-    seedDemo: process.env.SEED_DEMO === 'true',
-  };
-  if (!info.databaseConfigured) return Response.json({ ...info, problem: 'DATABASE_URL não chegou à Function (cadastre em Environment variables com escopo Functions e publique de novo)' }, { status: 503 });
+  // Público: só o estado. Detalhes de configuração aparecem apenas quando há falha (para diagnóstico).
+  const info: Record<string, unknown> = { ok: false, databaseConfigured: !!(process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL) };
+  const detail = () => ({ databaseVariables: dbVarNames(), adminBootstrapConfigured: !!(process.env.BOOTSTRAP_ADMIN_EMAIL && process.env.BOOTSTRAP_ADMIN_PASSWORD) });
+  if (!info.databaseConfigured) return Response.json({ ...info, ...detail(), problem: 'DATABASE_URL não chegou à Function (cadastre em Environment variables com escopo Functions e publique de novo)' }, { status: 503 });
   try {
     const { one } = await import('../../server/src/db/db.ts');
     const t = Date.now();
@@ -65,6 +60,7 @@ async function health(siteUrl: string | undefined) {
       const v = await one<any>(`SELECT value FROM system_settings WHERE key = 'bootstrap_version'`);
       info.initialized = !!v;
       info.bootstrapVersion = v?.value ?? null;
+      if (!v) Object.assign(info, detail());
     } catch (e: any) {
       info.initialized = false;
       info.bootstrapVersion = e?.code === '42P01' ? 'banco vazio' : `erro ${e?.code ?? ''}`;
@@ -72,7 +68,7 @@ async function health(siteUrl: string | undefined) {
     info.ok = true;
     return Response.json(info, { headers: { 'Cache-Control': 'no-store' } });
   } catch (e: any) {
-    return Response.json({ ...info, problem: `falha ao conectar no banco: ${e?.code ?? ''} ${String(e?.message ?? '').slice(0, 200)}` }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
+    return Response.json({ ...info, ...detail(), problem: `falha ao conectar no banco: ${e?.code ?? ''} ${String(e?.message ?? '').slice(0, 200)}` }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
   }
 }
 

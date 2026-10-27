@@ -274,6 +274,9 @@ export async function careRoutes(app: FastifyInstance) {
   /** Ofertas só para especialista com decisão humana de credenciamento APTO (após a Academy e os demais requisitos). */
   const credentialed = async (userId: string) =>
     (await one<any>('SELECT credentialing_decision FROM partner_training_status WHERE partner_id = ?', userId))?.credentialing_decision === 'APTO';
+  // Ambiente publicado: contas de demonstração (senha pública) só atendem pedidos de pacientes de demonstração.
+  const demoOnly = (a: { email: string }) => config.blockDemoStaff && /@exemplo\.test$/i.test(a.email);
+  const DEMO_PATIENT_SQL = `AND EXISTS (SELECT 1 FROM users pu WHERE pu.id = o.patient_id AND pu.email LIKE '%@exemplo.test')`;
   const specialist = async (req: any) => {
     const a = requireRoles(req, ['ESPECIALISTA']);
     if (!(await credentialed(a.userId))) throw forbidden('Seu perfil ainda não foi credenciado pela Central ONEMA para receber ofertas.', 'NOT_CREDENTIALED');
@@ -300,7 +303,7 @@ export async function careRoutes(app: FastifyInstance) {
     const a = await specialist(req);
     const offers = await all<any>(`SELECT e.id, e.label, e.act_type, e.modality, e.unit_payout_cents, e.region, e.created_at, o.item_code, o.item_name,
         r.when_pref, r.when_date, r.materials FROM care_events e JOIN service_orders o ON o.id = e.order_id LEFT JOIN care_requests r ON r.id = o.request_id
-        WHERE e.status = 'DISPONIVEL' AND o.status = 'PAID' ORDER BY e.created_at, e.seq LIMIT 100`);
+        WHERE e.status = 'DISPONIVEL' AND o.status = 'PAID' ${demoOnly(a) ? DEMO_PATIENT_SQL : ''} ORDER BY e.created_at, e.seq LIMIT 100`);
     const mine = await all<any>(`SELECT e.id, e.label, e.modality, e.unit_payout_cents, e.region, e.status, e.accepted_at, e.completed_at, o.item_code, o.item_name,
         p.status AS payout_status, (SELECT stars FROM specialist_reviews s WHERE s.event_id = e.id) AS stars
         FROM care_events e JOIN service_orders o ON o.id = e.order_id LEFT JOIN payout_entries p ON p.event_id = e.id
@@ -313,6 +316,9 @@ export async function careRoutes(app: FastifyInstance) {
     const { id } = parse(idParam, req.params);
     return await tx(async () => {
       const now = nowIso();
+      if (demoOnly(a) && !(await one(`SELECT 1 AS ok FROM care_events e JOIN service_orders o ON o.id = e.order_id WHERE e.id = ? ${DEMO_PATIENT_SQL}`, id))) {
+        throw conflict('OFFER_UNAVAILABLE', 'Esta oferta não está mais disponível.');
+      }
       const r = await run(`UPDATE care_events SET status = 'ACEITO', specialist_id = ?, accepted_at = ?, updated_at = ? WHERE id = ? AND status = 'DISPONIVEL'`, a.userId, now, now, id);
       if (!r.changes) throw conflict('OFFER_UNAVAILABLE', 'Esta oferta não está mais disponível.');
       await run('UPDATE payout_entries SET specialist_id = ?, updated_at = ? WHERE event_id = ?', a.userId, now, id);
