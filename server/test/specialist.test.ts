@@ -39,6 +39,13 @@ describe('Candidatura ONEMA ONE', () => {
     expect(saved.status).toBe(200);
     expect(saved.body.application).toMatchObject({ status: 'RASCUNHO', cpfMasked: '***.982.247-**', missingDocuments: ['IDENTIDADE', 'COREN'] });
     expect(JSON.stringify(saved.body)).not.toContain('52998224725');
+    // CPF criptografado no banco (nem o número nem o formato aparecem); salvar de novo sem redigitar mantém o CPF
+    const stored = await one<any>(`SELECT cpf, cpf_hash FROM specialist_applications`);
+    expect(stored.cpf).toMatch(/^enc1:/);
+    expect(stored.cpf).not.toContain('52998224725');
+    expect(stored.cpf_hash).toBeTruthy();
+    const { cpf: _omit, ...noCpf } = FORM;
+    expect((await c.put('/api/specialist/application', noCpf)).body.application.cpfMasked).toBe('***.982.247-**');
     expect((await c.post('/api/specialist/application/submit')).body.error.code).toBe('DOCUMENTS_REQUIRED');
     expect((await upload(c, 'IDENTIDADE', 'text/html', Buffer.from('<html></html>'))).status).toBe(400);
     // tipo declarado mente: HTML enviado como PDF é recusado pelo conteúdo

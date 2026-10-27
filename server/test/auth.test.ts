@@ -83,9 +83,15 @@ describe('Autenticação e sessão', () => {
     const c2 = new Client(app);
     await c2.login(emailOf('auditor'));
     expect((await c2.get('/api/admin/audit')).status).toBe(403);
-    const secret = (await one<any>('SELECT mfa_secret FROM users WHERE email = ?', emailOf('auditor')))!.mfa_secret;
-    expect((await c2.post('/api/auth/mfa/verify', { code: totp(secret) })).status).toBe(200);
+    // segredo do 2FA guardado criptografado
+    expect((await one<any>('SELECT mfa_secret FROM users WHERE email = ?', emailOf('auditor')))!.mfa_secret).toMatch(/^enc1:/);
+    // o mesmo código já usado na ativação não vale de novo (anti-replay)
+    expect((await c2.post('/api/auth/mfa/verify', { code: totp(s.body.secret) })).status).toBe(400);
+    const next = totp(s.body.secret, Date.now() + 30_000);
+    expect((await c2.post('/api/auth/mfa/verify', { code: next })).status).toBe(200);
     expect((await c2.get('/api/admin/audit')).status).toBe(200);
+    const c3 = new Client(app); await c3.login(emailOf('auditor'));
+    expect((await c3.post('/api/auth/mfa/verify', { code: next })).status).toBe(400);
   });
 
   it('usuário não autenticado recebe 401 nas APIs protegidas (ACA-T001)', async () => {

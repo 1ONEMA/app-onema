@@ -517,3 +517,22 @@ describe('Carteira Digital e textos públicos', () => {
     expect((await anon.get('/api/care/wallet')).status).toBe(401);
   });
 });
+
+describe('Segurança — isolamento da demonstração no ambiente publicado', () => {
+  it('conta de especialista de demonstração não vê nem aceita pedido de paciente real', async () => {
+    const real = new Client(app);
+    expect((await real.req('POST', '/api/auth/register', { name: 'Paciente Real', email: 'paciente.real@onema-teste.com.br', password: 'SenhaSegura2026' })).status).toBe(201);
+    const { pay } = await contract(real, 'CAT-01');
+    expect(pay.body.paid).toBe(true);
+    const ev = await one<any>(`SELECT e.id FROM care_events e JOIN service_orders o ON o.id = e.order_id JOIN users u ON u.id = o.patient_id WHERE u.email = 'paciente.real@onema-teste.com.br'`);
+    const demo = new Client(app); await demo.login(emailOf('especialistaOne'));
+    config.blockDemoStaff = true;
+    try {
+      expect((await demo.get('/api/care/specialist/offers')).body.offers.map((o: any) => o.id)).not.toContain(ev.id);
+      expect((await demo.post(`/api/care/specialist/events/${ev.id}/accept`)).body.error.code).toBe('OFFER_UNAVAILABLE');
+    } finally { config.blockDemoStaff = false; }
+    // fora do ambiente publicado (ou com especialista real) o fluxo segue normal
+    expect((await demo.get('/api/care/specialist/offers')).body.offers.map((o: any) => o.id)).toContain(ev.id);
+  });
+});
+

@@ -3,7 +3,7 @@ import { buildApp } from '../src/app.ts';
 import { all, exec, newMemoryDriver, one, run, setDriver } from '../src/db/db.ts';
 import { migrate } from '../src/db/migrate.ts';
 import { DEMO_PASSWORD, DEMO_USERS, seedDemo } from '../src/db/seed.ts';
-import { resetRateLimits, totp } from '../src/lib/security.ts';
+import { openField, resetRateLimits, totp } from '../src/lib/security.ts';
 import { randomToken } from '../src/lib/util.ts';
 
 let migrated = false;
@@ -71,7 +71,10 @@ export async function loginAs(app: FastifyInstance, key: DemoKey) {
       const e = await c.post('/api/auth/mfa/enable', { code: totp(s.body.secret) });
       if (e.status !== 200) throw new Error('mfa enable failed');
     } else {
-      const v = await c.post('/api/auth/mfa/verify', { code: totp(u.mfa_secret) });
+      // Códigos não podem ser reutilizados: usa a próxima janela de 30 s ainda não usada por esta conta.
+      const last = (await one<any>('SELECT mfa_last_step FROM users WHERE email = ?', emailOf(key)))!.mfa_last_step;
+      const t = Math.max(Date.now(), (Number(last ?? 0) + 1) * 30_000);
+      const v = await c.post('/api/auth/mfa/verify', { code: totp(openField(u.mfa_secret), t) });
       if (v.status !== 200) throw new Error('mfa verify failed');
     }
   }

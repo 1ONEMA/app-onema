@@ -855,4 +855,26 @@ CREATE TABLE devotionals (
 CREATE UNIQUE INDEX uq_devotional_day ON devotionals(day_key);
 CREATE UNIQUE INDEX uq_devotional_date ON devotionals(publish_date);
 ` },
+  { name: '009_security_hardening', sql: `
+-- 009: Defesa em profundidade (auditoria de segurança out/2026).
+-- Funções de gatilho com search_path fixo (aviso 0011 do Supabase).
+ALTER FUNCTION onema_forbid() SET search_path = pg_catalog, pg_temp;
+ALTER FUNCTION onema_cert_immutable() SET search_path = pg_catalog, pg_temp;
+-- RLS ligado em todas as tabelas do app, sem políticas: o papel dono (servidor da aplicação) segue operando;
+-- qualquer outro papel do banco (ex.: anon/authenticated da API pública do Supabase) fica negado por padrão.
+DO $rls$
+DECLARE t record;
+BEGIN
+  FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = current_schema() LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t.tablename);
+  END LOOP;
+END $rls$;
+` },
+  { name: '010_cpf_criptografado', sql: `
+-- 010: CPF da candidatura criptografado (AES-256-GCM) + hash para unicidade sem expor o número.
+ALTER TABLE specialist_applications ADD COLUMN cpf_hash TEXT;
+CREATE INDEX ix_specialist_application_cpf_hash ON specialist_applications(cpf_hash);
+-- Último passo TOTP aceito (impede reutilizar o mesmo código de 2 fatores).
+ALTER TABLE users ADD COLUMN mfa_last_step INTEGER;
+` },
 ];

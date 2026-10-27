@@ -14,6 +14,7 @@ import { audit } from '../../lib/audit.ts';
 import { parse, requireRoles, requireUser } from '../../lib/context.ts';
 import { badRequest, conflict, forbidden, notFound, unprocessable } from '../../lib/errors.ts';
 import { deleteObjects, getObject, putObject } from '../../lib/storage.ts';
+import { lookupHash, openField, sealField } from '../../lib/security.ts';
 import { nowIso, sha256, uid } from '../../lib/util.ts';
 import { notify } from '../prime/core.ts';
 
@@ -45,7 +46,8 @@ const maskCpf = (cpf: string) => `***.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-**`;
 
 const appSchema = z.object({
   fullName: z.string().trim().min(5, 'Informe o nome completo.').max(150),
-  cpf: z.string().trim().refine(validCpf, 'CPF inválido.').transform((v) => v.replace(/\D/g, '')),
+  // Opcional ao atualizar: em branco mantém o CPF já salvo (a tela não reexibe o número completo).
+  cpf: z.string().trim().refine(validCpf, 'CPF inválido.').transform((v) => v.replace(/\D/g, '')).optional(),
   corenNumber: z.string().trim().regex(/^[0-9]{3,9}(-?[A-Z]{2,4})?$/i, 'Informe o número do COREN (somente números, com a categoria se houver).'),
   corenUf: z.enum(UFS),
   phone: z.string().trim().regex(/^[0-9()+\-\s]{10,20}$/, 'Informe um telefone com DDD.'),
@@ -60,7 +62,7 @@ async function docsOf(appId: string) {
 }
 function ownView(a: any, docs: any[]) {
   return {
-    id: a.id, status: a.status, fullName: a.full_name, cpfMasked: maskCpf(a.cpf), corenNumber: a.coren_number, corenUf: a.coren_uf, phone: a.phone,
+    id: a.id, status: a.status, fullName: a.full_name, cpfMasked: maskCpf(openField(a.cpf)), corenNumber: a.coren_number, corenUf: a.coren_uf, phone: a.phone,
     regions: a.regions, needs: JSON.parse(a.needs_json), availability: a.availability, submittedAt: a.submitted_at, decisionNote: a.decision_note,
     decidedAt: a.decided_at, documents: docs, missingDocuments: (['IDENTIDADE', 'COREN'] as const).filter((k) => !docs.some((d) => d.kind === k)),
   };
@@ -81,15 +83,18 @@ export async function specialistRoutes(app: FastifyInstance) {
       const now = nowIso();
       const cur = await one<any>('SELECT * FROM specialist_applications WHERE user_id = ? FOR UPDATE', a.userId);
       if (cur && !EDITABLE.includes(cur.status)) throw conflict('APPLICATION_LOCKED', 'Sua candidatura já foi enviada e está em análise pela Central ONEMA.');
-      if (await one(`SELECT 1 FROM specialist_applications WHERE cpf = ? AND user_id <> ? AND status <> 'RECUSADA'`, b.cpf, a.userId)) {
+      const cpf = b.cpf ?? (cur ? openField(cur.cpf) : undefined);
+      if (!cpf) throw badRequest('VALIDATION', 'Dados inválidos. Revise os campos destacados.', [{ path: 'cpf', message: 'Informe o CPF.' }]);
+      const cpfHash = lookupHash('cpf', cpf);
+      if (await one(`SELECT 1 FROM specialist_applications WHERE (cpf_hash = ? OR cpf = ?) AND user_id <> ? AND status <> 'RECUSADA'`, cpfHash, cpf, a.userId)) {
         throw conflict('CPF_IN_USE', 'Já existe uma candidatura com este CPF. Fale com a Central ONEMA.');
       }
       if (cur) {
-        await run(`UPDATE specialist_applications SET full_name = ?, cpf = ?, coren_number = ?, coren_uf = ?, phone = ?, regions = ?, needs_json = ?, availability = ?, updated_at = ? WHERE id = ?`,
-          b.fullName, b.cpf, b.corenNumber.toUpperCase(), b.corenUf, b.phone, b.regions, JSON.stringify(b.needs), b.availability, now, cur.id);
+        await run(`UPDATE specialist_applications SET full_name = ?, cpf = ?, cpf_hash = ?, coren_number = ?, coren_uf = ?, phone = ?, regions = ?, needs_json = ?, availability = ?, updated_at = ? WHERE id = ?`,
+          b.fullName, sealField(cpf), cpfHash, b.corenNumber.toUpperCase(), b.corenUf, b.phone, b.regions, JSON.stringify(b.needs), b.availability, now, cur.id);
       } else {
-        await run(`INSERT INTO specialist_applications (id, user_id, full_name, cpf, coren_number, coren_uf, phone, regions, needs_json, availability, status, created_at, updated_at)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, uid(), a.userId, b.fullName, b.cpf, b.corenNumber.toUpperCase(), b.corenUf, b.phone, b.regions, JSON.stringify(b.needs),
+        await run(`INSERT INTO specialist_applications (id, user_id, full_name, cpf, cpf_hash, coren_number, coren_uf, phone, regions, needs_json, availability, status, created_at, updated_at)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, uid(), a.userId, b.fullName, sealField(cpf), cpfHash, b.corenNumber.toUpperCase(), b.corenUf, b.phone, b.regions, JSON.stringify(b.needs),
           b.availability, 'RASCUNHO', now, now);
       }
       await audit({ actorId: a.userId, action: 'SPECIALIST_APPLICATION_SAVED', subjectType: 'specialist_application', subjectId: a.userId, correlationId: req.correlationId });
@@ -113,6 +118,7 @@ export async function specialistRoutes(app: FastifyInstance) {
     const { kind } = parse(z.object({ kind: z.enum(DOC_KINDS) }), fields);
     if (!file || !file.buf.length) throw badRequest('FILE_REQUIRED', 'Selecione um arquivo.');
     if (file.buf.length > MAX_DOC_BYTES) throw badRequest('FILE_TOO_LARGE', 'O arquivo deve ter no máximo 5 MB.');
+    if ((await docsOf(row.id)).length >= 10) throw unprocessable('TOO_MANY_DOCUMENTS', 'Limite de 10 documentos por candidatura. Remova um arquivo antes de enviar outro.');
     const mime = sniffDocMime(file.buf);
     if (!mime) throw badRequest('FILE_TYPE', 'Envie PDF, JPG, PNG ou WEBP.');
     file.mime = mime;
@@ -163,7 +169,7 @@ export async function specialistRoutes(app: FastifyInstance) {
     const out = [];
     for (const r of rows) {
       out.push({
-        id: r.id, userId: r.user_id, email: r.email, status: r.status, fullName: r.full_name, cpf: fullCpf ? r.cpf : maskCpf(r.cpf),
+        id: r.id, userId: r.user_id, email: r.email, status: r.status, fullName: r.full_name, cpf: fullCpf ? openField(r.cpf) : maskCpf(openField(r.cpf)),
         corenNumber: r.coren_number, corenUf: r.coren_uf, phone: r.phone, regions: r.regions, needs: JSON.parse(r.needs_json), availability: r.availability,
         submittedAt: r.submitted_at, decisionNote: r.decision_note, decidedAt: r.decided_at, documents: await docsOf(r.id),
       });
