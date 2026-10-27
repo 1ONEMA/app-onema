@@ -16,38 +16,50 @@ test('paciente, especialista e Central: jornada completa com evidências', async
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /Sua saúde não\s*precisa esperar/ })).toBeVisible();
   await expect(page.getByText('Café com a ONEMA')).toBeVisible();
+  // Adendo v7: só "Ler mensagem"/"Recolher mensagem"; sem "Ocultar por hoje", "Não mostrar mais" ou "Fechar mensagem"
+  await expect(page.getByText(/Ocultar por hoje|Não mostrar mais|Fechar mensagem/)).toHaveCount(0);
   await page.getByRole('button', { name: /Ler mensagem/ }).click();
   await expect(page.getByText('A Ele toda honra e toda glória.')).toBeVisible();
   await shot(page, 'evid-01-inicio', p);
+  await page.getByRole('button', { name: /Recolher mensagem/ }).click();
+  await expect(page.getByText('A Ele toda honra e toda glória.')).toBeHidden();
+  // Catálogo público: "Saiba mais →" em todos os cards e nenhuma cifra
+  await expect(page.locator('#catalogo').getByRole('link', { name: /Saiba mais sobre/ })).toHaveCount(8);
+  await expect(page.getByText('Saber mais')).toHaveCount(0);
+  expect(await page.locator('main').innerText()).not.toMatch(/R\$/);
 
   // Kary
   await page.getByRole('button', { name: /Falar com a Kary/ }).click();
   await page.getByLabel('Mensagem para a Kary').fill('Quanto custa curativo simples?');
   await page.getByRole('button', { name: 'Enviar', exact: true }).click();
-  await expect(page.getByText(/Curativo simples: R\$\s309,90/)).toBeVisible();
+  await expect(page.getByText(/Os valores são apresentados na solicitação, depois do seu cadastro/)).toBeVisible();
   await page.getByLabel('Mensagem para a Kary').fill('minha mãe está com falta de ar');
   await page.getByRole('button', { name: 'Enviar', exact: true }).click();
   await expect(page.getByText(/Ligue agora para o SAMU 192/)).toBeVisible();
   await shot(page, 'evid-02-kary', p);
   await page.getByRole('button', { name: 'Fechar a Kary' }).click();
 
-  // Paciente: necessidade → atendimento → materiais → valores (sem login)
-  await page.getByRole('link', { name: /Preciso de cuidado/ }).click();
-  await page.getByRole('button', { name: /Pós-alta Hospitalar/ }).click();
-  await page.getByText('Pós-Alta 14 dias', { exact: true }).click();
-  await shot(page, 'evid-03-atendimento', p);
-  await page.getByRole('button', { name: /Continuar/ }).click();
-  await page.getByText('Sim, tenho os materiais').click();
-  await page.getByRole('button', { name: /Ver valores do atendimento/ }).click();
-  await expect(page.getByText('R$ 729,90').first()).toBeVisible();
-  await expect(page.getByText('R$ 709,90')).toBeVisible(); // exemplo com PRIME
-  await shot(page, 'evid-04-valores-visitante', p);
-  await page.getByRole('button', { name: /Continuar/ }).click();
+  // Saiba mais → detalhe do serviço sem valores
+  await page.locator('#catalogo').getByRole('link', { name: 'Saiba mais sobre Pós-alta Hospitalar' }).click();
+  await expect(page.getByRole('heading', { name: 'Pós-alta Hospitalar' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Orientações' })).toBeVisible();
+  expect(await page.locator('main').innerText()).not.toMatch(/R\$/);
+  await shot(page, 'evid-03-saiba-mais', p);
+  // Ordem aprovada: cadastro/autenticação → necessidade → materiais → orçamento
+  await page.getByRole('link', { name: /Solicitar este cuidado/ }).click();
+  await expect(page.getByRole('heading', { name: 'Entre ou crie sua conta para começar' })).toBeVisible();
   await page.getByRole('link', { name: 'Entrar' }).last().click();
   await page.getByLabel('E-mail').fill(p === 'mobile' ? 'responsavel.demo@exemplo.test' : 'paciente.demo@exemplo.test');
   await page.getByLabel('Senha').fill('Onema-Demo-2026');
   await page.getByRole('button', { name: 'Entrar' }).click();
   await expect(page).toHaveURL(/\/solicitar/);
+  await page.getByText('Pós-Alta 14 dias', { exact: true }).click();
+  await page.getByRole('button', { name: /Continuar/ }).click();
+  await page.getByText('Sim, tenho os materiais').click();
+  await page.getByRole('button', { name: /Ver valores do atendimento/ }).click();
+  await expect(page.getByText('R$ 729,90').first()).toBeVisible();
+  await shot(page, 'evid-04-valores-paciente', p);
+  await page.getByRole('button', { name: /Continuar/ }).click();
   await expect(page.getByRole('heading', { name: 'Onde e quando?' })).toBeVisible();
   await page.getByLabel('Nome do paciente').fill('Maria Fictícia');
   await page.getByLabel('Telefone').fill('(11) 99999-9999');

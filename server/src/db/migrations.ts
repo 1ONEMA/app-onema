@@ -838,4 +838,21 @@ CREATE TABLE specialist_documents (
   created_at TEXT NOT NULL
 );
 ` },
+  { name: '008_cafe_devocional', sql: `
+-- 008: Café com a ONEMA — devocional diário. Biblioteca anual (day_key MM-DD) + publicações por data (publish_date).
+CREATE TABLE devotionals (
+  id TEXT PRIMARY KEY,
+  day_key TEXT,
+  publish_date TEXT,
+  ref TEXT NOT NULL,
+  verse TEXT NOT NULL,
+  reflection TEXT NOT NULL,
+  created_by TEXT REFERENCES users(id),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  CHECK ((day_key IS NULL) <> (publish_date IS NULL))
+);
+CREATE UNIQUE INDEX uq_devotional_day ON devotionals(day_key);
+CREATE UNIQUE INDEX uq_devotional_date ON devotionals(publish_date);
+` },
 ];

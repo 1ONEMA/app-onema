@@ -7,6 +7,7 @@ import { all, one, run, tx } from './db/db.ts';
 import { migrate, pendingMigrations } from './db/migrate.ts';
 import { seedDemo, seedOfficial } from './db/seed.ts';
 import { seedPricingV1 } from './modules/care/catalog.ts';
+import { seedCafeLibrary } from './modules/cafe/routes.ts';
 import { MIGRATIONS } from './db/migrations.ts';
 import { ROLES, type Role } from './lib/roles.ts';
 import { hashPassword } from './lib/security.ts';
@@ -71,6 +72,8 @@ async function runInit(opts: ReadyOptions): Promise<string[]> {
       const r = await seedPricingV1();
       log(`precificação oficial v1 carregada (${r.created} registros)`);
     }
+    // Café com a ONEMA: biblioteca anual em bancos inicializados antes do devocional diário.
+    if (!(await one("SELECT 1 AS ok FROM devotionals WHERE day_key = '12-31'"))) log(`Café com a ONEMA: ${await seedCafeLibrary()} devocionais carregados`);
     await loadSecrets(settings);
     await bootstrapAdmin();
     log('caminho rápido concluído');

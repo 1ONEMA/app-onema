@@ -6,6 +6,7 @@ import { MediaPage, CertAdminPage } from './Media';
 import { CredentialingPage, SupportPage, ReportsPage } from './AcademyOps';
 import { FinancePage, SharesAdminPage, PrimeAdminPage } from './PrimeOps';
 import { UsersPage, AuditPage, BackupsPage } from './System';
+import { CafeAdminPage } from './CafeAdmin';
 import { useApi } from '../../lib/hooks';
 import { dateTime } from '../../lib/format';
 
@@ -19,6 +20,7 @@ export const SECTIONS: { to: string; label: string; roles: Role[]; desc: string 
   { to: 'financeiro', label: 'Financeiro', roles: ['FINANCEIRO', 'ADMIN_ACADEMY', 'AUDITOR'], desc: 'Pedidos, cobranças, estornos (sandbox).' },
   { to: 'responsaveis', label: 'Verificação de responsáveis', roles: ['OPERADOR_CENTRAL', 'AUDITOR'], desc: 'Verificar autorização antes de liberar acesso.' },
   { to: 'prime', label: 'PRIME', roles: ['ADMIN_PRIME', 'FINANCEIRO', 'AUDITOR'], desc: 'Parâmetros, catálogo, fornecedor, textos e gates.' },
+  { to: 'cafe', label: 'Café com a ONEMA', roles: ['GESTOR_CONTEUDO', 'ADMIN_PRIME', 'ADMIN_ACADEMY', 'AUDITOR'], desc: 'Devocional diário: biblioteca anual e publicações por data.' },
   { to: 'usuarios', label: 'Usuários e perfis', roles: ['ADMIN_ACADEMY', 'ADMIN_PRIME', 'AUDITOR'], desc: 'Contas administrativas, especialistas e elegibilidade.' },
   { to: 'backups', label: 'Backups', roles: ['ADMIN_ACADEMY', 'ADMIN_PRIME'], desc: 'Cópias diárias do banco, backup manual e download.' },
   { to: 'auditoria', label: 'Auditoria', roles: ['AUDITOR', 'ADMIN_ACADEMY', 'ADMIN_PRIME'], desc: 'Trilha append-only de eventos.' },
@@ -48,6 +50,7 @@ export function AdminRoutes() {
         <Route path="financeiro" element={<FinancePage />} />
         <Route path="responsaveis" element={<SharesAdminPage />} />
         <Route path="prime" element={<PrimeAdminPage />} />
+        <Route path="cafe" element={<CafeAdminPage />} />
         <Route path="usuarios" element={<UsersPage />} />
         <Route path="auditoria" element={<AuditPage />} />
         <Route path="backups" element={<BackupsPage />} />

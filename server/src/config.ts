@@ -49,6 +49,11 @@ export const config = {
   shareInviteTtlDays: Number(process.env.SHARE_INVITE_TTL_DAYS ?? 7),
   passwordResetTtlMinutes: 30,
   /** Tentativas de login por IP+e-mail em 15 min (padrão 8). Ajuste apenas em ambiente de teste automatizado. */
+  /**
+   * Contas de demonstração da EQUIPE (e-mail @exemplo.test com perfil administrativo) usam senha pública:
+   * no ambiente publicado (HTTPS) ficam bloqueadas, salvo ALLOW_DEMO_STAFF_LOGIN=true.
+   */
+  blockDemoStaff: (isProd || (process.env.PUBLIC_ORIGIN ?? process.env.URL ?? '').startsWith('https://')) && !bool(process.env.ALLOW_DEMO_STAFF_LOGIN, false),
   loginRateLimit: process.env.APP_ENV === 'production' ? 8 : Number(process.env.LOGIN_RATE_LIMIT ?? 8),
 };
 

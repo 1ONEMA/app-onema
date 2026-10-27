@@ -308,18 +308,25 @@ main.page { max-width: 1180px; }
 @media (max-width: 640px) { .proto-banner { padding: 12px 14px; } .proto-banner p { font-size: 13px; } .proto-rt { max-width: 92px; } }
 
 /* Café com a ONEMA */
-.cafe { display: flex; gap: 14px; align-items: flex-start; background: rgba(255,255,255,.75); border: 1px solid #CDEFE8; border-radius: 18px; padding: 14px 18px; margin-bottom: 18px; box-shadow: var(--shadow); }
-.cafe-icon { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 14px; background: var(--deep); color: #fff; flex: 0 0 auto; }
-.cafe-body { min-width: 0; flex: 1; }
-.cafe-kicker { font-size: 11.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--deep); }
-.cafe-title { font-size: 22px; margin: 2px 0 2px; }
-.cafe-line { margin: 0; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cafe-toggle { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 6px 0 0; font: inherit; font-weight: 750; color: var(--deep); font-size: 16px; cursor: pointer; }
-.cafe-toggle .rot { transform: rotate(180deg); display: inline-flex; }
-.cafe-full blockquote { margin: 6px 0 8px; font-size: 18px; color: var(--deep); line-height: 1.45; }
-.cafe-full cite { display: block; margin-top: 4px; font-size: 14px; font-style: normal; color: var(--green-text); font-weight: 700; }
-.cafe-sign { font-style: italic; color: var(--muted); font-size: 14px; }
-.cafe-restore { text-align: right; margin: -6px 0 10px; font-size: 13px; }
+.cafe { max-width: 960px; margin: 0 auto 18px; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; box-shadow: 0 4px 16px rgba(10, 46, 125, .06); }
+.cafe-kicker { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #006E5E; margin: 0 0 8px; line-height: 1.4; }
+.cafe-head { display: flex; gap: 12px; align-items: flex-start; }
+.cafe-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 10px; background: var(--deep); color: #fff; flex: 0 0 auto; }
+.cafe-head-text { min-width: 0; flex: 1; }
+.cafe-title { font-size: 19px; font-weight: 650; line-height: 1.25; color: var(--deep); margin: 0 0 4px; }
+.cafe-line { margin: 0; font-size: 15px; line-height: 1.5; color: var(--ink); }
+.cafe-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; min-width: 44px; margin: 2px 0 -6px 54px; padding: 0; border: 0; background: none; font: inherit; font-size: 14px; font-weight: 600; color: var(--deep); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.cafe-toggle .rot { transform: rotate(180deg); }
+.cafe-toggle span { display: inline-flex; }
+.cafe-full { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 12px; }
+.cafe-full[hidden] { display: none; }
+.cafe-ref { font-size: 16px; font-weight: 600; color: var(--ink); margin: 0 0 6px; }
+.cafe-text { font-size: 16px; font-weight: 400; line-height: 1.55; color: var(--ink); margin: 0 0 8px; }
+.cafe-sign { font-style: italic; color: var(--muted); font-size: 15px; margin: 0; }
+@media (min-width: 720px) {
+  .cafe { padding: 18px 20px; border-radius: 16px; }
+  .cafe-title { font-size: 21px; }
+}
 
 /* Hero grande (azul) */
 .hero-big { position: relative; overflow: hidden; background: var(--deep); color: #fff; border-radius: 28px; padding: 40px 28px 34px; margin-bottom: 26px; }
@@ -515,12 +522,18 @@ h3 { font-weight: 600; letter-spacing: -0.01em; }
 
 /* Catálogo */
 .note-bar { border-left: 4px solid var(--teal); background: #EEF5F8; border-radius: 0 14px 14px 0; padding: 16px 20px; color: #3D4C60; margin: 20px 0; }
-.catalog-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
-@media (min-width: 820px) { .catalog-grid { grid-template-columns: 1fr 1fr; } }
-.catalog-card { display: grid; grid-template-columns: 72px 1fr; gap: 22px; background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 26px 26px 30px; box-shadow: var(--shadow); }
-.catalog-card h3 { font-size: 20px; font-weight: 450; color: var(--deep); margin: 4px 0 10px; }
-.catalog-card p { color: var(--muted); font-size: 15px; line-height: 1.6; }
-.price-from { font-size: 13px !important; font-weight: 700; color: var(--teal-ink) !important; margin: 0 0 14px !important; }
+.catalog-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 720px) { .catalog-grid { grid-template-columns: 1fr 1fr; gap: 18px; } }
+@media (min-width: 1120px) { .catalog-grid { grid-template-columns: 1fr 1fr 1fr; } }
+.catalog-card { display: grid; grid-template-columns: 56px 1fr; gap: 18px; align-items: start; background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 22px; box-shadow: var(--shadow); }
+.catalog-card .tile-icon { width: 56px; height: 56px; border-radius: 14px; }
+.catalog-card .tile-icon svg { width: 28px; height: 28px; }
+.catalog-card > div { display: flex; flex-direction: column; height: 100%; }
+.catalog-card h3 { font-size: 21px; font-weight: 550; line-height: 1.25; color: var(--deep); margin: 2px 0 8px; }
+.catalog-card p { color: var(--muted); font-size: 15.5px; line-height: 1.5; margin: 0 0 14px; }
+.catalog-card .cta { margin-top: auto; display: inline-flex; align-items: center; min-height: 44px; font-size: 17px; font-weight: 600; color: var(--teal-ink); text-decoration: none; }
+.catalog-card .cta:hover { text-decoration: underline; }
+.home .cafe { margin-top: 18px; }
 .info-box { margin-top: 28px; background: linear-gradient(180deg, #FAFCFE, #EEF6F5); border: 1px solid var(--line); border-radius: 22px; padding: 26px 30px; }
 .info-box h3 { font-weight: 450; font-size: 19px; color: var(--deep); }
 .info-box p { font-size: 13.5px; color: #3D4C60; margin: 6px 0; }
@@ -704,3 +717,35 @@ h3 { font-weight: 600; letter-spacing: -0.01em; }
 .field-legend { font-weight: 600; margin-bottom: 6px; padding: 0; }
 .upload-btn { display: inline-flex; cursor: pointer; position: relative; }
 .upload-btn:focus-within { outline: 3px solid var(--focus, #0A5BD8); outline-offset: 2px; }
+
+/* Saiba mais (detalhe do serviço) */
+.service-head { display: grid; grid-template-columns: 64px 1fr; gap: 18px; align-items: start; margin-bottom: 18px; }
+.service-head .display-light { font-size: clamp(28px, 4vw, 40px); }
+.service-offers { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+.service-offers > li { display: grid; gap: 6px; padding: 14px 0; border-top: 1px solid var(--line); }
+.service-offers > li:first-child { border-top: 0; padding-top: 0; }
+.back-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 600; text-decoration: none; }
+@media (min-width: 600px) { .steps.steps-detailed { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 960px) { .steps.steps-detailed { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 959px) { .auth-main { padding-bottom: 120px; } }
+
+/* Telas estreitas (320–430 px): nada corta nem gera rolagem lateral */
+.wallet-band > *, .lifescore > *, .ls-body > *, .catalog-card > * { min-width: 0; }
+.phone { max-width: 100%; }
+.ls-top { flex-wrap: wrap; }
+@media (max-width: 420px) {
+  .wallet-band, .lifescore { padding-left: 16px; padding-right: 16px; }
+  .checks { grid-template-columns: 1fr; }
+  .ls-card { padding: 16px; }
+}
+.ls-foot > * { min-width: 0; overflow-wrap: anywhere; }
+.phone { width: min(290px, 100%); }
+@media (max-width: 420px) { .ls-foot { grid-template-columns: 1fr; } .wallet-band { padding-left: 12px; padding-right: 12px; } }
+.pill-cards > * { min-width: 0; } @media (max-width: 420px) { .pill-cards { gap: 10px; } .pill-cards span { padding: 20px 8px; font-size: 14px; } }
+/* Kary compacta enquanto o Café aberto está na tela (celular/tablet) */
+@media (max-width: 959px) {
+  .kary-fab.compact { width: 48px; height: 48px; border-width: 2px; }
+  .kary-fab.compact strong, .kary-fab.compact small { display: none; }
+  .cafe-full { padding-right: 40px; }
+}
+.kary-fab { transition: width .2s, height .2s; }

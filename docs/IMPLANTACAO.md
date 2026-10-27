@@ -31,6 +31,7 @@ A inicialização do banco (migrations, seed oficial, segredos internos gerados 
 | `BOOTSTRAP_ADMIN_PASSWORD` | sim (1º acesso) | senha (≥ 10 caracteres, letras e números). Só é usada se a conta ainda não existir |
 | `BOOTSTRAP_ADMIN_NAME` | não | nome exibido |
 | `BOOTSTRAP_ADMIN_ROLES` | não | padrão `ADMIN_ACADEMY,ADMIN_PRIME` |
+| `ALLOW_DEMO_STAFF_LOGIN` | não | padrão desligado: no ambiente publicado (HTTPS) as contas **de equipe** de demonstração (`*@exemplo.test` com perfil administrativo, senha pública) ficam bloqueadas. Ligue só em ambiente fechado de testes |
 | `SEED_DEMO` | não | `true` para criar as contas e dados **fictícios** de demonstração (bloqueado quando `APP_ENV=production`) |
 | `APP_ENV` | não | padrão `homologacao` (exibe o aviso de ambiente de testes) |
 | `APP_SECRET`, `PAYMENT_WEBHOOK_SECRET` | não | se ausentes, são gerados aleatoriamente e guardados no banco |

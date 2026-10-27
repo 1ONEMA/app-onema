@@ -35,3 +35,11 @@ Link “pular para o conteúdo”, foco visível, rótulos associados (ajuda via
 - Logotipo oficial horizontal (`/icons/logo-onema-saude.png`) no cabeçalho, login e rodapé; ícone oficial do app (quadrado azul com o S) em todos os tamanhos do PWA, incluindo maskable e apple-touch.
 - Abertura animada (`web/src/ui/Splash.tsx`) reproduz o vídeo do cliente: traço fino → contorno duplo → preenchimento azul/verde → ícone. Uma vez por sessão, toque para pular, versão curta com "reduzir movimento".
 - Página inicial no modelo do site: catálogo com "Saber mais →", informações importantes, Carteira Digital com celular ilustrativo, recursos, Life Score (exemplo ilustrativo), como funciona, sobre nós, ONEMA PRIME e rodapé institucional; Kary como botão redondo "assistente virtual".
+
+## Adendo v7 (out/2026) — Café com a ONEMA e Catálogo
+- Café: ver `docs/CAFE_COM_A_ONEMA.md`.
+- Catálogo público: 8 serviços com ícone oficial em bloco azul (56 px), título 21 px/550, descrição 15,5 px/1,5 e CTA **“Saiba mais →”** 17 px/600 (toque ≥ 44 px). Uma coluna no celular (espaço 16 px, padding 22 px); 2 colunas a partir de 720 px e 3 a partir de 1120 px.
+- **Nenhuma cifra em páginas públicas**: catálogo, “Saiba mais” (`/cuidados/:serviço`), faixa PRIME, Plataforma e Kary não mostram valores. O servidor também não envia preços sem login (`/api/care/needs` sem valores; `/api/care/price` só para paciente autenticado).
+- Ordem da solicitação: cadastro/entrada → necessidade → atendimento → materiais → valores/orçamento → onde e quando → revisão → pagamento.
+- Área do especialista: banner e os quatro cards preservados; “Como funciona” substituído pelo fluxo detalhado de 11 etapas (conta → candidatura → documentos → análise → Academy → jornada → avaliações → certificado → credenciamento final → ofertas → atendimento e repasse).
+- Sem rolagem lateral em 320, 360, 390, 430, 768 e 1366 px (verificado por teste automatizado).

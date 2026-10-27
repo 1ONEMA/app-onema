@@ -40,10 +40,12 @@ describe('Candidatura ONEMA ONE', () => {
     expect(saved.body.application).toMatchObject({ status: 'RASCUNHO', cpfMasked: '***.982.247-**', missingDocuments: ['IDENTIDADE', 'COREN'] });
     expect(JSON.stringify(saved.body)).not.toContain('52998224725');
     expect((await c.post('/api/specialist/application/submit')).body.error.code).toBe('DOCUMENTS_REQUIRED');
-    expect((await upload(c, 'IDENTIDADE', 'text/html')).status).toBe(400);
+    expect((await upload(c, 'IDENTIDADE', 'text/html', Buffer.from('<html></html>'))).status).toBe(400);
+    // tipo declarado mente: HTML enviado como PDF é recusado pelo conteúdo
+    expect((await upload(c, 'IDENTIDADE', 'application/pdf', Buffer.from('<html><script>alert(1)</script></html>'))).body.error.code).toBe('FILE_TYPE');
     expect([400, 413]).toContain((await upload(c, 'IDENTIDADE', 'application/pdf', Buffer.alloc(5 * 1024 * 1024 + 10))).status);
     expect((await upload(c, 'IDENTIDADE')).status).toBe(200);
-    expect((await upload(c, 'COREN', 'image/png', Buffer.from([0x89, 0x50, 0x4e, 0x47]))).body.application.missingDocuments).toEqual([]);
+    expect((await upload(c, 'COREN', 'image/png', Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]))).body.application.missingDocuments).toEqual([]);
     const sent = await c.post('/api/specialist/application/submit');
     expect(sent.body.application.status).toBe('ENVIADA');
     expect((await c.put('/api/specialist/application', FORM)).status).toBe(409); // bloqueada durante a análise
@@ -61,6 +63,7 @@ describe('Candidatura ONEMA ONE', () => {
     expect(app1.cpf).toBe('52998224725');
     const doc = await cred.req('GET', `/api/admin/specialist-applications/${app1.id}/documents/${app1.documents[0].id}`);
     expect(doc.status).toBe(200);
+    expect(String(doc.headers['content-security-policy'])).toContain('sandbox');
     expect((await one<any>(`SELECT COUNT(*) AS n FROM audit_events WHERE action = 'SPECIALIST_DOCUMENT_VIEWED'`)).n).toBe(1);
     expect((await cred.post(`/api/admin/specialist-applications/${app1.id}/decision`, { decision: 'APROVADA', note: 'Documentos conferidos.', identityAndCorenVerified: false })).body.error.code).toBe('VERIFICATION_REQUIRED');
     // pendência → candidata ajusta e reenvia → aprovação

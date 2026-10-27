@@ -64,7 +64,9 @@ async function ownRequest(id: string, userId: string) {
 }
 
 export async function careRoutes(app: FastifyInstance) {
-  // ---------- Informativo (público): necessidades e ofertas sem repasses ----------
+  // ---------- Informativo (público): necessidades e ofertas SEM valores ----------
+  // Regra comercial (Adendo v7): nenhuma cifra em páginas públicas. Preço só na etapa autorizada,
+  // depois do cadastro e da qualificação da solicitação (/api/care/price exige paciente autenticado).
   app.get('/api/care/needs', async () => {
     const now = nowIso();
     const items = await all<any>('SELECT * FROM catalog_items WHERE active = 1 AND need IS NOT NULL ORDER BY sort_order, code');
@@ -73,7 +75,7 @@ export async function careRoutes(app: FastifyInstance) {
     for (const item of items) {
       const v = await currentVersion(item.id, now);
       if (!v) continue;
-      const o = publicOffer({ item, version: v });
+      const { priceCents: _p, primeEligible: _e, ...o } = publicOffer({ item, version: v });
       // CAT-08 e PAC-05: uma única oferta comercial mostrada uma vez, com os dois códigos.
       const prev = seenCanonical.get(o.canonicalCode);
       if (prev) { prev.alsoCodes.push(o.code); continue; }
@@ -81,27 +83,23 @@ export async function careRoutes(app: FastifyInstance) {
       seenCanonical.set(o.canonicalCode, entry);
       offers.push(entry);
     }
-    const params = await one<any>('SELECT monthly_price_cents, discount_bps, discount_cap_cents FROM prime_parameters ORDER BY version DESC LIMIT 1');
     return {
       needs: NEEDS.map((n) => ({ ...n, offers: offers.filter((o) => o.need === n.key) })),
-      prime: params ? { monthlyPriceCents: params.monthly_price_cents, discountBps: params.discount_bps, capCents: params.discount_cap_cents } : null,
       intro: 'Informe sua necessidade, escolha o atendimento e indique os materiais disponíveis. Em seguida, você verá os valores do atendimento e poderá revisar o escopo, a logística e o orçamento completo. Preencher esta solicitação não obriga você a contratar nem autoriza cobrança.',
     };
   });
 
   /** Etapa "Valores do atendimento": preço aprovado + desconto PRIME aplicável (logo após materiais). */
   app.get('/api/care/price', async (req) => {
+    const a = patient(req);
     const { itemCode } = parse(z.object({ itemCode: z.string().min(2).max(40) }), req.query);
     const offer = await offerByCode(itemCode);
     if (!offer || !offer.item.active) throw notFound('Atendimento não disponível no catálogo.');
     const params = (await one<any>('SELECT * FROM prime_parameters ORDER BY version DESC LIMIT 1'))!;
     const pub = publicOffer(offer);
     const hypothetical = Math.min(Math.floor((pub.priceCents * params.discount_bps + 5000) / 10000), params.discount_cap_cents);
-    let personal: any = null;
-    if (req.auth?.roles.includes('PACIENTE')) {
-      const { _internal, ...q } = await quote(req.auth.userId, itemCode);
-      personal = { primeActive: q.primeActive, discountCents: q.discountCents, totalCents: q.finalPriceCents, noDiscountReason: q.noDiscountReason, usesRemaining: q.usesRemaining };
-    }
+    const { _internal, ...q } = await quote(a.userId, itemCode);
+    const personal = { primeActive: q.primeActive, discountCents: q.discountCents, totalCents: q.finalPriceCents, noDiscountReason: q.noDiscountReason, usesRemaining: q.usesRemaining };
     return {
       offer: pub,
       primeExample: pub.primeEligible ? { discountCents: hypothetical, totalCents: pub.priceCents - hypothetical } : null,

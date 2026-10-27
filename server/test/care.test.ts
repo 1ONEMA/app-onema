@@ -223,14 +223,16 @@ describe('P06 — Pedido falhou / estorno', () => {
 });
 
 describe('P07 — Jornada de valores', () => {
-  it('valores logo após materiais (sem login), mantidos na revisão; total e adicionais antes de pagar', async () => {
+  it('nenhuma cifra sem cadastro; valores após materiais para o paciente, mantidos na revisão; total antes de pagar', async () => {
     const anon = new Client(app);
-    const p = await anon.get('/api/care/price?itemCode=CAT-02B');
+    expect((await anon.get('/api/care/price?itemCode=CAT-02B')).status).toBe(401);
+    expect(JSON.stringify((await anon.get('/api/care/needs')).body)).not.toMatch(/priceCents|monthlyPriceCents|capCents|R\$/);
+    const c = await patient();
+    const p = await c.get('/api/care/price?itemCode=CAT-02B');
     expect(p.status).toBe(200);
     expect(p.body.offer.priceCents).toBe(45990);
     expect(p.body.primeExample).toEqual({ discountCents: 2000, totalCents: 43990 });
-    expect(p.body.personal).toBeNull();
-    const c = await patient();
+    expect(p.body.personal).toMatchObject({ discountCents: 0, totalCents: 45990 });
     const r = await c.post('/api/care/requests', form('CAT-02B'), true);
     const q = r.body.request.quote;
     expect([q.basePriceCents, q.discountCents, q.totalCents, q.additions]).toEqual([45990, 0, 45990, []]);
@@ -425,9 +427,11 @@ describe('P15 — Release e rollback', () => {
       priceCents: 1, primeEligible: true, actsLabel: 'x x', periodDays: null, recurring: null, inclusions: [], exclusions: [], validFrom: new Date(Date.now() - 1000).toISOString(),
       reason: 'Alteração indevida (reversão)', components: [{ act: 'AVALIACAO_PRESENCIAL', label: 'x x', modality: 'PRESENCIAL', qty: 1, unit: 1 }],
     });
-    expect((await new Client(app).get('/api/care/price?itemCode=CAT-01')).body.offer.priceCents).toBe(1);
+    const pc = await patient();
+    expect((await pc.get('/api/care/price?itemCode=CAT-01')).body.offer.priceCents).toBe(1);
     await restoreDatabase(dump);
-    expect((await new Client(app).get('/api/care/price?itemCode=CAT-01')).body.offer.priceCents).toBe(26990);
+    const pc2 = await patient();
+    expect((await pc2.get('/api/care/price?itemCode=CAT-01')).body.offer.priceCents).toBe(26990);
   });
 });
 
@@ -453,13 +457,13 @@ describe('Especialista e avaliações por estrelas', () => {
 });
 
 describe('Kary', () => {
-  it('urgência sempre vai para o SAMU 192; preços públicos; não responde conduta clínica', async () => {
+  it('urgência sempre vai para o SAMU 192; nenhuma cifra; não responde conduta clínica', async () => {
     expect((await karyReply('minha mãe está com falta de ar')).kind).toBe('URGENCIA');
     expect((await karyReply('qual remédio posso tomar para dor?')).kind).toBe('FORA_DO_ESCOPO');
     const p = await karyReply('quanto custa curativo simples?');
-    expect(p.text).toContain('R$ 309,90');
-    expect(p.text).not.toMatch(/200,00|repasse/);
-    expect((await karyReply('o que é o prime?')).text).toContain('R$ 34,90');
+    expect(p.kind).toBe('PRECO');
+    expect(p.text).not.toMatch(/R\$|\d+,\d{2}|repasse/);
+    for (const q of ['o que é o prime?', 'monitoramento mensal', 'pacote pós-alta 7 dias', 'oi']) expect((await karyReply(q)).text).not.toMatch(/R\$/);
     const r = await new Client(app).post('/api/kary/chat', { message: 'oi' });
     expect(r.status).toBe(200);
     expect(r.body.kind).toBe('SAUDACAO');

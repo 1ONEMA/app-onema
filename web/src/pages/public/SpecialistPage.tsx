@@ -47,12 +47,21 @@ export function SpecialistPage() {
       {isSpecialist ? <SpecialistArea /> : (
         <div className="surface mt">
           <h2>Como funciona</h2>
-          <ol className="steps">
-            <li><strong>Crie sua conta</strong><span>Com CPF e e-mail. Depois, envie documentos e COREN para a Central.</span></li>
-            <li><strong>Validação</strong><span>O credenciamento confere identidade, COREN e documentos.</span></li>
-            <li><strong>ONEMA Academy</strong><span>Conclua a Jornada de Integração.</span></li>
-            <li><strong>Receba ofertas</strong><span>Aceite os atendimentos que fizer sentido para você.</span></li>
+          <p className="small muted">Fluxo completo da entrada na rede ONEMA ONE até o primeiro atendimento.</p>
+          <ol className="steps steps-detailed">
+            <li><strong>Crie sua conta</strong><span>Cadastro com nome, e-mail e senha. Sem exigência de CNPJ.</span></li>
+            <li><strong>Preencha a candidatura</strong><span>CPF, número e UF do COREN, telefone, regiões e áreas em que deseja atender.</span></li>
+            <li><strong>Envie os documentos</strong><span>Documento de identidade e carteira do COREN (PDF ou foto), em ambiente privado.</span></li>
+            <li><strong>Análise da Central ONEMA</strong><span>O credenciamento confere identidade, COREN ativo e documentos. Se faltar algo, você recebe o pedido de ajuste.</span></li>
+            <li><strong>Acesso à ONEMA Academy</strong><span>Com a candidatura aprovada, a Jornada de Integração é liberada no seu perfil.</span></li>
+            <li><strong>Jornada de Integração</strong><span>Quatro cursos com aulas, atividades e materiais oficiais ONEMA.</span></li>
+            <li><strong>Avaliações</strong><span>Avaliações de cada curso, com nota mínima e histórico de tentativas.</span></li>
+            <li><strong>Certificado</strong><span>Concluída a jornada, o certificado é emitido com código de verificação.</span></li>
+            <li><strong>Credenciamento final</strong><span>Decisão humana do credenciamento, com base na Academy e nos demais requisitos.</span></li>
+            <li><strong>Receba ofertas</strong><span>Ofertas compatíveis com seu perfil e região, com o repasse informado. Você aceita ou recusa sem penalidade.</span></li>
+            <li><strong>Atenda e acompanhe</strong><span>Registre o atendimento, receba o repasse integral e acompanhe as avaliações dos pacientes.</span></li>
           </ol>
+          <div className="row mt"><Link to={logged ? '/especialista/candidatura' : '/cadastro?perfil=especialista'} className="btn green">{logged ? 'Minha candidatura' : 'Quero ser ONEMA ONE'} <IconArrowRight size={18} /></Link></div>
           <p className="small muted">Já tem acesso? <Link to="/entrar?voltar=%2Fespecialista">Entrar</Link></p>
         </div>
       )}
