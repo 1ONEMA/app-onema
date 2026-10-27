@@ -49,13 +49,13 @@ const L = (label: string, to: string): KaryLink => ({ label, to });
 
 export const FAQ: { id: string; keywords: RegExp; answer: KaryAnswer }[] = [
   { id: 'saudacao', keywords: /^(oi|ol[áa]|bom dia|boa tarde|boa noite|e a[íi]|hey)\b/i,
-    answer: { kind: 'SAUDACAO', text: 'Olá! Eu sou a Kary, assistente da ONEMA SAÚDE. Posso explicar como solicitar cuidado, mostrar os valores dos atendimentos, falar do ONEMA PRIME, da Academy e da área do especialista. Como posso ajudar?',
+    answer: { kind: 'SAUDACAO', text: 'Olá! Eu sou a Kary, assistente da ONEMA SAÚDE. Posso explicar como solicitar cuidado, explicar como receber o orçamento, falar do ONEMA PRIME, da Academy e da área do especialista. Como posso ajudar?',
       links: [L('Solicitar cuidado', '/solicitar'), L('Conhecer a plataforma', '/plataforma')] } },
   { id: 'solicitar', keywords: /(solicitar|pedir|contratar|agendar|marcar|preciso de (um )?(cuidado|enfermeir)|como funciona)/i,
-    answer: { kind: 'FAQ', text: 'É simples: 1) escolha a necessidade; 2) escolha o atendimento; 3) diga se tem os materiais; 4) veja os valores na hora; 5) informe onde e quando; 6) revise o orçamento completo; 7) confirme e pague. Preencher a solicitação não obriga a contratar nem autoriza cobrança.',
+    answer: { kind: 'FAQ', text: 'É simples: 1) entre ou crie sua conta; 2) escolha a necessidade e o atendimento; 3) diga se tem os materiais; 4) veja o orçamento; 5) informe onde e quando; 6) revise o orçamento completo; 7) confirme e pague. Preencher a solicitação não obriga a contratar nem autoriza cobrança.',
       links: [L('Começar agora', '/solicitar')] } },
   { id: 'prime', keywords: /(prime|assinatura|mensalidade|desconto)/i,
-    answer: { kind: 'FAQ', text: 'O ONEMA PRIME custa R$ 34,90 por ciclo mensal, com adesão separada e opcional. Assinantes ativos têm 5% de desconto em um pedido por ciclo, limitado a R$ 20. O desconto não reduz o repasse do especialista e nenhum atendimento está incluído na mensalidade.',
+    answer: { kind: 'FAQ', text: 'O ONEMA PRIME é uma assinatura mensal opcional, com adesão separada, que dá desconto em um pedido elegível por ciclo. Valores e condições aparecem depois do cadastro, na página do PRIME. O desconto não reduz o repasse do especialista e nenhum atendimento está incluído na mensalidade.',
       links: [L('Ver o ONEMA PRIME', '/prime')] } },
   { id: 'materiais', keywords: /(material|materiais|insumo|curativo.*(trazer|comprar)|quem (leva|fornece))/i,
     answer: { kind: 'FAQ', text: 'Na solicitação você responde se tem os materiais (Sim, Não ou Não sei). A resposta não gera taxa automática. Medicamentos, dispositivos e materiais especiais não estão incluídos automaticamente; se pedir que a ONEMA cote os materiais, o orçamento fica pendente até haver valor aprovado, e o pagamento fica bloqueado até lá.' } },
@@ -66,9 +66,9 @@ export const FAQ: { id: string; keywords: RegExp; answer: KaryAnswer }[] = [
       links: [L('Meus pedidos', '/servicos')] } },
   { id: 'pacotes', keywords: /(pacote|p[óo]s-?alta|medicamentos? \d+|7 dias|14 dias|30 dias|21 dias)/i,
     answer: { kind: 'FAQ', text: 'Os pacotes têm quantidade finita de atos. Pós-Alta: 7 dias (2 atos), 14 dias (4 atos) e 30 dias (6 atos), com avaliações presenciais e monitoramentos remotos. Medicamentos: 7, 14 ou 21 dias com uma visita presencial por dia. Atos além do pacote exigem nova contratação.',
-      links: [L('Ver valores', '/solicitar')] } },
+      links: [L('Solicitar cuidado', '/solicitar')] } },
   { id: 'monitoramento', keywords: /(monitoramento|acompanhamento mensal)/i,
-    answer: { kind: 'FAQ', text: 'O Monitoramento ONEMA mensal tem 4 interações remotas no mês, por R$ 379,90. Ele aparece como serviço (CAT-08) e como pacote (PAC-05), mas é a mesma oferta: uma única cobrança por mês.' } },
+    answer: { kind: 'FAQ', text: 'O Monitoramento ONEMA mensal tem 4 interações remotas no mês. Ele aparece como serviço (CAT-08) e como pacote (PAC-05), mas é a mesma oferta: uma única cobrança por mês. O valor aparece no orçamento, depois do cadastro.' } },
   { id: 'especialista', keywords: /(sou enfermeir|quero (trabalhar|atender|ser)|onema one|parceir|cadastro.*profission|repasse)/i,
     answer: { kind: 'FAQ', text: 'Enfermeiros entram na rede ONEMA ONE com CPF (sem exigência de CNPJ). Identidade, COREN, documentos e treinamento na ONEMA Academy são validados pela Central antes de receber ofertas. Você escolhe quando atender, recusa sem penalidade e recebe o repasse integral de cada atendimento.',
       links: [L('Área do especialista', '/especialista')] } },
@@ -87,16 +87,16 @@ export const FAQ: { id: string; keywords: RegExp; answer: KaryAnswer }[] = [
 
 export const FALLBACK: KaryAnswer = {
   kind: 'FAQ',
-  text: 'Ainda não sei responder isso. Posso ajudar com: como solicitar cuidado, valores dos atendimentos, ONEMA PRIME, pagamentos, área do especialista e Academy. Se preferir, fale com a Central ONEMA.',
+  text: 'Ainda não sei responder isso. Posso ajudar com: como solicitar cuidado, como funciona o orçamento, ONEMA PRIME, pagamentos, área do especialista e Academy. Se preferir, fale com a Central ONEMA.',
   links: [L('Solicitar cuidado', '/solicitar'), L('Conhecer a plataforma', '/plataforma')],
 };
 
 export const SYSTEM_PROMPT = `Você é a Kary, assistente virtual de ORIENTAÇÃO da plataforma ONEMA SAÚDE (enfermagem domiciliar em São Paulo).
 Responda em português do Brasil, com frases curtas, acolhedoras e objetivas (até 5 frases).
-Você ajuda com: como usar a plataforma, como solicitar cuidado, valores públicos do catálogo (fornecidos abaixo), ONEMA PRIME, pagamentos, área do especialista e ONEMA Academy.
+Você ajuda com: como usar a plataforma, como solicitar cuidado, serviços do catálogo (lista abaixo), ONEMA PRIME, pagamentos, área do especialista e ONEMA Academy.
 Limites obrigatórios:
 - Não faça diagnóstico, não indique remédios, doses ou condutas clínicas; sugira uma Avaliação de Enfermagem ou Orientação on-line.
 - Em qualquer sinal de urgência, diga para ligar 192 (SAMU) imediatamente.
-- Não peça nem repita dados pessoais ou de saúde. Não invente preços, prazos, taxas ou benefícios: use somente os dados abaixo; se não souber, diga que a Central ONEMA confirma.
+- Não peça nem repita dados pessoais ou de saúde. NUNCA informe preços, valores, faixas, descontos em reais ou estimativas financeiras: os valores aparecem somente no orçamento, dentro da solicitação, depois do cadastro. Não invente prazos ou benefícios; se não souber, diga que a Central ONEMA confirma.
 - Nesta versão de homologação os pagamentos são simulados.
 - Repasses aos especialistas e margens internas são confidenciais: não os informe a pacientes.`;

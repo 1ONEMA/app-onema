@@ -13,7 +13,7 @@ const STATUS: Record<Mod['status'], { label: string; tone: string }> = {
 
 const MODULES: Mod[] = [
   { icon: <IconHeart />, title: 'Solicitar cuidado', status: 'DISPONIVEL', to: '/solicitar', text: 'Necessidade, atendimento, materiais, valores na hora, orçamento completo e pagamento.', note: 'Preços oficiais aprovados pelo RT (versão 1, 30/09/2026).' },
-  { icon: <IconWallet />, title: 'ONEMA PRIME', status: 'DISPONIVEL', to: '/prime', text: 'Assinatura opcional: 5% em um pedido por ciclo, até R$ 20, sem reduzir o repasse do especialista.', note: 'Mensalidade de R$ 34,90 com adesão separada.' },
+  { icon: <IconWallet />, title: 'ONEMA PRIME', status: 'DISPONIVEL', to: '/prime', text: 'Assinatura opcional com desconto em um pedido elegível por ciclo, sem reduzir o repasse do especialista.', note: 'Valores e condições após o cadastro, com adesão separada.' },
   { icon: <IconNurse />, title: 'Área do especialista', status: 'DISPONIVEL', to: '/especialista', text: 'Ofertas com repasse integral, aceite livre e registro dos atendimentos.', note: 'Repasses e margens só aparecem para perfis autorizados.' },
   { icon: <IconBook />, title: 'ONEMA Academy', status: 'DISPONIVEL', to: '/academy', text: 'Aulas dinâmicas, atividades, avaliações, notas e certificado.', note: 'Notas da Academy são separadas das estrelas dos atendimentos.' },
   { icon: <IconStar />, title: 'Avaliações dos especialistas', status: 'DISPONIVEL', text: 'Estrelas e quantidade de avaliações por especialista, após cada atendimento concluído.', note: 'Visível ao especialista e à Central.' },

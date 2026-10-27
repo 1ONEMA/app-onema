@@ -15,6 +15,8 @@ function applyDefaults(siteUrl: string | undefined) {
   process.env.APP_ENV ??= 'homologacao';
   if (siteUrl) process.env.PUBLIC_ORIGIN ??= siteUrl;
   process.env.DB_CONNECT_TIMEOUT_MS ??= '4000';
+  // Domínio oficial (o mesmo endereço acessado também é aceito pela checagem de Origin).
+  process.env.ALLOWED_ORIGINS ??= 'https://onemasaude.com.br,https://www.onemasaude.com.br';
   // Aceita a URL do banco cadastrada com outro nome (ex.: database_url, SUPABASE_DB_URL) ou entre aspas.
   if (!process.env.DATABASE_URL && !process.env.NETLIFY_DATABASE_URL) {
     const found = Object.entries(process.env).find(([k, v]) => /(database|db|postgres)/i.test(k) && /^\s*["']?postgres(ql)?:\/\//.test(v ?? ''));
@@ -106,6 +108,7 @@ export default async (req: Request, context: Context) => {
     const hasBody = !['GET', 'HEAD'].includes(req.method);
     const headers: Record<string, string> = {};
     req.headers.forEach((v, k) => { headers[k] = v; });
+    headers.host = url.host; // endereço realmente acessado (domínio próprio, www ou .netlify.app), usado na checagem de Origin
     const res = await app.inject({
       method: req.method as any,
       url: url.pathname + url.search,

@@ -54,7 +54,8 @@ Nenhuma destas pendências foi preenchida por suposição. O sistema exibe a pen
 | PR-2 | Validade do orçamento (não definida; hoje não expira) |
 | PR-3 | Margens com PRIME abaixo do aviso de 17%: CAT-02A, CONT-01, CONT-02 (apenas sinalizado) |
 | PR-4 | Credenciais Asaas (CNPJ), webhook real, split e emissor fiscal |
-| PR-5 | Revisão da seleção/tradução dos versículos do “Café com a ONEMA” |
+| PR-5 | Café com a ONEMA: revisar os 366 devocionais autorais e conferir a redação dos versículos (citados no estilo Almeida Revista e Corrigida) com a edição bíblica que a ONEMA adotar; textos podem ser trocados por data no painel (Gestão → Café com a ONEMA) |
+| PR-6 | Termos ONEMA PRIME (T1, página pública /institucional/termos) citam a mensalidade e o teto do desconto em reais. A regra “nenhuma cifra em páginas públicas” (Adendo v7) vale também para os termos? Hoje mantidos por serem texto jurídico aprovado |
 
 ## Identidade visual
 

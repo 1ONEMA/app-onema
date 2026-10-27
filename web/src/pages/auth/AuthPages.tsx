@@ -4,6 +4,7 @@ import { useAuth, type Me } from '../../lib/auth';
 import { useSubmit } from '../../lib/hooks';
 import { Alert, Button, Field, fieldError } from '../../ui/ui';
 import { PasswordField } from '../../ui/PasswordField';
+import { Kary } from '../../ui/Kary';
 
 /** Grafismo geométrico do manual (semicírculos Deep Blue / Health Green). */
 export function Pattern() {
@@ -47,11 +48,12 @@ export function AuthLayout({ title, children }: { title: string; children: React
           </div>
         </div>
       </main>
+      <Kary />
     </div>
   );
 }
 
-const safeReturn = (v: string | null) => (v && v.startsWith('/') && !v.startsWith('//') && v !== '/' ? v : '/inicio');
+const safeReturn = (v: string | null) => (v && v.startsWith('/') && !v.startsWith('//') && !v.startsWith('/\\') && v !== '/' ? v : '/inicio');
 
 export function LoginPage() {
   const { me, setMe } = useAuth();
@@ -94,7 +96,7 @@ export function RegisterPage() {
     if (f.password !== f.confirm) { setMismatch(true); return; }
     setMismatch(false);
     const r = await run('POST', '/api/auth/register', { name: f.name, email: f.email, password: f.password });
-    if (r) { setMe(r); nav(specialist ? '/especialista/candidatura' : params.get('voltar')?.startsWith('/') && !params.get('voltar')!.startsWith('//') ? params.get('voltar')! : '/minha-onema', { replace: true }); }
+    if (r) { setMe(r); nav(specialist ? '/especialista/candidatura' : params.get('voltar') ? safeReturn(params.get('voltar')) : '/minha-onema', { replace: true }); }
   }
   return (
     <AuthLayout title={specialist ? 'Cadastro na rede ONEMA ONE' : 'Criar cadastro de paciente'}>

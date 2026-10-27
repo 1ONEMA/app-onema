@@ -5,8 +5,8 @@ import { config } from '../../config.ts';
 import { emailConfigured, layout, sendEmail } from '../../lib/email.ts';
 import { all, one, run, tx } from '../../db/db.ts';
 import { audit } from '../../lib/audit.ts';
-import { SESSION_COOKIE, needsMfa, parse, requireUser, type AuthCtx } from '../../lib/context.ts';
-import { AppError, badRequest, conflict, unauthorized } from '../../lib/errors.ts';
+import { SESSION_COOKIE, isBlockedDemoStaff, needsMfa, parse, requireUser, type AuthCtx } from '../../lib/context.ts';
+import { AppError, badRequest, conflict, forbidden, unauthorized } from '../../lib/errors.ts';
 import { ADMIN_ROLES } from '../../lib/roles.ts';
 import {
   DUMMY_HASH, hashPassword, newTotpSecret, rateLimit, verifyPassword, verifyTotp,
@@ -92,6 +92,11 @@ export async function authRoutes(app: FastifyInstance) {
     if (!ok) {
       await audit({ actorId: u?.id ?? null, action: 'LOGIN_FAILED', subjectType: 'user', subjectId: u?.id ?? null, correlationId: req.correlationId });
       throw unauthorized('E-mail ou senha incorretos.');
+    }
+    const roles = (await all<any>('SELECT role FROM user_roles WHERE user_id = ?', u.id)).map((r) => r.role);
+    if (isBlockedDemoStaff(u.email, roles)) {
+      await audit({ actorId: u.id, action: 'LOGIN_BLOCKED_DEMO_STAFF', subjectType: 'user', subjectId: u.id, correlationId: req.correlationId });
+      throw forbidden('Contas de demonstração da equipe estão desativadas neste ambiente. Use sua conta de administrador.', 'DEMO_STAFF_DISABLED');
     }
     const h = await createSession(reply, u.id);
     await audit({ actorId: u.id, action: 'LOGIN', subjectType: 'session', subjectId: h.slice(0, 12), correlationId: req.correlationId });

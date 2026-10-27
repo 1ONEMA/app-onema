@@ -43,10 +43,16 @@ export async function loadSession(req: FastifyRequest): Promise<AuthCtx | null> 
      FROM s JOIN users u ON u.id = s.user_id`, nowIso(), h);
   if (!s || s.status !== 'ACTIVE' || s.expires_at < nowIso()) return null;
   const roles = (s.roles ?? []) as Role[];
+  if (isBlockedDemoStaff(s.email, roles)) return null;
   return {
     userId: s.user_id, email: s.email, name: s.name, roles, sessionHash: h, csrf: s.csrf_token,
     mfaVerified: !!s.mfa_verified, mfaEnabled: !!s.mfa_enabled, academyEligible: !!s.academy_eligible,
   };
+}
+
+/** Conta de demonstração da equipe (senha pública) bloqueada no ambiente publicado. */
+export function isBlockedDemoStaff(email: string, roles: Role[]) {
+  return config.blockDemoStaff && /@exemplo\.test$/i.test(email) && roles.some((r) => ADMIN_ROLES.includes(r));
 }
 
 export function needsMfa(a: AuthCtx) {

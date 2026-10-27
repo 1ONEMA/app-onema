@@ -42,6 +42,11 @@ describe('Autenticação e sessão', () => {
     const badOrigin = await c.req('POST', '/api/auth/logout', {}, { origin: 'https://evil.example' });
     expect(badOrigin.status).toBe(403);
     expect(badOrigin.body.error.code).toBe('BAD_ORIGIN');
+    // domínio próprio: Origin igual ao endereço acessado é aceito; outro site com o mesmo Host, não
+    const own = await new Client(app).req('POST', '/api/auth/login', { email: emailOf('paciente'), password: 'Onema-Demo-2026' }, { origin: 'http://onemasaude.com.br', host: 'onemasaude.com.br' });
+    expect(own.status).toBe(200);
+    const evil = await new Client(app).req('POST', '/api/auth/login', { email: emailOf('paciente'), password: 'Onema-Demo-2026' }, { origin: 'https://evil.example', host: 'onemasaude.com.br' });
+    expect(evil.body.error.code).toBe('BAD_ORIGIN');
   });
 
   it('recuperação de senha: token único, revoga sessões antigas', async () => {
@@ -110,4 +115,18 @@ describe('Autenticação e sessão', () => {
     expect(ok.status).toBe(200);
     expect(ok.body.tempPassword).toBeTruthy();
   });
+
+  it('ambiente publicado: contas de demonstração da equipe (senha pública) ficam bloqueadas; paciente demo e admin real seguem', async () => {
+    const { config } = await import('../src/config.ts');
+    const staff = await loginAs(app, 'auditor');
+    config.blockDemoStaff = true;
+    try {
+      expect((await staff.get('/api/auth/me')).body.user).toBeNull(); // sessão antiga deixa de valer
+      const r = await new Client(app).req('POST', '/api/auth/login', { email: emailOf('credenciamento'), password: 'Onema-Demo-2026' });
+      expect([r.status, r.body.error.code]).toEqual([403, 'DEMO_STAFF_DISABLED']);
+      const p = new Client(app); await p.login(emailOf('paciente'));
+      expect((await p.get('/api/auth/me')).body.user.email).toBe(emailOf('paciente'));
+    } finally { config.blockDemoStaff = false; }
+  });
 });
+

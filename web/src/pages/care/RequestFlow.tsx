@@ -113,6 +113,26 @@ export function RequestFlow() {
 
   if (catalog.loading && !catalog.data) return <Loading />;
   if (catalog.error) return <ErrorState error={catalog.error} onRetry={catalog.reload} />;
+  // Ordem aprovada: cadastro/autenticação → necessidade → materiais → orçamento → pagamento.
+  if (!me?.user) {
+    const voltar = encodeURIComponent(`/solicitar${params.get('necessidade') ? `?necessidade=${params.get('necessidade')}` : ''}`);
+    const chosen = needs.find((n) => n.key === params.get('necessidade'));
+    return (
+      <div className="flow">
+        <div className="flow-card">
+          <div className="eyebrow-blue">Solicitar cuidado{chosen ? ` · ${chosen.title}` : ''}</div>
+          <h1 className="display">Entre ou crie sua conta para começar</h1>
+          <p className="muted">Com o cadastro, você informa a necessidade e os materiais e recebe o orçamento completo antes de qualquer pagamento. Criar a conta não gera cobrança nem obriga a contratar.</p>
+          <div className="row">
+            <Link className="btn deep" to={`/entrar?voltar=${voltar}`}>Entrar</Link>
+            <Link className="btn secondary" to={`/cadastro?voltar=${voltar}`}>Criar conta</Link>
+          </div>
+          <UrgentNote />
+        </div>
+      </div>
+    );
+  }
+  if (!isPatient) return <div className="flow"><div className="caution">Esta conta não é de paciente/titular. Use uma conta de paciente para solicitar cuidado.</div></div>;
 
   return (
     <div className="flow">
@@ -195,18 +215,9 @@ export function RequestFlow() {
             <>
               <div className="price-box">
                 <div className="price-line"><span>Preço aprovado ({price.data.offer.actsLabel})</span><strong>{money(price.data.offer.priceCents)}</strong></div>
-                {price.data.personal ? (
-                  <>
-                    <div className="price-line"><span>Desconto ONEMA PRIME</span><strong>{price.data.personal.discountCents ? `− ${money(price.data.personal.discountCents)}` : money(0)}</strong></div>
-                    {!price.data.personal.discountCents && <p className="small muted mb0">{price.data.personal.noDiscountReason ?? `Disponível para assinantes PRIME ativos (adesão separada de ${money(price.data.prime.monthlyPriceCents)}/mês).`}</p>}
-                    <div className="price-line total"><span>Valor do atendimento</span><strong>{money(price.data.personal.totalCents)}</strong></div>
-                  </>
-                ) : (
-                  <>
-                    {price.data.primeExample && <div className="price-line"><span>Com ONEMA PRIME ativo</span><strong>{money(price.data.primeExample.totalCents)} <small className="muted">(− {money(price.data.primeExample.discountCents)})</small></strong></div>}
-                    <div className="price-line total"><span>Valor do atendimento</span><strong>{money(price.data.offer.priceCents)}</strong></div>
-                  </>
-                )}
+                <div className="price-line"><span>Desconto ONEMA PRIME</span><strong>{price.data.personal.discountCents ? `− ${money(price.data.personal.discountCents)}` : money(0)}</strong></div>
+                {!price.data.personal.discountCents && <p className="small muted mb0">{price.data.personal.noDiscountReason ?? `Disponível para assinantes PRIME ativos (adesão separada de ${money(price.data.prime.monthlyPriceCents)}/mês).`}</p>}
+                <div className="price-line total"><span>Valor do atendimento</span><strong>{money(price.data.personal.totalCents)}</strong></div>
               </div>
               <p className="small muted">O PRIME é opcional e contratado separadamente ({money(price.data.prime.monthlyPriceCents)} por ciclo mensal): {price.data.prime.discountBps / 100}% em um pedido por ciclo, até {money(price.data.prime.capCents)}. Ele não é incluído automaticamente. <Link to="/prime">Conhecer o PRIME</Link></p>
               {d.materialsSupplyRequested && <div className="caution">Você pediu cotação de materiais: o orçamento completo ficará pendente e o pagamento bloqueado até haver valor aprovado.</div>}

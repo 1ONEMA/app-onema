@@ -15,10 +15,24 @@ import { careAdminRoutes } from './modules/care/admin.ts';
 import { careRoutes } from './modules/care/routes.ts';
 import { karyRoutes } from './modules/kary/routes.ts';
 import { specialistRoutes } from './modules/specialist/routes.ts';
+import { cafeRoutes } from './modules/cafe/routes.ts';
 import { primeAdminRoutes } from './modules/prime/admin.ts';
 import { primeRoutes } from './modules/prime/routes.ts';
 
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+/**
+ * Origem igual ao próprio endereço acessado (ex.: domínio próprio recém-ligado, www ou .netlify.app).
+ * Seguro contra CSRF: o navegador da vítima envia o Host do site atacado e o Origin do site atacante, que nunca coincidem.
+ */
+export function sameHost(origin: string, host: string | undefined) {
+  if (!host) return false;
+  try {
+    const u = new URL(origin);
+    if (config.isProd && u.protocol !== 'https:') return false;
+    return u.host === host.toLowerCase();
+  } catch { return false; }
+}
 
 export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean } = {}): Promise<FastifyInstance> {
   const app = Fastify({
@@ -54,7 +68,7 @@ export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean 
   app.addHook('preHandler', async (req) => {
     if (!req.url.startsWith('/api/') || !MUTATING.has(req.method)) return;
     const origin = req.headers.origin;
-    if (origin && !config.allowedOrigins.includes(origin) && origin !== config.publicOrigin) {
+    if (origin && !config.allowedOrigins.includes(origin) && origin !== config.publicOrigin && !sameHost(origin, req.headers.host)) {
       throw forbidden('Origem da requisição não permitida.', 'BAD_ORIGIN');
     }
     if (req.routeOptions.config?.public) return;
@@ -69,7 +83,7 @@ export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean 
     reply.header('Referrer-Policy', 'same-origin');
     reply.header('X-Frame-Options', 'DENY');
     reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    reply.header('Content-Security-Policy',
+    if (!reply.hasHeader('Content-Security-Policy')) reply.header('Content-Security-Policy',
       "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
     if (config.isProd) reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     return payload;
@@ -94,6 +108,7 @@ export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean 
   await app.register(careAdminRoutes);
   await app.register(karyRoutes);
   await app.register(specialistRoutes);
+  await app.register(cafeRoutes);
 
   app.get('/api/health', async () => ({ ok: true }));
 

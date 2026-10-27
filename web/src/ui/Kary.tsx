@@ -11,6 +11,13 @@ export const openKary = () => window.dispatchEvent(new Event('kary:open'));
 /** Kary — assistente da plataforma (botão flutuante + painel). Conversa não é gravada no servidor. */
 export function Kary() {
   const [open, setOpen] = useState(false);
+  // Encolhe enquanto o Café com a ONEMA aberto está na tela (não cobre o texto do devocional).
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const on = (e: Event) => setCompact(!!(e as CustomEvent<boolean>).detail);
+    window.addEventListener('kary:compact', on);
+    return () => window.removeEventListener('kary:compact', on);
+  }, []);
   useEffect(() => {
     const on = () => setOpen(true);
     window.addEventListener('kary:open', on);
@@ -51,7 +58,7 @@ export function Kary() {
   return (
     <>
       {!open && (
-        <button className="kary-fab" onClick={() => setOpen(true)} aria-label="Falar com a Kary, assistente virtual ONEMA">
+        <button className={`kary-fab${compact ? ' compact' : ''}`} onClick={() => setOpen(true)} aria-label="Falar com a Kary, assistente virtual ONEMA">
           <span className="kary-star" aria-hidden>✦</span><strong>KARY</strong><small>assistente virtual</small>
         </button>
       )}

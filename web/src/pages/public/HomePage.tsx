@@ -2,7 +2,6 @@ import { useEffect, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../lib/auth';
 import { useApi } from '../../lib/hooks';
-import { money } from '../../lib/format';
 import { DailyVerse } from '../../ui/DailyVerse';
 import { openKary } from '../../ui/Kary';
 import { AppIcon } from '../../ui/Brand';
@@ -16,7 +15,7 @@ export const NEED_ICONS: Record<string, ReactNode> = {
 };
 
 /** Textos do catálogo no modelo do site de referência do cliente. */
-const NEED_TEXT: Record<string, string> = {
+export const NEED_TEXT: Record<string, string> = {
   AVALIACAO: 'Uma avaliação profissional para compreender necessidades, riscos e próximos passos do cuidado.',
   CURATIVOS: 'Avaliação e cuidado profissional da ferida, com orientação para favorecer uma evolução segura.',
   MEDICAMENTOS: 'Administração segura do medicamento prescrito, realizada por profissional habilitado.',
@@ -76,11 +75,8 @@ export function HomePage() {
     : has('PACIENTE') ? { to: '/carteira', label: 'Minha Carteira Digital' }
     : has('ESPECIALISTA') ? { to: '/especialista', label: 'Área do especialista' }
     : isAdmin ? { to: '/central', label: 'Central RT' } : null;
-  const prime = data?.prime;
   return (
     <div className="home">
-      <DailyVerse />
-
       <section className="hero-big">
         <HeroPattern />
         <div className="kicker">Cuidado de enfermagem em São Paulo</div>
@@ -93,6 +89,8 @@ export function HomePage() {
         <div className="hero-icons" aria-hidden><IconNurse size={56} /><IconHospital size={56} /></div>
       </section>
 
+      <DailyVerse />
+
       <section className="section" id="catalogo">
         <div className="section-head">
           <div>
@@ -104,20 +102,16 @@ export function HomePage() {
         </div>
         <div className="note-bar">Receba seu orçamento após informar a necessidade de cuidado e os materiais. Você consulta o valor completo antes do pagamento.</div>
         <div className="catalog-grid">
-          {(data?.needs ?? []).map((n: any) => {
-            const min = n.offers.length ? Math.min(...n.offers.map((o: any) => o.priceCents)) : null;
-            return (
-              <article key={n.key} className="catalog-card">
-                <span className="tile-icon">{NEED_ICONS[n.icon]}</span>
-                <div>
-                  <h3>{n.title}</h3>
-                  <p>{NEED_TEXT[n.key] ?? n.subtitle}</p>
-                  {min != null && <p className="price-from">a partir de {money(min)}</p>}
-                  <Link to={`/solicitar?necessidade=${n.key}`} className="link-teal" aria-label={`Saber mais sobre ${n.title}`}>Saber mais →</Link>
-                </div>
-              </article>
-            );
-          })}
+          {(data?.needs ?? []).map((n: any) => (
+            <article key={n.key} className="catalog-card">
+              <span className="tile-icon">{NEED_ICONS[n.icon]}</span>
+              <div>
+                <h3>{n.title}</h3>
+                <p>{NEED_TEXT[n.key] ?? n.subtitle}</p>
+                <Link to={`/cuidados/${n.key.toLowerCase()}`} className="cta" aria-label={`Saiba mais sobre ${n.title}`}>Saiba mais →</Link>
+              </div>
+            </article>
+          ))}
         </div>
         <div className="info-box">
           <h3>Informações importantes</h3>
@@ -210,9 +204,8 @@ export function HomePage() {
           <div className="row prime-brand"><AppIcon size={60} /><span className="eyebrow-teal light">Benefícios e conveniência</span></div>
           <h2>ONEMA <span className="teal">PRIME</span></h2>
           <p className="prime-lead">Mais facilidade para organizar sua rotina e acessar vantagens em serviços elegíveis da ONEMA SAÚDE.</p>
-          <p className="small">Uma assinatura opcional de relacionamento, com agenda, lembretes, ofertas e uma visão clara dos seus benefícios.
-            {prime && <><br /><strong>{prime.discountBps / 100}% de desconto em um atendimento elegível por mês, até {money(prime.capCents)}.</strong></>}</p>
-          <p className="prime-price"><strong>{prime ? money(prime.monthlyPriceCents) : 'R$ 34,90'}</strong> por mês</p>
+          <p className="small">Uma assinatura opcional de relacionamento, com agenda, lembretes, ofertas e uma visão clara dos seus benefícios.</p>
+          <p className="small">Valores e condições aparecem depois do seu cadastro, antes de qualquer contratação.</p>
           <p className="small">Renovação automática somente mediante contratação expressa.</p>
           <Link to="/prime" className="btn white lg">Conhecer a ONEMA PRIME <IconArrowRight size={18} /></Link>
         </div>

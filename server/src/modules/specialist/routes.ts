@@ -13,14 +13,21 @@ import { NEEDS } from '../../db/content/pricing-v1.ts';
 import { audit } from '../../lib/audit.ts';
 import { parse, requireRoles, requireUser } from '../../lib/context.ts';
 import { badRequest, conflict, forbidden, notFound, unprocessable } from '../../lib/errors.ts';
-import { getObject, putObject } from '../../lib/storage.ts';
+import { deleteObjects, getObject, putObject } from '../../lib/storage.ts';
 import { nowIso, sha256, uid } from '../../lib/util.ts';
 import { notify } from '../prime/core.ts';
 
 export const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] as const;
 const DOC_KINDS = ['IDENTIDADE', 'COREN', 'COMPROVANTE_ENDERECO', 'OUTRO'] as const;
 const MAX_DOC_BYTES = 5 * 1024 * 1024;
-const DOC_MIME = /^(application\/pdf|image\/(jpeg|png|webp))$/;
+/** Tipo real pelo conteúdo do arquivo (assinatura), não pelo que o navegador declara. */
+export function sniffDocMime(b: Buffer): string | null {
+  if (b.length >= 5 && b.subarray(0, 5).toString('latin1') === '%PDF-') return 'application/pdf';
+  if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+  if (b.length >= 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
+  if (b.length >= 12 && b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WEBP') return 'image/webp';
+  return null;
+}
 
 /** Validação dos dígitos verificadores do CPF. */
 export function validCpf(raw: string) {
@@ -106,7 +113,9 @@ export async function specialistRoutes(app: FastifyInstance) {
     const { kind } = parse(z.object({ kind: z.enum(DOC_KINDS) }), fields);
     if (!file || !file.buf.length) throw badRequest('FILE_REQUIRED', 'Selecione um arquivo.');
     if (file.buf.length > MAX_DOC_BYTES) throw badRequest('FILE_TOO_LARGE', 'O arquivo deve ter no máximo 5 MB.');
-    if (!DOC_MIME.test(file.mime)) throw badRequest('FILE_TYPE', 'Envie PDF, JPG, PNG ou WEBP.');
+    const mime = sniffDocMime(file.buf);
+    if (!mime) throw badRequest('FILE_TYPE', 'Envie PDF, JPG, PNG ou WEBP.');
+    file.mime = mime;
     const id = uid(), key = `specialist-doc-${id}`;
     await putObject(key, file.buf);
     await run(`INSERT INTO specialist_documents (id, application_id, kind, filename, mime, size_bytes, sha256, storage_key, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
@@ -121,8 +130,10 @@ export async function specialistRoutes(app: FastifyInstance) {
     const row = await one<any>('SELECT * FROM specialist_applications WHERE user_id = ?', a.userId);
     if (!row) throw notFound();
     if (!EDITABLE.includes(row.status)) throw conflict('APPLICATION_LOCKED', 'Sua candidatura já foi enviada e está em análise.');
-    const r = await run('DELETE FROM specialist_documents WHERE id = ? AND application_id = ?', id, row.id);
-    if (!r.changes) throw notFound('Documento não encontrado.');
+    const doc = await one<any>('SELECT storage_key FROM specialist_documents WHERE id = ? AND application_id = ?', id, row.id);
+    if (!doc) throw notFound('Documento não encontrado.');
+    await run('DELETE FROM specialist_documents WHERE id = ?', id);
+    await deleteObjects(doc.storage_key, 0);
     return { application: ownView(row, await docsOf(row.id)) };
   });
 
@@ -170,6 +181,7 @@ export async function specialistRoutes(app: FastifyInstance) {
     await audit({ actorId: a.userId, action: 'SPECIALIST_DOCUMENT_VIEWED', subjectType: 'specialist_application', subjectId: id, correlationId: req.correlationId, meta: { kind: d.kind } });
     reply.header('Content-Type', d.mime);
     reply.header('Content-Disposition', `inline; filename="${encodeURIComponent(d.filename)}"`);
+    reply.header('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox");
     reply.header('Cache-Control', 'no-store');
     return reply.send(buf);
   });
