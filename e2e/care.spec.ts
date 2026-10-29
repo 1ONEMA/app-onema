@@ -14,7 +14,8 @@ test('paciente, especialista e Central: jornada completa com evidências', async
   const p = info.project.name;
   // Início público no modelo do protótipo
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /Sua saúde não\s*precisa esperar/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Enfermagem especializada\.\s*Cuidado onde você está/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mais segurança em cada etapa do seu atendimento.' })).toBeVisible();
   await expect(page.getByText('Café com a ONEMA')).toBeVisible();
   // Adendo v7: só "Ler mensagem"/"Recolher mensagem"; sem "Ocultar por hoje", "Não mostrar mais" ou "Fechar mensagem"
   await expect(page.getByText(/Ocultar por hoje|Não mostrar mais|Fechar mensagem/)).toHaveCount(0);
@@ -97,10 +98,32 @@ test('paciente, especialista e Central: jornada completa com evidências', async
     await mineOffer().first().click();
     await expect(mineOffer()).toHaveCount(n - 1);
   }
+  // Cada atendimento: código de início dado pelo paciente → evolução ditada → assinatura → conclusão
+  const requestUrl = page.url();
   for (let i = 0; i < 4; i++) {
-    const n = await sp.getByRole('button', { name: 'Registrar conclusão' }).count();
-    await sp.getByRole('button', { name: 'Registrar conclusão' }).first().click();
-    await expect(sp.getByRole('button', { name: 'Registrar conclusão' })).toHaveCount(n - 1);
+    await sp.goto('/especialista');
+    await sp.locator('li', { hasText: 'Aguardando início' }).or(sp.locator('li', { hasText: 'Remoto' })).getByRole('link', { name: 'Abrir atendimento' }).first().click();
+    await expect(sp.getByRole('heading', { name: '1. Iniciar o atendimento' })).toBeVisible();
+    const title = (await sp.getByRole('heading', { level: 1 }).textContent())!.trim();
+    const codeField = sp.getByLabel('Código do paciente');
+    if (await codeField.count()) {
+      await page.goto(requestUrl);
+      const code = (await page.locator('li', { hasText: title }).locator('.visit-code strong').first().textContent())!.trim();
+      if (i === 0) await shot(page, 'evid-09b-codigo-visita', p);
+      await codeField.fill(code);
+      await sp.getByRole('button', { name: /Confirmar início/ }).click();
+      await expect(sp.getByText(/Atendimento iniciado e confirmado/)).toBeVisible();
+    }
+    await sp.getByLabel('Ditado da evolução').fill('Paciente refere melhora. Realizado o atendimento previsto sem intercorrências. Família orientada.');
+    await sp.getByRole('button', { name: /Organizar com a Kary|Usar o ditado no rascunho/ }).click();
+    await sp.getByLabel('Relato', { exact: true }).fill('Paciente refere melhora.');
+    await sp.getByLabel('Procedimentos realizados').fill('Atendimento previsto realizado sem intercorrências.');
+    await sp.getByText(/Revisei a evolução/).click();
+    if (i === 0) await shot(sp, 'evid-10a-evolucao', p);
+    await sp.getByRole('button', { name: 'Assinar evolução' }).click();
+    await expect(sp.getByText('Assinada')).toBeVisible();
+    await sp.getByRole('button', { name: 'Registrar conclusão' }).click();
+    await expect(sp).toHaveURL(/\/especialista/);
   }
   await expect(sp.getByText('Repasse a liquidar').first()).toBeVisible();
   await shot(sp, 'evid-10-especialista-atendimentos', p);

@@ -95,7 +95,10 @@ export function RegisterPage() {
     e.preventDefault();
     if (f.password !== f.confirm) { setMismatch(true); return; }
     setMismatch(false);
-    const r = await run('POST', '/api/auth/register', { name: f.name, email: f.email, password: f.password });
+    let referralCode: string | undefined;
+    try { referralCode = localStorage.getItem('onema.indicacao') ?? undefined; } catch { /* sem armazenamento */ }
+    const r = await run('POST', '/api/auth/register', { name: f.name, email: f.email, password: f.password, ...(referralCode ? { referralCode } : {}) });
+    if (r) { try { localStorage.removeItem('onema.indicacao'); } catch { /* sem armazenamento */ } }
     if (r) { setMe(r); nav(specialist ? '/especialista/candidatura' : params.get('voltar') ? safeReturn(params.get('voltar')) : '/minha-onema', { replace: true }); }
   }
   return (

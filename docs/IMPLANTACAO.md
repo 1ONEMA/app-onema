@@ -36,6 +36,10 @@ A inicialização do banco (migrations, seed oficial, segredos internos gerados 
 | `APP_ENV` | não | padrão `homologacao` (exibe o aviso de ambiente de testes) |
 | `APP_SECRET`, `PAYMENT_WEBHOOK_SECRET` | não | se ausentes, são gerados aleatoriamente e guardados no banco |
 | `REQUIRE_ADMIN_MFA`, `WHATSAPP_ENABLED`, `ACADEMY_REQUIRE_PAYMENT` | não | mesmos significados do `.env.example` |
+| `ASAAS_API_KEY` | para cobrar de verdade | chave da API do Asaas (Integrações → Chaves de API). `$aact_hmlg_...` = sandbox do Asaas; `$aact_prod_...` = produção. Ver `docs/ASAAS.md` |
+| `ASAAS_WEBHOOK_TOKEN` | junto com a chave | senha longa (≥ 20 caracteres) inventada por vocês e repetida no webhook do Asaas. Sem ela o app continua em pagamento simulado |
+| `ANTHROPIC_API_KEY` | para a IA da Kary | chave da API da Anthropic (console.anthropic.com). Liga a organização da evolução de enfermagem por IA; sem ela a enfermeira preenche as seções manualmente |
+| `KARY_PROVIDER` | não | `anthropic` para a Kary também responder perguntas livres com IA no chat (além da base aprovada) |
 
    Após o primeiro login do administrador, **remova `BOOTSTRAP_ADMIN_PASSWORD`** do painel (a conta já existe; a variável não altera senhas existentes).
 4. **Deploy:** *Deploys → Trigger deploy*. Depois, abra o site, entre com o administrador e configure o segundo fator (MFA).

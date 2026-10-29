@@ -16,6 +16,8 @@ import { careRoutes } from './modules/care/routes.ts';
 import { karyRoutes } from './modules/kary/routes.ts';
 import { specialistRoutes } from './modules/specialist/routes.ts';
 import { cafeRoutes } from './modules/cafe/routes.ts';
+import { asaasWebhookRoutes } from './modules/payments/asaas-webhook.ts';
+import { visitRoutes } from './modules/care/visit.ts';
 import { primeAdminRoutes } from './modules/prime/admin.ts';
 import { primeRoutes } from './modules/prime/routes.ts';
 
@@ -82,7 +84,7 @@ export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean 
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('Referrer-Policy', 'same-origin');
     reply.header('X-Frame-Options', 'DENY');
-    reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+    reply.header('Permissions-Policy', 'camera=(), microphone=(self), geolocation=(self), payment=(), usb=()');
     if (!reply.hasHeader('Content-Security-Policy')) reply.header('Content-Security-Policy',
       "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'");
     reply.header('Cross-Origin-Opener-Policy', 'same-origin');
@@ -111,6 +113,8 @@ export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean 
   await app.register(karyRoutes);
   await app.register(specialistRoutes);
   await app.register(cafeRoutes);
+  await app.register(asaasWebhookRoutes);
+  await app.register(visitRoutes);
 
   app.get('/api/health', async () => ({ ok: true }));
 

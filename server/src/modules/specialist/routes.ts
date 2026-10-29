@@ -15,6 +15,7 @@ import { parse, requireRoles, requireUser } from '../../lib/context.ts';
 import { badRequest, conflict, forbidden, notFound, unprocessable } from '../../lib/errors.ts';
 import { deleteObjects, getObject, putObject } from '../../lib/storage.ts';
 import { lookupHash, openField, sealField } from '../../lib/security.ts';
+import { validCpf } from '../../lib/cpf.ts';
 import { nowIso, sha256, uid } from '../../lib/util.ts';
 import { notify } from '../prime/core.ts';
 
@@ -30,18 +31,7 @@ export function sniffDocMime(b: Buffer): string | null {
   return null;
 }
 
-/** Validação dos dígitos verificadores do CPF. */
-export function validCpf(raw: string) {
-  const d = raw.replace(/\D/g, '');
-  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
-  const calc = (len: number) => {
-    let s = 0;
-    for (let i = 0; i < len; i++) s += Number(d[i]) * (len + 1 - i);
-    const r = (s * 10) % 11;
-    return r === 10 ? 0 : r;
-  };
-  return calc(9) === Number(d[9]) && calc(10) === Number(d[10]);
-}
+export { validCpf };
 const maskCpf = (cpf: string) => `***.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-**`;
 
 const appSchema = z.object({

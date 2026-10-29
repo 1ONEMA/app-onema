@@ -79,11 +79,11 @@ export function HomePage() {
     <div className="home">
       <section className="hero-big">
         <HeroPattern />
-        <div className="kicker">Cuidado de enfermagem em São Paulo</div>
-        <h1>Sua saúde não<br />precisa esperar.</h1>
-        <p>Conte o que precisa. A ONEMA organiza a solicitação e encontra um especialista validado para você.</p>
+        <div className="kicker">Atendimento domiciliar em São Paulo</div>
+        <h1>Enfermagem especializada.<br />Cuidado onde você está.</h1>
+        <p>Atendimento domiciliar com profissionais habilitados, acompanhamento assistencial e uma experiência digital pensada para sua tranquilidade.</p>
         <div className="row">
-          <Link to="/solicitar" className="btn green lg">Preciso de cuidado <IconArrowRight size={20} /></Link>
+          <Link to="/solicitar" className="btn green lg">Solicitar atendimento <IconArrowRight size={20} /></Link>
           {area && <Link to={area.to} className="btn ghost-light lg">{area.label}</Link>}
         </div>
         <div className="hero-icons" aria-hidden><IconNurse size={56} /><IconHospital size={56} /></div>
@@ -186,6 +186,33 @@ export function HomePage() {
           ].map(([icon, title, text]) => (
             <li key={title as string}><span className="tile-icon lg">{icon}</span><h3>{title}</h3><p>{text}</p></li>
           ))}
+        </ol>
+      </section>
+
+      <section className="section security-band" id="seguranca">
+        <div className="eyebrow-teal">Segurança</div>
+        <h2 className="display-light">Mais segurança em cada etapa do seu atendimento.</h2>
+        <p className="lead">Você sabe quem vai cuidar de você e confirma o início da visita pelo app. Tudo fica registrado.</p>
+        <div className="security-grid">
+          {[
+            [<IconNurse size={26} />, 'Profissional identificado', 'Nome e COREN da especialista aparecem no seu pedido. Toda especialista passa pela validação de identidade, COREN e documentos e pela ONEMA Academy.'],
+            [<IconShield size={26} />, 'Código de início da visita', 'Seu app mostra um código de 6 números. A especialista só inicia o atendimento depois de digitar o código que você informar pessoalmente.'],
+            [<IconCalendar size={26} />, 'Início registrado', 'O horário de início fica registrado no seu pedido. Com a autorização da especialista, também a localização aproximada.'],
+            [<IconDoc size={26} />, 'Evolução assinada', 'Ao final, a especialista registra e assina a evolução de enfermagem, que fica guardada na sua Carteira Digital.'],
+            [<IconWallet size={26} />, 'Pagamento protegido', 'Você paga na página segura do Asaas, por Pix, boleto ou cartão. Os dados do cartão não passam pela ONEMA.'],
+          ].map(([icon, title, text]) => (
+            <div key={title as string} className="feature-card"><span className="tile-icon sm">{icon}</span><div><h3>{title}</h3><p>{text}</p></div></div>
+          ))}
+        </div>
+      </section>
+
+      <section className="section moments">
+        <div className="eyebrow-teal">Com você em cada momento</div>
+        <h2 className="display-light">Do primeiro atendimento ao cuidado que continua.</h2>
+        <ol className="moments-list">
+          <li><span className="tile-icon sm"><IconNurse size={24} /></span><div><h3>Primeira contratação</h3><p>Orçamento claro antes de pagar, especialista validada e um atendimento feito para conquistar sua confiança.</p></div></li>
+          <li><span className="tile-icon sm"><IconHeart size={24} /></span><div><h3>Continuidade do cuidado</h3><p>Orientações, retornos e acompanhamento quando indicados, com tudo registrado na sua Carteira Digital.</p></div></li>
+          <li><span className="tile-icon sm"><IconChat size={24} /></span><div><h3>Relacionamento e indicação</h3><p>Gostou do cuidado? Indique a ONEMA para quem você ama, com o seu link de indicação.</p></div></li>
         </ol>
       </section>
 

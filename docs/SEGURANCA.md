@@ -61,3 +61,13 @@ Controles verificados **sem falha**: SQL 100% parametrizado; sem `dangerouslySet
 - [ ] Ativar MFA nas contas Netlify, Supabase, GitHub e registro.br.
 - [ ] Antes de pacientes reais: provedor de pagamento real, `SEED_DEMO=false`, e-mail transacional configurado.
 - Rollback: GitHub → reverter o PR → merge (novo deploy).
+
+## Adendo (29/10/2026) — pagamentos reais, IA e visita
+| ID | Sev. | Status | Item | Controle |
+|---|---|---|---|---|
+| SEC-16 | P1 | Corrigido antes de publicar | Tentativas do código de início da visita eram desfeitas junto com o erro (limite nunca atingido) | Conferência e contagem fora da transação; 5 tentativas/15 min; auditoria `VISIT_CODE_INVALID` (teste `visit.test.ts`) |
+| SEC-17 | — | Implementado | Webhook do Asaas | Token em tempo constante, evento único (`asaas_webhook_events`), conferência de valor, referência e id da cobrança; estado só pelo webhook |
+| SEC-18 | — | Implementado | Dados de pagamento | Página hospedada do Asaas (cartão não passa pela ONEMA); CPF repassado ao Asaas e não guardado |
+| SEC-19 | — | Implementado | Evolução de enfermagem | Assinada é imutável (gatilho no banco); só a especialista do atendimento acessa; ditado bruto não vai ao paciente |
+| SEC-20 | P2 | Pendente (decisão) | IA com dado de saúde | O ditado vai à API da Anthropic para ser organizado. Exige base legal/aviso de privacidade (LGPD art. 11) e contrato com o fornecedor; a enfermeira é orientada a não ditar nome, CPF ou endereço |
+| SEC-21 | P3 | Aceito | Ditado por voz do navegador | O reconhecimento de voz do celular pode enviar o áudio ao serviço do sistema (Google/Apple). Alternativa: digitar ou usar o microfone do teclado |

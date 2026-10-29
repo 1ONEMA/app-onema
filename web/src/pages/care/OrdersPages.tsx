@@ -1,3 +1,4 @@
+import { PendingPayment } from '../../ui/AsaasPay';
 import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useApi, useSubmit } from '../../lib/hooks';
@@ -58,16 +59,27 @@ export function MyOrdersPage() {
 
 function Stars({ eventId, current, onDone }: { eventId: string; current: number | null; onDone: () => void }) {
   const [stars, setStars] = useState(current ?? 0);
+  const [nps, setNps] = useState<number | null>(null);
   const s = useSubmit<any>();
   if (current) return <span className="stars" role="img" aria-label={`Sua avaliação: ${current} de 5 estrelas`}>{[1, 2, 3, 4, 5].map((i) => <IconStar key={i} size={18} filled={i <= current} />)}</span>;
   return (
-    <div className="row">
+    <div className="stack">
       <div className="stars" role="radiogroup" aria-label="Avalie o atendimento">
         {[1, 2, 3, 4, 5].map((i) => (
           <button key={i} role="radio" aria-checked={stars === i} aria-label={`${i} estrela${i > 1 ? 's' : ''}`} onClick={() => setStars(i)} className="star-btn"><IconStar size={22} filled={i <= stars} /></button>
         ))}
       </div>
-      <Button className="sm deep" disabled={!stars} busy={s.busy} onClick={async () => { if (await s.run('POST', `/api/care/events/${eventId}/review`, { stars })) onDone(); }}>Enviar avaliação</Button>
+      <fieldset className="nps">
+        <legend className="small">De 0 a 10, quanto você recomendaria a ONEMA a um amigo ou familiar? <span className="muted">(opcional)</span></legend>
+        <div className="nps-scale" role="radiogroup" aria-label="Recomendação de 0 a 10">
+          {Array.from({ length: 11 }, (_, i) => (
+            <button key={i} type="button" role="radio" aria-checked={nps === i} className={nps === i ? 'on' : ''} onClick={() => setNps(i)}>{i}</button>
+          ))}
+        </div>
+      </fieldset>
+      <div className="row">
+        <Button className="sm deep" disabled={!stars} busy={s.busy} onClick={async () => { if (await s.run('POST', `/api/care/events/${eventId}/review`, { stars, ...(nps !== null ? { nps } : {}) })) onDone(); }}>Enviar avaliação</Button>
+      </div>
       <Alert error={s.error} />
     </div>
   );
@@ -82,10 +94,12 @@ export function RequestDetailPage() {
   if (loading && !data) return <Loading />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
   const r = data.request, o = r.order, q = r.quote;
+  const pendingPay = data.attempts.find((a: any) => a.status === 'PENDING_PAYMENT');
   return (
     <>
       <PageHeader kicker={o?.status === 'PAID' ? 'Comprovante do pedido' : 'Solicitação'} title={q.offer.name} back={{ to: '/servicos', label: 'Meus pedidos' }}>
         {params.get('confirmado') && <div className="success" role="status"><IconCheck size={18} /> Pagamento confirmado (simulação). Seu pedido foi registrado.</div>}
+        {pendingPay && r.status !== 'PEDIDO_GERADO' && <PendingPayment url={pendingPay.paymentUrl} onPoll={reload} />}
         <Badge tone={REQ_STATUS[r.status].tone}>{REQ_STATUS[r.status].label}</Badge>
       </PageHeader>
       <div className="two">
@@ -98,7 +112,7 @@ export function RequestDetailPage() {
             <dt>Preço base</dt><dd>{money(o?.basePriceCents ?? q.basePriceCents)}</dd>
             <dt>Desconto PRIME</dt><dd>{money(o?.discountCents ?? q.discountCents)}{o?.cycleId ? ' · uso do ciclo vigente' : ''}</dd>
             <dt>Total</dt><dd><strong>{money(o?.totalCents ?? q.totalCents)}</strong></dd>
-            <dt>Pagamento</dt><dd>{o ? `${label(o.status)} · ${o.provider === 'SANDBOX' ? 'simulado' : o.provider} · ${dateTime(o.paidAt ?? o.createdAt)}` : 'Não realizado'}</dd>
+            <dt>Pagamento</dt><dd>{o ? `${label(o.status)} · ${o.provider === 'SANDBOX' ? 'simulado' : o.provider === 'ASAAS' ? 'Asaas' : o.provider} · ${dateTime(o.paidAt ?? o.createdAt)}` : 'Não realizado'}</dd>
             {o?.billingPeriod && <><dt>Mês de referência</dt><dd>{o.billingPeriod.split('-').reverse().join('/')}</dd></>}
           </dl>
           {data.attempts.length > 1 && <p className="small muted">Tentativas de pagamento: {data.attempts.map((a: any) => label(a.status)).join(', ')}.</p>}
@@ -115,6 +129,15 @@ export function RequestDetailPage() {
                     <Badge tone={EVENT_STATUS[e.status].tone}>{EVENT_STATUS[e.status].label}</Badge>
                   </div>
                   {e.specialist_name && <div className="small muted">Especialista: {e.specialist_name}{Number(e.specialist_reviews) > 0 ? ` · ${Number(e.specialist_rating).toFixed(1).replace('.', ',')} ★ (${e.specialist_reviews} ${Number(e.specialist_reviews) > 1 ? 'avaliações' : 'avaliação'})` : ''}{e.completed_at ? ` · concluído em ${dateTime(e.completed_at)}` : ''}</div>}
+                  {e.specialist_coren && <div className="small muted">COREN {e.specialist_coren} · especialista validada pela Central ONEMA</div>}
+                  {e.visit_code && (
+                    <div className="visit-code" role="status">
+                      <span className="small">Código de início da visita</span>
+                      <strong className="mono" aria-label={`Código ${e.visit_code.split('').join(' ')}`}>{e.visit_code}</strong>
+                      <span className="small muted">Informe este código à especialista quando ela chegar. Não compartilhe por telefone ou mensagem.</span>
+                    </div>
+                  )}
+                  {e.started_at && e.status === 'ACEITO' && <div className="small"><IconCheck size={14} /> Atendimento iniciado em {dateTime(e.started_at)} (código confirmado)</div>}
                   {e.status === 'CONCLUIDO' && <div className="mt"><Stars eventId={e.id} current={e.my_stars} onDone={reload} /></div>}
                 </li>
               ))}

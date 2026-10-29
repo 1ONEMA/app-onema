@@ -1,3 +1,5 @@
+import { createPayment, ensureCustomer } from '../../lib/asaas.ts';
+import { cpfSchema } from '../../lib/cpf.ts';
 import type { FastifyInstance } from 'fastify';
 import QRCode from 'qrcode';
 import { z } from 'zod';
@@ -118,7 +120,7 @@ export async function academyRoutes(app: FastifyInstance) {
         eligible: a.academyEligible,
         requirePayment: config.academyRequirePayment,
         fee: { amountCents: config.academyFeeCents, currency: 'BRL' },
-        payment: pay ? { id: pay.id, status: pay.status, amountCents: pay.amount_cents, provider: pay.provider, updatedAt: pay.updated_at } : null,
+        payment: pay ? { id: pay.id, status: pay.status, amountCents: pay.amount_cents, provider: pay.provider, updatedAt: pay.updated_at, paymentUrl: pay.status === 'PENDENTE' ? pay.payment_url ?? null : null } : null,
         enrollment: enrollment ? { id: enrollment.id, state: enrollment.state, journeyVersion: enrollment.journey_version, startedAt: enrollment.started_at, completedAt: enrollment.completed_at } : null,
         courses,
         certificate: cert,
@@ -569,14 +571,25 @@ export async function academyRoutes(app: FastifyInstance) {
   // ACA-010 - Pagamento da jornada (sandbox; gateway real não autorizado - P-009)
   app.post('/api/academy/payment-orders', async (req, reply) => {
     const a = partner(req);
+    const { payerCpf } = parse(z.object({ payerCpf: cpfSchema.optional() }), req.body ?? {});
     return await idempotent(req, reply, 'academy-order', async () => {
       const open = await one<any>(`SELECT * FROM academy_payment_orders WHERE partner_id = ? AND status IN ('PENDENTE','PAGO')`, a.userId);
-      if (open) return { status: 200, body: { order: open } };
-      const id = uid(), now = nowIso();
-      await run(`INSERT INTO academy_payment_orders (id, partner_id, amount_cents, currency, status, provider, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
-        id, a.userId, config.academyFeeCents, 'BRL', 'PENDENTE', config.paymentProvider, now, now);
-      await audit({ actorId: a.userId, action: 'ACADEMY_ORDER_CREATED', subjectType: 'academy_order', subjectId: id, correlationId: req.correlationId });
-      return { status: 201, body: { order: await one('SELECT * FROM academy_payment_orders WHERE id = ?', id) } };
+      let id = open?.id as string | undefined;
+      if (open && (open.status === 'PAGO' || open.payment_url || config.paymentProvider !== 'ASAAS')) return { status: 200, body: { order: open } };
+      if (!id) {
+        id = uid();
+        const now = nowIso();
+        await run(`INSERT INTO academy_payment_orders (id, partner_id, amount_cents, currency, status, provider, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
+          id, a.userId, config.academyFeeCents, 'BRL', 'PENDENTE', config.paymentProvider, now, now);
+        await audit({ actorId: a.userId, action: 'ACADEMY_ORDER_CREATED', subjectType: 'academy_order', subjectId: id, correlationId: req.correlationId });
+      }
+      if (config.paymentProvider === 'ASAAS') {
+        // Taxa da Jornada paga na página segura do Asaas; a liberação vem pelo webhook.
+        const customer = await ensureCustomer(a.userId, payerCpf);
+        const p = await createPayment({ customer, valueCents: config.academyFeeCents, description: 'ONEMA Academy · Jornada de Integração', externalReference: `academy:${id}` });
+        await run(`UPDATE academy_payment_orders SET provider = 'ASAAS', provider_ref = ?, payment_url = ?, updated_at = ? WHERE id = ?`, p.id, p.invoiceUrl, nowIso(), id);
+      }
+      return { status: open ? 200 : 201, body: { order: await one('SELECT * FROM academy_payment_orders WHERE id = ?', id) } };
     });
   });
 

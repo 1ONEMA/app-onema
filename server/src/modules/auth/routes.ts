@@ -64,15 +64,17 @@ export async function authRoutes(app: FastifyInstance) {
       name: z.string().trim().min(3, 'Informe seu nome completo.').max(120),
       email: emailSchema,
       password: passwordSchema,
+      referralCode: z.string().trim().regex(/^[A-Za-z0-9]{6,12}$/).optional(),
     }), req.body);
     const id = uid();
+    const referrer = body.referralCode ? await one<any>('SELECT id FROM users WHERE referral_code = ?', body.referralCode.toUpperCase()) : null;
     await tx(async () => {
       if (await one('SELECT 1 FROM users WHERE email = ?', body.email)) {
         throw conflict('EMAIL_IN_USE', 'Já existe uma conta com este e-mail. Use "Esqueci minha senha" se necessário.');
       }
       const now = nowIso();
-      await run(`INSERT INTO users (id, email, name, password_hash, created_at, updated_at) VALUES (?,?,?,?,?,?)`,
-        id, body.email, body.name, hashPassword(body.password), now, now);
+      await run(`INSERT INTO users (id, email, name, password_hash, created_at, updated_at, referred_by) VALUES (?,?,?,?,?,?,?)`,
+        id, body.email, body.name, hashPassword(body.password), now, now, referrer?.id ?? null);
       await run(`INSERT INTO user_roles (user_id, role, granted_by, granted_at) VALUES (?, 'PACIENTE', NULL, ?)`, id, now);
       await audit({ actorId: id, action: 'USER_REGISTERED', subjectType: 'user', subjectId: id, correlationId: req.correlationId });
     });

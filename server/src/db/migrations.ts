@@ -877,4 +877,71 @@ CREATE INDEX ix_specialist_application_cpf_hash ON specialist_applications(cpf_h
 -- Último passo TOTP aceito (impede reutilizar o mesmo código de 2 fatores).
 ALTER TABLE users ADD COLUMN mfa_last_step INTEGER;
 ` },
+  { name: '011_asaas', sql: `
+-- 011: Pagamentos reais pelo Asaas (cobrança hospedada + webhook). O CPF fica no Asaas, não na ONEMA.
+ALTER TABLE users ADD COLUMN asaas_customer_id TEXT;
+ALTER TABLE service_orders ADD COLUMN payment_url TEXT;
+ALTER TABLE academy_payment_orders ADD COLUMN payment_url TEXT;
+ALTER TABLE subscriptions ADD COLUMN provider_ref TEXT;
+ALTER TABLE charges ADD COLUMN payment_url TEXT;
+CREATE INDEX ix_service_orders_provider_ref ON service_orders(provider_ref);
+CREATE INDEX ix_charges_provider_ref ON charges(provider_ref);
+CREATE INDEX ix_subscriptions_provider_ref ON subscriptions(provider_ref);
+-- Cada evento do Asaas é processado uma única vez (o Asaas reenvia em caso de falha).
+CREATE TABLE asaas_webhook_events (
+  event_id TEXT PRIMARY KEY,
+  event TEXT NOT NULL,
+  payment_id TEXT,
+  outcome TEXT NOT NULL,
+  received_at TEXT NOT NULL
+);
+ALTER TABLE asaas_webhook_events ENABLE ROW LEVEL SECURITY;
+` },
+  { name: '012_visita_e_evolucao', sql: `
+-- 012: Segurança da visita (código de início + localização opcional) e evolução de enfermagem organizada pela Kary.
+ALTER TABLE care_events ADD COLUMN visit_code TEXT;
+ALTER TABLE care_events ADD COLUMN started_at TEXT;
+ALTER TABLE care_events ADD COLUMN start_lat REAL;
+ALTER TABLE care_events ADD COLUMN start_lng REAL;
+ALTER TABLE care_events ADD COLUMN start_accuracy_m INTEGER;
+CREATE TABLE care_evolutions (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL UNIQUE REFERENCES care_events(id),
+  order_id TEXT NOT NULL REFERENCES service_orders(id),
+  patient_id TEXT NOT NULL REFERENCES users(id),
+  specialist_id TEXT NOT NULL REFERENCES users(id),
+  dictation TEXT NOT NULL DEFAULT '',
+  content_json TEXT NOT NULL,
+  ai_used INTEGER NOT NULL DEFAULT 0,
+  ai_model TEXT,
+  status TEXT NOT NULL CHECK (status IN ('RASCUNHO','ASSINADA')),
+  signed_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX ix_care_evolutions_patient ON care_evolutions(patient_id, signed_at);
+-- Evolução assinada é imutável (registro clínico).
+CREATE OR REPLACE FUNCTION onema_evolution_locked() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $fn$
+BEGIN
+  IF OLD.status = 'ASSINADA' THEN RAISE EXCEPTION 'signed evolution is immutable' USING ERRCODE = 'P0001'; END IF;
+  RETURN NEW;
+END $fn$;
+CREATE TRIGGER evolution_locked BEFORE UPDATE ON care_evolutions FOR EACH ROW EXECUTE FUNCTION onema_evolution_locked();
+CREATE TRIGGER evolution_no_delete BEFORE DELETE ON care_evolutions FOR EACH ROW EXECUTE FUNCTION onema_forbid('evolution is immutable');
+ALTER TABLE care_evolutions ENABLE ROW LEVEL SECURITY;
+` },
+  { name: '013_crescimento', sql: `
+-- 013: Recomendação (NPS) após o atendimento e indicação entre pacientes.
+CREATE TABLE nps_responses (
+  id TEXT PRIMARY KEY,
+  patient_id TEXT NOT NULL REFERENCES users(id),
+  event_id TEXT NOT NULL UNIQUE REFERENCES care_events(id),
+  score INTEGER NOT NULL CHECK (score BETWEEN 0 AND 10),
+  created_at TEXT NOT NULL
+);
+ALTER TABLE nps_responses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ADD COLUMN referral_code TEXT;
+ALTER TABLE users ADD COLUMN referred_by TEXT REFERENCES users(id);
+CREATE UNIQUE INDEX uq_users_referral_code ON users(referral_code);
+` },
 ];

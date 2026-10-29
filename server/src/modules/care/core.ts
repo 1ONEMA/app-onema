@@ -13,6 +13,7 @@ import { conflict, notFound, unprocessable } from '../../lib/errors.ts';
 import { brl, nowIso, uid } from '../../lib/util.ts';
 import { currentParams, notify, quote, receipt, sandboxCharge } from '../prime/core.ts';
 import { offerByCode, publicOffer } from './catalog.ts';
+import { createPayment, ensureCustomer } from '../../lib/asaas.ts';
 
 /** Mês de referência (São Paulo) para ofertas mensais: chave de não duplicidade CAT-08/PAC-05. */
 export function billingPeriod(iso = nowIso()) {
@@ -62,7 +63,7 @@ export async function buildQuote(patientId: string, f: RequestFields, quoteVersi
 }
 
 interface PlaceOrderInput {
-  patientId: string; itemCode: string; paymentMethod: string; expectedTotalCents: number;
+  patientId: string; itemCode: string; paymentMethod: string; expectedTotalCents: number; payerCpf?: string | null;
   request?: { id: string; location: string; acceptedSnapshot: any } | null;
   correlationId: string | null;
 }
@@ -124,12 +125,20 @@ export async function placeOrder(inp: PlaceOrderInput) {
   }
   await audit({ actorId: inp.patientId, action: 'ORDER_CREATED', subjectType: 'service_order', subjectId: orderId, correlationId: inp.correlationId,
     meta: { item: item.code, version: version.version, total: q.finalPriceCents } });
+  if (config.paymentProvider === 'ASAAS') {
+    // Cobrança real: o pedido aguarda o pagamento na página do Asaas; a confirmação chega pelo webhook.
+    const customer = await ensureCustomer(inp.patientId, inp.payerCpf);
+    const p = await createPayment({ customer, valueCents: q.finalPriceCents, description: `ONEMA SAÚDE · ${item.code} ${item.name}`, externalReference: `care:${orderId}` });
+    await run('UPDATE service_orders SET provider_ref = ?, payment_url = ? WHERE id = ?', p.id, p.invoiceUrl, orderId);
+    const order = await one<any>('SELECT * FROM service_orders WHERE id = ?', orderId);
+    return { order, paid: false, paymentUrl: p.invoiceUrl };
+  }
   const pay = sandboxCharge(inp.paymentMethod);
   await run('UPDATE service_orders SET provider_ref = ? WHERE id = ?', pay.ref, orderId);
   // O retorno do provedor é tratado como evento (o mesmo caminho do webhook): idempotente por id do evento.
   await applyPaymentEvent({ eventId: `${pay.ref}_${pay.ok ? 'ok' : 'fail'}`, orderId, type: pay.ok ? 'PAYMENT_CONFIRMED' : 'PAYMENT_DECLINED' }, inp.correlationId);
   const order = await one<any>('SELECT * FROM service_orders WHERE id = ?', orderId);
-  return { order, paid: pay.ok };
+  return { order, paid: pay.ok, paymentUrl: null as string | null };
 }
 
 const TRANSITIONS: Record<string, { from: string; to: string }> = {
@@ -174,7 +183,7 @@ export async function applyPaymentEvent(ev: { eventId: string; orderId: string; 
     if (o.request_id) await run(`UPDATE care_requests SET status = 'PEDIDO_GERADO', order_id = ?, updated_at = ? WHERE id = ?`, o.id, now, o.request_id);
     await audit({ actorId: ev.actorId ?? null, action: 'ORDER_PAID', subjectType: 'service_order', subjectId: o.id, correlationId, meta: { item: o.item_code } });
     const text = `Pedido ${o.item_code} — ${o.item_name} (versão ${o.version_no ?? 1}). Preço: ${brl(o.full_price_cents)}. Desconto PRIME: ${brl(o.discount_cents)}. ` +
-      `Total pago: ${brl(o.final_price_cents)} (pagamento simulado). Próximo passo: a Central ONEMA confirma a agenda com um especialista validado.`;
+      `Total pago: ${brl(o.final_price_cents)}${o.provider === 'SANDBOX' ? ' (pagamento simulado)' : ''}. Próximo passo: a Central ONEMA confirma a agenda com um especialista validado.`;
     await receipt(o.patient_id, 'PEDIDO', o.id.slice(0, 8).toUpperCase(), text);
     await notify(o.patient_id, 'ESSENCIAL', 'Pedido confirmado', text);
   } else if (ev.type === 'PAYMENT_DECLINED') {
@@ -195,7 +204,7 @@ export async function applyPaymentEvent(ev: { eventId: string; orderId: string; 
       await run(`UPDATE payout_entries SET status = 'CANCELADO', updated_at = ? WHERE event_id = ? AND status = 'RESERVADO'`, now, e.id);
     }
     await audit({ actorId: ev.actorId ?? null, action: 'ORDER_REFUNDED', subjectType: 'service_order', subjectId: o.id, correlationId, meta: { cancelledEvents: open.length } });
-    await notify(o.patient_id, 'ESSENCIAL', 'Pedido estornado', `O pedido ${o.item_code} — ${o.item_name} foi estornado (${brl(o.final_price_cents)}, simulação).`);
+    await notify(o.patient_id, 'ESSENCIAL', 'Pedido estornado', `O pedido ${o.item_code} — ${o.item_name} foi estornado (${brl(o.final_price_cents)}${o.provider === 'SANDBOX' ? ', simulação' : ''}).`);
   }
   return { duplicate: false, applied: true, status: t.to };
 }
@@ -208,5 +217,6 @@ export function patientOrderView(o: any) {
     basePriceCents: o.full_price_cents, discountCents: o.discount_cents, totalCents: o.final_price_cents, noDiscountReason: o.no_discount_reason,
     actsTotal: o.acts_total, billingPeriod: o.billing_period, provider: o.provider, providerRef: o.provider_ref,
     createdAt: o.created_at, paidAt: o.paid_at, refundedAt: o.refunded_at, offer: snap?.item ?? null, cycleId: o.cycle_id,
+    paymentUrl: o.status === 'PENDING_PAYMENT' ? o.payment_url ?? null : null,
   };
 }

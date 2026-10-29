@@ -1,3 +1,5 @@
+import { cancelSubscription } from '../../lib/asaas.ts';
+import { cpfSchema } from '../../lib/cpf.ts';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { config } from '../../config.ts';
@@ -8,7 +10,7 @@ import { idempotent, parse, requireRoles, requireUser } from '../../lib/context.
 import { badRequest, conflict, forbidden, notFound, unprocessable } from '../../lib/errors.ts';
 import { addDays, addMonths, brl, nowIso, protocol, sha256, uid } from '../../lib/util.ts';
 import {
-  SANDBOX_METHODS, benefitState, chargeCycle, currentParams, cycleById, cycleUsage, fmtDate, fmtDateTime, latestSubscription,
+  ASAAS_METHODS, PAYMENT_METHOD_KEYS, SANDBOX_METHODS, benefitState, chargeCycle, currentParams, cycleById, cycleUsage, fmtDate, fmtDateTime, latestSubscription,
   latestText, newSubscriptionProtocol, notify, openSubscription, paramsById, quote, receipt, sandboxCharge,
 } from './core.ts';
 import { placeOrder } from '../care/core.ts';
@@ -17,7 +19,7 @@ const patient = (req: any) => requireRoles(req, ['PACIENTE']);
 const PURPOSES = ['LEMBRETES', 'RESUMO_MENSAL', 'OFERTAS'] as const;
 /** Frequências de lembrete: valores provisórios (não definidos na fonte) - pendente de validação RT. */
 export const REMINDER_FREQUENCIES = ['SEMANAL', 'QUINZENAL', 'MENSAL'] as const;
-const methodSchema = z.enum(Object.keys(SANDBOX_METHODS) as [keyof typeof SANDBOX_METHODS, ...(keyof typeof SANDBOX_METHODS)[]]);
+const methodSchema = z.enum(PAYMENT_METHOD_KEYS);
 
 const prefSchema = z.object({
   enabled: z.boolean(),
@@ -99,7 +101,7 @@ async function subscriptionView(patientId: string) {
   return {
     id: sub.id, status: sub.status, protocol: sub.protocol, acceptedAt: sub.accepted_at, activatedAt: sub.activated_at,
     cancelRequestedAt: sub.cancel_requested_at, cancelProtocol: sub.cancel_protocol, endedAt: sub.ended_at,
-    paymentMethod: sub.payment_method, paymentMethodLabel: (SANDBOX_METHODS as any)[sub.payment_method] ?? sub.payment_method,
+    paymentMethod: sub.payment_method, paymentMethodLabel: ({ ...SANDBOX_METHODS, ...ASAAS_METHODS } as any)[sub.payment_method] ?? sub.payment_method,
     monthlyPriceCents: params.monthly_price_cents,
     cycle: cycle ? { no: cycle.cycle_no, startsAt: cycle.starts_at, endsAt: cycle.ends_at, status: cycle.status } : null,
     nextChargeAt: sub.status === 'ACTIVE' && cycle?.status === 'PAID' ? cycle.ends_at : null,
@@ -128,6 +130,9 @@ async function grantView(g: any) {
   };
 }
 
+const PENDING_MSG = 'Cobrança emitida. Conclua o pagamento na página segura do Asaas; o PRIME é ativado assim que o pagamento for confirmado.';
+const pendingInfo = (r: any) => ('pending' in r ? { pending: true, paymentUrl: r.paymentUrl ?? null } : {});
+
 export async function primeRoutes(app: FastifyInstance) {
   // Oferta e textos integrais (T1, T2, T3)
   app.get('/api/prime/offer', async (req) => {
@@ -137,7 +142,9 @@ export async function primeRoutes(app: FastifyInstance) {
       monthlyPriceCents: p.monthly_price_cents, discountBps: p.discount_bps, discountCapCents: p.discount_cap_cents,
       usesPerCycle: p.uses_per_cycle, parametersVersion: p.version,
       terms: textMeta(await latestText('T1')), privacy: textMeta(await latestText('T2')), choices: textMeta(await latestText('T3')),
-      paymentMethods: Object.entries(SANDBOX_METHODS).map(([id, label]) => ({ id, label })),
+      paymentMethods: config.paymentProvider === 'ASAAS'
+        ? Object.entries(ASAAS_METHODS).filter(([id]) => id !== 'ASAAS').map(([id, label]) => ({ id, label }))
+        : Object.entries(SANDBOX_METHODS).map(([id, label]) => ({ id, label })),
       paymentProvider: config.paymentProvider,
       whatsappEnabled: config.whatsappEnabled,
       reminderFrequencies: REMINDER_FREQUENCIES,
@@ -202,6 +209,7 @@ export async function primeRoutes(app: FastifyInstance) {
       termsTextId: z.string().uuid(),
       privacyTextId: z.string().uuid(),
       paymentMethod: methodSchema,
+      payerCpf: cpfSchema.optional(),
       preferences: prefsSchema,
     }), req.body);
     return await idempotent(req, reply, 'prime-subscribe', async () => {
@@ -224,23 +232,23 @@ export async function primeRoutes(app: FastifyInstance) {
       await savePrefs(a.userId, body.preferences, 'ADESAO_PRIME');
       await audit({ actorId: a.userId, action: 'ASSINATURA_SOLICITADA', subjectType: 'subscription', subjectId: id, after: acceptance, correlationId: req.correlationId });
       const sub = await one<any>('SELECT * FROM subscriptions WHERE id = ?', id);
-      const r = await chargeCycle(sub, body.paymentMethod, a.userId, req.correlationId);
-      return { status: 201, body: { paid: r.ok, subscription: await subscriptionView(a.userId),
-        message: r.ok ? null : 'Não foi possível confirmar o pagamento; nenhum benefício foi consumido. Tente novamente.' } };
+      const r = await chargeCycle(sub, body.paymentMethod, a.userId, req.correlationId, { payerCpf: body.payerCpf });
+      return { status: 201, body: { paid: r.ok, ...pendingInfo(r), subscription: await subscriptionView(a.userId),
+        message: r.ok ? null : 'pending' in r ? PENDING_MSG : 'Não foi possível confirmar o pagamento; nenhum benefício foi consumido. Tente novamente.' } };
     });
   });
 
   // Pagamento/regularização do ciclo pendente
   app.post('/api/prime/subscriptions/current/pay', async (req, reply) => {
     const a = patient(req);
-    const { paymentMethod } = parse(z.object({ paymentMethod: methodSchema }), req.body);
+    const { paymentMethod, payerCpf } = parse(z.object({ paymentMethod: methodSchema, payerCpf: cpfSchema.optional() }), req.body);
     return await idempotent(req, reply, 'prime-pay', async () => {
       const sub = await openSubscription(a.userId);
       if (!sub) throw notFound('Nenhuma assinatura em andamento.');
       if (!['ASSINATURA_SOLICITADA', 'PAYMENT_PENDING', 'SUSPENDED'].includes(sub.status)) throw conflict('NOTHING_TO_CHARGE', 'Não há cobrança pendente.');
-      const r = await chargeCycle(sub, paymentMethod, a.userId, req.correlationId);
-      return { status: 200, body: { paid: r.ok, subscription: await subscriptionView(a.userId),
-        message: r.ok ? null : 'Não foi possível confirmar o pagamento; nenhum benefício foi consumido. Tente novamente.' } };
+      const r = await chargeCycle(sub, paymentMethod, a.userId, req.correlationId, { payerCpf });
+      return { status: 200, body: { paid: r.ok, ...pendingInfo(r), subscription: await subscriptionView(a.userId),
+        message: r.ok ? null : 'pending' in r ? PENDING_MSG : 'Não foi possível confirmar o pagamento; nenhum benefício foi consumido. Tente novamente.' } };
     });
   });
 
@@ -256,6 +264,8 @@ export async function primeRoutes(app: FastifyInstance) {
       const cycle = await cycleById(sub.current_cycle_id);
       const paidCycle = cycle?.status === 'PAID' && cycle.ends_at > now;
       const newStatus = paidCycle ? 'CANCEL_SCHEDULED' : 'CANCELLED';
+      // Interrompe as cobranças futuras no Asaas (o ciclo já pago continua valendo até o fim).
+      if (sub.provider_ref) await cancelSubscription(sub.provider_ref);
       await run(`UPDATE subscriptions SET status = ?, cancel_requested_at = ?, cancel_protocol = ?, ended_at = ?, updated_at = ? WHERE id = ?`,
         newStatus, now, proto, paidCycle ? null : now, now, sub.id);
       const until = paidCycle ? fmtDate(cycle!.ends_at) : fmtDate(now);
@@ -297,6 +307,7 @@ export async function primeRoutes(app: FastifyInstance) {
       await run(`INSERT INTO refund_requests (id, subscription_id, charge_id, type, reason, amount_cents, status, protocol, requested_by, requested_at, provider)
            VALUES (?,?,?,?,?,?,?,?,?,?,?)`, id, sub.id, charge.id, body.type, body.reason ?? null, charge.amount_cents, 'REFUND_PENDING', proto, a.userId, now, charge.provider);
       if (body.type === 'ARREPENDIMENTO') {
+        if (sub.provider_ref) await cancelSubscription(sub.provider_ref);
         await run(`UPDATE subscriptions SET status = 'REFUND_PENDING', cancel_requested_at = COALESCE(cancel_requested_at, ?), cancel_protocol = COALESCE(cancel_protocol, ?), ended_at = ?, updated_at = ? WHERE id = ?`,
           now, proto, now, now, sub.id);
         // Reserva de desconto ainda não consumida é liberada de forma auditável

@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../lib/auth';
+import { AsaasNotice, PendingPayment, openPayment } from '../../ui/AsaasPay';
 import { COURSE_STATE, date, label, money } from '../../lib/format';
 import { useApi, useSubmit } from '../../lib/hooks';
 import { Alert, Badge, Button, ErrorState, Loading, PageHeader, Pending, Progress } from '../../ui/ui';
@@ -8,6 +11,9 @@ import { IconAward, IconBook, IconLock } from '../../ui/icons';
 export function AcademyHome() {
   const { data, error, loading, reload } = useApi<any>('/api/academy/journey');
   const order = useSubmit<any>();
+  const { status } = useAuth();
+  const asaasMode = status?.paymentProvider === 'ASAAS';
+  const [cpf, setCpf] = useState('');
   const pay = useSubmit<any>();
   const enroll = useSubmit<any>();
   if (loading && !data) return <><Header /><Loading /></>;
@@ -17,7 +23,10 @@ export function AcademyHome() {
   const paid = j.payment?.status === 'PAGO';
   const needsPayment = j.requirePayment && !paid;
 
-  async function createOrder() { const r = await order.run('POST', '/api/academy/payment-orders', {}, { idempotent: true }); if (r) reload(); }
+  async function createOrder() {
+    const r = await order.run('POST', '/api/academy/payment-orders', cpf ? { payerCpf: cpf } : {}, { idempotent: true });
+    if (r) { if (r.order?.payment_url) openPayment(r.order.payment_url); reload(); }
+  }
   async function sandbox(outcome: 'APROVADO' | 'RECUSADO') { const r = await pay.run('POST', `/api/academy/payment-orders/${j.payment.id}/sandbox-pay`, { outcome }); if (r) reload(); }
   async function start() { const r = await enroll.run('POST', '/api/academy/enrollments', {}, { idempotent: true }); if (r) reload(); }
 
@@ -41,10 +50,12 @@ export function AcademyHome() {
                 {j.payment ? <Badge tone={paid ? '' : j.payment.status === 'PENDENTE' ? 'orange' : 'red'}>{label(j.payment.status)}</Badge> : <Badge tone="dark">Não iniciado</Badge>}
                 <p className="small muted mb0">O pagamento libera o acesso comercial aos quatro cursos. Não equivale a aprovação, certificado ou aptidão.</p>
                 <Alert error={order.error || pay.error} />
-                {(!j.payment || ['RECUSADO', 'CANCELADO', 'ESTORNADO'].includes(j.payment.status)) && (
-                  <Button className="mt" busy={order.busy} onClick={createOrder}>Gerar pedido de {money(j.fee.amountCents)}</Button>
+                {asaasMode && !paid && !j.payment?.paymentUrl && <AsaasNotice error={order.error} cpf={cpf} setCpf={setCpf} />}
+                {(!j.payment || ['RECUSADO', 'CANCELADO', 'ESTORNADO'].includes(j.payment.status) || (asaasMode && j.payment.status === 'PENDENTE' && !j.payment.paymentUrl)) && (
+                  <Button className="mt" busy={order.busy} onClick={createOrder}>{asaasMode ? `Pagar ${money(j.fee.amountCents)}` : `Gerar pedido de ${money(j.fee.amountCents)}`}</Button>
                 )}
-                {j.payment?.status === 'PENDENTE' && (
+                {asaasMode && j.payment?.status === 'PENDENTE' && j.payment.paymentUrl && <PendingPayment url={j.payment.paymentUrl} onPoll={reload} what="acesso à Jornada" />}
+                {!asaasMode && j.payment?.status === 'PENDENTE' && (
                   <div className="surface mt" style={{ background: '#FFFBF3' }}>
                     <span className="demo-flag">SANDBOX</span>
                     <p className="small">Integração com gateway real não autorizada nesta entrega (P-009). Simule o retorno do provedor:</p>
