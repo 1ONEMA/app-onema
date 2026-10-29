@@ -1,3 +1,5 @@
+import { useAuth } from '../../lib/auth';
+import { AsaasNotice, PendingPayment, openPayment } from '../../ui/AsaasPay';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { date, money, pct } from '../../lib/format';
@@ -36,6 +38,9 @@ export function PrimeSubscribePage() {
   const submit = useSubmit<any>();
   const [accept, setAccept] = useState(false);
   const [method, setMethod] = useState('');
+  const [cpf, setCpf] = useState('');
+  const { status } = useAuth();
+  const asaasMode = status?.paymentProvider === 'ASAAS';
   const [prefs, setPrefs] = useState<Record<string, Pref>>({ LEMBRETES: { ...OFF, frequency: null }, RESUMO_MENSAL: OFF, OFERTAS: OFF });
   const [result, setResult] = useState<any>(null);
   if (offer.loading || preview.loading || t1.loading || t2.loading) return <Loading />;
@@ -46,16 +51,17 @@ export function PrimeSubscribePage() {
 
   async function confirm() {
     const r = await submit.run('POST', '/api/prime/subscriptions', {
-      acceptTerms: accept, termsTextId: o.terms.id, privacyTextId: o.privacy.id, paymentMethod: method, preferences: prefs,
+      acceptTerms: accept, termsTextId: o.terms.id, privacyTextId: o.privacy.id, paymentMethod: method, preferences: prefs, ...(cpf ? { payerCpf: cpf } : {}),
     }, { idempotent: true });
-    if (r) setResult(r);
+    if (r) { if (r.pending) openPayment(r.paymentUrl); setResult(r); }
   }
   if (result) {
     return (
       <>
-        <PageHeader kicker="ONEMA PRIME" title={result.paid ? 'Assinatura ativada' : 'Pagamento não confirmado'} />
+        <PageHeader kicker="ONEMA PRIME" title={result.paid ? 'Assinatura ativada' : result.pending ? 'Falta só o pagamento' : 'Pagamento não confirmado'} />
         <section className="surface">
           {result.paid ? <div className="success" role="status">Seu ONEMA PRIME foi ativado. Protocolo {result.subscription.protocol}. O comprovante completo está na Central PRIME.</div>
+            : result.pending ? <PendingPayment url={result.paymentUrl} onPoll={() => undefined} what="ONEMA PRIME" />
             : <div className="caution" role="status">{result.message}</div>}
           <Link to="/prime/assinatura" className="btn deep">Ir para a Central PRIME</Link>
         </section>
@@ -83,11 +89,11 @@ export function PrimeSubscribePage() {
             {o.paymentMethods.map((m: any) => (
               <label key={m.id} className={method === m.id ? 'selected' : ''}>
                 <input type="radio" name="method" value={m.id} checked={method === m.id} onChange={() => setMethod(m.id)} />
-                <span>{m.label} <span className="demo-flag">SANDBOX</span></span>
+                <span>{m.label} {!asaasMode && <span className="demo-flag">SANDBOX</span>}</span>
               </label>
             ))}
           </div>
-          <p className="small muted">Pagamentos simulados. Nenhuma cobrança real é feita neste ambiente.</p>
+          {asaasMode ? <AsaasNotice error={submit.error} cpf={cpf} setCpf={setCpf} /> : <p className="small muted">Pagamentos simulados. Nenhuma cobrança real é feita neste ambiente.</p>}
           <h3 className="mt">Fornecedor</h3>
           {o.provider.validated ? (
             <p className="small">{o.provider.legalName} · CNPJ {o.provider.cnpj}<br />{o.provider.address}<br />Atendimento: {o.provider.supportChannel}</p>

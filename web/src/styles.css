@@ -749,3 +749,33 @@ h3 { font-weight: 600; letter-spacing: -0.01em; }
   .cafe-full { padding-right: 40px; }
 }
 .kary-fab { transition: width .2s, height .2s; }
+
+/* Pagamento real (Asaas) */
+.asaas-box { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; background: #F6F9FF; margin: 12px 0; }
+.asaas-box .row { align-items: flex-start; gap: 10px; flex-wrap: nowrap; }
+/* Código de início da visita e evolução */
+.visit-code { display: grid; gap: 4px; margin: 10px 0; padding: 12px 14px; border-radius: 14px; background: #EEF6FF; border: 1px dashed var(--deep); }
+.visit-code strong { font-size: 30px; letter-spacing: .3em; color: var(--deep); }
+.evo summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.evo-form textarea { width: 100%; }
+.kv .contents { display: contents; }
+.btn.red { background: #B42318; color: #fff; }
+/* Segurança como argumento + momentos */
+.security-band { background: #F2F6FA; border-radius: 28px; padding: 36px 20px; }
+@media (min-width: 960px) { .security-band { padding: 56px 64px; } }
+.security-grid { display: grid; gap: 14px; grid-template-columns: 1fr; margin-top: 20px; }
+@media (min-width: 720px) { .security-grid { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 1120px) { .security-grid { grid-template-columns: repeat(3, 1fr); } }
+.security-grid > * { min-width: 0; }
+.moments-list { list-style: none; padding: 0; display: grid; gap: 14px; grid-template-columns: 1fr; margin-top: 18px; }
+@media (min-width: 900px) { .moments-list { grid-template-columns: repeat(3, 1fr); } }
+.moments-list li { display: flex; gap: 14px; align-items: flex-start; background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 20px; box-shadow: var(--shadow); min-width: 0; }
+.moments-list h3 { margin: 0 0 6px; font-size: 18px; color: var(--deep); font-weight: 600; }
+.moments-list p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.5; }
+/* NPS 0–10 */
+.nps { border: 0; padding: 0; margin: 0; }
+.nps-scale { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.nps-scale button { min-width: 40px; min-height: 44px; border-radius: 10px; border: 1px solid var(--line); background: #fff; font: inherit; font-weight: 600; color: var(--deep); cursor: pointer; }
+.nps-scale button.on { background: var(--deep); color: #fff; border-color: var(--deep); }
+.referral { display: grid; gap: 8px; }
+.referral code { word-break: break-all; font-size: 13px; }

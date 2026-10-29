@@ -74,6 +74,15 @@ function Operations({ finance }: { finance: boolean }) {
           ))}</ul>
           <h3 className="mt">Avaliações por especialista</h3>
           {!data.ratings.length ? <p className="small muted">Sem avaliações ainda.</p> : <ul className="list">{data.ratings.map((r: any) => <li key={r.name}>{r.name}: <strong>{r.avg} ★</strong> <span className="small muted">({r.n} avaliações)</span></li>)}</ul>}
+          {data.growth && (
+            <>
+              <h3 className="mt">Recomendação e indicação</h3>
+              <ul className="list">
+                <li>NPS: <strong>{data.growth.nps ?? '—'}</strong> <span className="small muted">({data.growth.npsResponses} respostas · promotores 9–10 menos detratores 0–6)</span></li>
+                <li>Cadastros por indicação de pacientes: <strong>{data.growth.referredSignups}</strong></li>
+              </ul>
+            </>
+          )}
         </section>
       </div>
     </>

@@ -38,7 +38,15 @@ export const config = {
   /** MFA obrigatório para perfis administrativos (Documento Mestre Academy 11.1). */
   requireAdminMfa: bool(process.env.REQUIRE_ADMIN_MFA, true),
   /** Pagamentos simulados. Única modalidade autorizada até os gates de produção. */
-  paymentProvider: (process.env.PAYMENT_PROVIDER ?? 'SANDBOX') as 'SANDBOX',
+  /**
+   * ASAAS somente com a chave E o token do webhook (≥ 20 caracteres) configurados — sem o token não haveria
+   * como confirmar pagamentos. PAYMENT_PROVIDER=SANDBOX força a simulação.
+   */
+  paymentProvider: (process.env.ASAAS_API_KEY?.trim() && (process.env.ASAAS_WEBHOOK_TOKEN ?? '').trim().length >= 20 && process.env.PAYMENT_PROVIDER !== 'SANDBOX'
+    ? 'ASAAS' : 'SANDBOX') as 'SANDBOX' | 'ASAAS',
+  asaasApiKey: (process.env.ASAAS_API_KEY ?? '').trim(),
+  /** Token que o Asaas envia no cabeçalho `asaas-access-token` de cada webhook (definido no painel do Asaas). */
+  asaasWebhookToken: (process.env.ASAAS_WEBHOOK_TOKEN ?? '').trim(),
   /** WhatsApp permanece desligado até integração oficial validada (PRIME T3). */
   whatsappEnabled: bool(process.env.WHATSAPP_ENABLED, false),
   /** Política comercial Academy: matrícula exige pedido PAGO (P-009 - confirmar). */

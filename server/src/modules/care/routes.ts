@@ -13,14 +13,17 @@ import { audit } from '../../lib/audit.ts';
 import { idempotent, parse, requireRoles } from '../../lib/context.ts';
 import { conflict, forbidden, notFound, unprocessable } from '../../lib/errors.ts';
 import { hmac, safeEqual } from '../../lib/security.ts';
-import { nowIso, protocol, uid } from '../../lib/util.ts';
-import { SANDBOX_METHODS, quote } from '../prime/core.ts';
+import { nowIso, protocol, randomToken, uid } from '../../lib/util.ts';
+import { PAYMENT_METHOD_KEYS, SANDBOX_METHODS, quote } from '../prime/core.ts';
+import { cancelPayment } from '../../lib/asaas.ts';
+import { newVisitCode } from './visit.ts';
+import { cpfSchema } from '../../lib/cpf.ts';
 import { currentVersion, offerByCode, publicOffer } from './catalog.ts';
 import { applyPaymentEvent, buildQuote, patientOrderView, placeOrder } from './core.ts';
 
 const patient = (req: any) => requireRoles(req, ['PACIENTE']);
 const idParam = z.object({ id: z.string().uuid() });
-const methodSchema = z.enum(Object.keys(SANDBOX_METHODS) as [keyof typeof SANDBOX_METHODS, ...(keyof typeof SANDBOX_METHODS)[]]);
+const methodSchema = z.enum(PAYMENT_METHOD_KEYS);
 
 const requestSchema = z.object({
   need: z.string().min(2).max(40),
@@ -142,7 +145,9 @@ export async function careRoutes(app: FastifyInstance) {
     const r = await ownRequest(id, a.userId);
     const orders = await all<any>('SELECT * FROM service_orders WHERE request_id = ? ORDER BY created_at DESC', id);
     const current = orders.find((o) => o.status !== 'FAILED') ?? orders[0];
-    const events = current ? await all<any>(`SELECT e.id, e.seq, e.label, e.modality, e.status, e.completed_at, u.name AS specialist_name,
+    const events = current ? await all<any>(`SELECT e.id, e.seq, e.label, e.modality, e.status, e.completed_at, e.started_at, u.name AS specialist_name,
+        CASE WHEN e.status = 'ACEITO' AND e.started_at IS NULL AND e.modality = 'PRESENCIAL' THEN e.visit_code END AS visit_code,
+        (SELECT sa.coren_number || '-' || sa.coren_uf FROM specialist_applications sa WHERE sa.user_id = e.specialist_id AND sa.status = 'APROVADA') AS specialist_coren,
         (SELECT stars FROM specialist_reviews s WHERE s.event_id = e.id) AS my_stars,
         (SELECT ROUND(AVG(s.stars), 1) FROM specialist_reviews s WHERE s.specialist_id = e.specialist_id) AS specialist_rating,
         (SELECT COUNT(*) FROM specialist_reviews s WHERE s.specialist_id = e.specialist_id) AS specialist_reviews
@@ -158,6 +163,9 @@ export async function careRoutes(app: FastifyInstance) {
     return await tx(async () => {
       const r = await ownRequest(id, a.userId);
       if (['PEDIDO_GERADO', 'DESISTENCIA'].includes(r.status)) throw conflict('REQUEST_CLOSED', 'Esta solicitação não pode mais ser editada.');
+      if (await one(`SELECT 1 AS ok FROM service_orders WHERE request_id = ? AND status = 'PENDING_PAYMENT'`, id)) {
+        throw conflict('PAYMENT_PENDING', 'Há uma cobrança emitida para esta solicitação. Pague pelo link ou desista dela antes de alterar os dados.');
+      }
       const prev: Record<string, any> = { need: r.need, itemCode: r.item_code, materials: r.materials, materialsSupplyRequested: !!r.materials_supply_requested };
       const affects = QUOTE_FIELDS.some((k) => prev[k] !== (b as any)[k]);
       const version = affects ? r.quote_version + 1 : r.quote_version;
@@ -196,24 +204,31 @@ export async function careRoutes(app: FastifyInstance) {
   app.post('/api/care/requests/:id/checkout', async (req, reply) => {
     const a = patient(req);
     const { id } = parse(idParam, req.params);
-    const b = parse(z.object({ quoteVersion: z.number().int().min(1), paymentMethod: methodSchema, expectedTotalCents: z.number().int().min(0) }), req.body);
+    const b = parse(z.object({ quoteVersion: z.number().int().min(1), paymentMethod: methodSchema, expectedTotalCents: z.number().int().min(0), payerCpf: cpfSchema.optional() }), req.body);
     return await idempotent(req, reply, `care-checkout:${id}`, async () => {
       const r = await one<any>('SELECT * FROM care_requests WHERE id = ? FOR UPDATE', id);
       if (!r || r.requester_id !== a.userId) throw notFound('Solicitação não encontrada.');
       if (r.status === 'PEDIDO_GERADO') throw conflict('ALREADY_PAID', 'Esta solicitação já tem pedido pago. Nenhuma nova cobrança foi feita.');
+      // Cobrança do Asaas já emitida e ainda não paga: devolve o mesmo link (nunca cria segunda cobrança).
+      const pending = await one<any>(`SELECT * FROM service_orders WHERE request_id = ? AND status = 'PENDING_PAYMENT'`, id);
+      if (pending?.payment_url) {
+        return { status: 200, body: { paid: false, pending: true, paymentUrl: pending.payment_url, order: patientOrderView(pending),
+          message: 'Sua cobrança já foi emitida. Conclua o pagamento na página segura do Asaas.' } };
+      }
       if (r.status === 'ORCAMENTO_PENDENTE') throw unprocessable('QUOTE_PENDING', 'Orçamento pendente: pagamento bloqueado até o valor completo.');
       if (r.status !== 'ACEITO' || r.accepted_version !== r.quote_version) throw conflict('ACCEPTANCE_REQUIRED', 'Confirme o orçamento atualizado antes de pagar.');
       if (b.quoteVersion !== r.quote_version) throw conflict('QUOTE_OUTDATED', 'O orçamento foi atualizado. Revise os novos valores e confirme novamente.');
       const accepted = JSON.parse(r.quote_json);
       const res = await placeOrder({
-        patientId: a.userId, itemCode: r.item_code, paymentMethod: b.paymentMethod, expectedTotalCents: b.expectedTotalCents,
+        patientId: a.userId, itemCode: r.item_code, paymentMethod: b.paymentMethod, expectedTotalCents: b.expectedTotalCents, payerCpf: b.payerCpf ?? null,
         request: { id, location: r.location, acceptedSnapshot: { protocol: r.protocol, quoteVersion: r.quote_version, acceptedAt: r.accepted_at, materials: r.materials, whenPref: r.when_pref, whenDate: r.when_date, totalCents: accepted.totalCents } },
         correlationId: req.correlationId,
       });
       return {
         status: 201, body: {
-          paid: res.paid, order: patientOrderView(res.order),
-          message: res.paid ? 'Pagamento confirmado (simulação). Seu pedido foi registrado.' : 'Pagamento não confirmado. Nenhum valor foi cobrado e o desconto PRIME não foi consumido. Tente novamente.',
+          paid: res.paid, pending: !!res.paymentUrl, paymentUrl: res.paymentUrl, order: patientOrderView(res.order),
+          message: res.paymentUrl ? 'Cobrança emitida. Conclua o pagamento na página segura do Asaas (Pix, boleto ou cartão).'
+            : res.paid ? 'Pagamento confirmado (simulação). Seu pedido foi registrado.' : 'Pagamento não confirmado. Nenhum valor foi cobrado e o desconto PRIME não foi consumido. Tente novamente.',
         },
       };
     });
@@ -225,6 +240,12 @@ export async function careRoutes(app: FastifyInstance) {
     return await tx(async () => {
       const r = await ownRequest(id, a.userId);
       if (r.status === 'PEDIDO_GERADO') throw conflict('REQUEST_CLOSED', 'Pedido já pago: use a solicitação de estorno pela Central.');
+      // Desistência com cobrança do Asaas em aberto: cancela a cobrança e libera o desconto PRIME reservado.
+      const pending = await one<any>(`SELECT * FROM service_orders WHERE request_id = ? AND status = 'PENDING_PAYMENT'`, id);
+      if (pending) {
+        if (pending.provider === 'ASAAS' && pending.provider_ref) await cancelPayment(pending.provider_ref);
+        await applyPaymentEvent({ eventId: `withdraw_${pending.id}`, orderId: pending.id, type: 'PAYMENT_DECLINED', actorId: a.userId }, req.correlationId);
+      }
       await run(`UPDATE care_requests SET status = 'DESISTENCIA', updated_at = ? WHERE id = ?`, nowIso(), id);
       await audit({ actorId: a.userId, action: 'CARE_REQUEST_WITHDRAWN', subjectType: 'care_request', subjectId: id, correlationId: req.correlationId });
       return { ok: true };
@@ -249,7 +270,12 @@ export async function careRoutes(app: FastifyInstance) {
       done: events.filter((e) => e.status === 'CONCLUIDO'),
       pendingRequests: open.map((r) => ({ id: r.id, protocol: r.protocol, status: r.status, itemName: JSON.parse(r.quote_json).offer.name, createdAt: r.created_at })),
       receipts,
-      clinicalDocuments: { available: false, reason: 'Documentos clínicos assinados (evolução, plano de cuidado, relatórios) aparecem aqui após a integração com o sistema oficial da Carteira Digital ONEMA.' },
+      // Evoluções de enfermagem assinadas pela especialista (registro clínico do titular).
+      clinicalDocuments: (await all<any>(`SELECT v.id, v.signed_at, v.content_json, e.label, o.item_name, u.name AS specialist_name,
+          (SELECT sa.coren_number || '-' || sa.coren_uf FROM specialist_applications sa WHERE sa.user_id = v.specialist_id AND sa.status = 'APROVADA') AS specialist_coren
+          FROM care_evolutions v JOIN care_events e ON e.id = v.event_id JOIN service_orders o ON o.id = v.order_id JOIN users u ON u.id = v.specialist_id
+          WHERE v.patient_id = ? AND v.status = 'ASSINADA' ORDER BY v.signed_at DESC LIMIT 100`, a.userId))
+        .map((d) => ({ id: d.id, signedAt: d.signed_at, label: d.label, itemName: d.item_name, specialist: d.specialist_name, coren: d.specialist_coren, content: JSON.parse(d.content_json) })),
     };
   });
 
@@ -257,7 +283,7 @@ export async function careRoutes(app: FastifyInstance) {
   app.post('/api/care/events/:id/review', async (req) => {
     const a = patient(req);
     const { id } = parse(idParam, req.params);
-    const b = parse(z.object({ stars: z.number().int().min(1).max(5), comment: z.string().trim().max(400).optional().default('') }), req.body);
+    const b = parse(z.object({ stars: z.number().int().min(1).max(5), comment: z.string().trim().max(400).optional().default(''), nps: z.number().int().min(0).max(10).optional() }), req.body);
     return await tx(async () => {
       const e = await one<any>(`SELECT e.*, o.patient_id FROM care_events e JOIN service_orders o ON o.id = e.order_id WHERE e.id = ?`, id);
       if (!e || e.patient_id !== a.userId) throw notFound('Atendimento não encontrado.');
@@ -265,9 +291,27 @@ export async function careRoutes(app: FastifyInstance) {
       if (await one('SELECT 1 FROM specialist_reviews WHERE event_id = ?', id)) throw conflict('ALREADY_REVIEWED', 'Este atendimento já foi avaliado.');
       await run('INSERT INTO specialist_reviews (id, event_id, specialist_id, patient_id, stars, comment, created_at) VALUES (?,?,?,?,?,?,?)',
         uid(), id, e.specialist_id, a.userId, b.stars, b.comment, nowIso());
-      await audit({ actorId: a.userId, action: 'SPECIALIST_REVIEWED', subjectType: 'care_event', subjectId: id, correlationId: req.correlationId, meta: { stars: b.stars } });
+      // Recomendação da ONEMA (0 a 10), opcional e separada das estrelas da especialista.
+      if (b.nps !== undefined) await run('INSERT INTO nps_responses (id, patient_id, event_id, score, created_at) VALUES (?,?,?,?,?) ON CONFLICT (event_id) DO NOTHING', uid(), a.userId, id, b.nps, nowIso());
+      await audit({ actorId: a.userId, action: 'SPECIALIST_REVIEWED', subjectType: 'care_event', subjectId: id, correlationId: req.correlationId, meta: { stars: b.stars, nps: b.nps ?? null } });
       return { ok: true };
     });
+  });
+
+  /** Indicação: link pessoal do paciente para recomendar a ONEMA (sem benefício financeiro definido). */
+  app.get('/api/care/referral', async (req) => {
+    const a = patient(req);
+    let u = (await one<any>('SELECT referral_code FROM users WHERE id = ?', a.userId))!;
+    if (!u.referral_code) {
+      for (let i = 0; i < 5 && !u.referral_code; i++) {
+        const code = randomToken(6).replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase();
+        if (code.length < 6) continue;
+        try { await run('UPDATE users SET referral_code = ? WHERE id = ? AND referral_code IS NULL', code, a.userId); } catch { /* colisão: tenta outro */ }
+        u = (await one<any>('SELECT referral_code FROM users WHERE id = ?', a.userId))!;
+      }
+    }
+    const count = (await one<any>('SELECT COUNT(*) AS n FROM users WHERE referred_by = ?', a.userId))!.n;
+    return { code: u.referral_code, link: `${config.publicOrigin}/?indicacao=${u.referral_code}`, referrals: Number(count) };
   });
 
   // ---------- Especialista (ONEMA ONE) ----------
@@ -304,7 +348,8 @@ export async function careRoutes(app: FastifyInstance) {
     const offers = await all<any>(`SELECT e.id, e.label, e.act_type, e.modality, e.unit_payout_cents, e.region, e.created_at, o.item_code, o.item_name,
         r.when_pref, r.when_date, r.materials FROM care_events e JOIN service_orders o ON o.id = e.order_id LEFT JOIN care_requests r ON r.id = o.request_id
         WHERE e.status = 'DISPONIVEL' AND o.status = 'PAID' ${demoOnly(a) ? DEMO_PATIENT_SQL : ''} ORDER BY e.created_at, e.seq LIMIT 100`);
-    const mine = await all<any>(`SELECT e.id, e.label, e.modality, e.unit_payout_cents, e.region, e.status, e.accepted_at, e.completed_at, o.item_code, o.item_name,
+    const mine = await all<any>(`SELECT e.id, e.label, e.modality, e.unit_payout_cents, e.region, e.status, e.accepted_at, e.completed_at, e.started_at, o.item_code, o.item_name,
+        (SELECT v.status FROM care_evolutions v WHERE v.event_id = e.id) AS evolution_status,
         p.status AS payout_status, (SELECT stars FROM specialist_reviews s WHERE s.event_id = e.id) AS stars
         FROM care_events e JOIN service_orders o ON o.id = e.order_id LEFT JOIN payout_entries p ON p.event_id = e.id
         WHERE e.specialist_id = ? ORDER BY e.accepted_at DESC LIMIT 100`, a.userId);
@@ -319,7 +364,7 @@ export async function careRoutes(app: FastifyInstance) {
       if (demoOnly(a) && !(await one(`SELECT 1 AS ok FROM care_events e JOIN service_orders o ON o.id = e.order_id WHERE e.id = ? ${DEMO_PATIENT_SQL}`, id))) {
         throw conflict('OFFER_UNAVAILABLE', 'Esta oferta não está mais disponível.');
       }
-      const r = await run(`UPDATE care_events SET status = 'ACEITO', specialist_id = ?, accepted_at = ?, updated_at = ? WHERE id = ? AND status = 'DISPONIVEL'`, a.userId, now, now, id);
+      const r = await run(`UPDATE care_events SET status = 'ACEITO', specialist_id = ?, accepted_at = ?, visit_code = ?, updated_at = ? WHERE id = ? AND status = 'DISPONIVEL'`, a.userId, now, newVisitCode(), now, id);
       if (!r.changes) throw conflict('OFFER_UNAVAILABLE', 'Esta oferta não está mais disponível.');
       await run('UPDATE payout_entries SET specialist_id = ?, updated_at = ? WHERE event_id = ?', a.userId, now, id);
       await audit({ actorId: a.userId, action: 'CARE_EVENT_ACCEPTED', subjectType: 'care_event', subjectId: id, correlationId: req.correlationId });
@@ -332,6 +377,9 @@ export async function careRoutes(app: FastifyInstance) {
     const { id } = parse(idParam, req.params);
     return await tx(async () => {
       const now = nowIso();
+      const ev = await one<any>(`SELECT e.modality, e.started_at, (SELECT status FROM care_evolutions v WHERE v.event_id = e.id) AS evolution FROM care_events e WHERE e.id = ? AND e.specialist_id = ?`, id, a.userId);
+      if (ev?.modality === 'PRESENCIAL' && !ev.started_at) throw unprocessable('VISIT_NOT_STARTED', 'Inicie o atendimento com o código do paciente antes de concluir.');
+      if (ev && ev.evolution !== 'ASSINADA') throw unprocessable('EVOLUTION_REQUIRED', 'Registre e assine a evolução de enfermagem antes de concluir o atendimento.');
       const r = await run(`UPDATE care_events SET status = 'CONCLUIDO', completed_at = ?, updated_at = ? WHERE id = ? AND status = 'ACEITO' AND specialist_id = ?`, now, now, id, a.userId);
       if (!r.changes) throw conflict('EVENT_NOT_ACCEPTED', 'Só é possível concluir um atendimento aceito por você.');
       // Liquidação segue o mecanismo aprovado da operação: aqui o repasse fica "a liquidar" (sem nova regra).

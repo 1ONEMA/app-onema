@@ -7,6 +7,7 @@ import { money } from '../../lib/format';
 import { Alert, Button, ErrorState, Field, Loading, fieldError } from '../../ui/ui';
 import { IconArrowLeft, IconArrowRight, IconCheck, IconShield } from '../../ui/icons';
 import { NEED_ICONS } from '../public/HomePage';
+import { AsaasNotice, openPayment } from '../../ui/AsaasPay';
 
 const STEPS = ['Necessidade', 'Atendimento', 'Materiais', 'Valores', 'Onde e quando', 'Revisão', 'Pagamento'] as const;
 const DRAFT_KEY = 'onema.solicitacao.rascunho';
@@ -359,15 +360,20 @@ const confirm_ = (m: string) => (typeof window === 'undefined' ? true : window.c
 
 function Pay({ request: r, onChange }: { request: any; onChange: (r: any) => void }) {
   const nav = useNavigate();
-  const [method, setMethod] = useState('SANDBOX_APROVADO');
+  const { status } = useAuth();
+  const asaasMode = status?.paymentProvider === 'ASAAS';
+  const [method, setMethod] = useState(asaasMode ? 'ASAAS' : 'SANDBOX_APROVADO');
+  const [cpf, setCpf] = useState('');
   const pay = useSubmit<any>();
   const [result, setResult] = useState<any>(null);
   const total = r.quote.totalCents;
   const changed = useMemo(() => pay.error?.code === 'PRICE_CHANGED' ? pay.error.details?.quote : null, [pay.error]);
   async function go() {
-    const res = await pay.run('POST', `/api/care/requests/${r.id}/checkout`, { quoteVersion: r.quoteVersion, paymentMethod: method, expectedTotalCents: total }, { idempotent: true });
+    const res = await pay.run('POST', `/api/care/requests/${r.id}/checkout`,
+      { quoteVersion: r.quoteVersion, paymentMethod: asaasMode ? 'ASAAS' : method, expectedTotalCents: total, ...(cpf ? { payerCpf: cpf } : {}) }, { idempotent: true });
     if (!res) return;
     setResult(res);
+    if (res.pending) { openPayment(res.paymentUrl); clearDraft(); nav(`/solicitacoes/${r.id}?pagamento=1`); return; }
     if (res.paid) { clearDraft(); nav(`/solicitacoes/${r.id}?confirmado=1`); }
   }
   async function refresh() {
@@ -385,11 +391,11 @@ function Pay({ request: r, onChange }: { request: any; onChange: (r: any) => voi
       <div className="eyebrow-blue">Confirmar e pagar</div>
       <h1 className="display">{money(total)}</h1>
       <p className="muted">{r.quote.offer.name} · orçamento {r.protocol} v{r.quoteVersion}. Você ainda pode voltar, editar ou desistir.</p>
-      <fieldset className="radio-list">
+      {asaasMode ? <AsaasNotice error={pay.error} cpf={cpf} setCpf={setCpf} /> : <fieldset className="radio-list">
         <legend className="small muted">Meio de pagamento (homologação: simulado, sem cobrança real)</legend>
         <label className={method === 'SANDBOX_APROVADO' ? 'selected' : ''}><input type="radio" checked={method === 'SANDBOX_APROVADO'} onChange={() => setMethod('SANDBOX_APROVADO')} /> Cartão de teste — pagamento aprovado</label>
         <label className={method === 'SANDBOX_RECUSADO' ? 'selected' : ''}><input type="radio" checked={method === 'SANDBOX_RECUSADO'} onChange={() => setMethod('SANDBOX_RECUSADO')} /> Cartão de teste — pagamento recusado</label>
-      </fieldset>
+      </fieldset>}
       {result && !result.paid && <div className="danger" role="alert">{result.message}</div>}
       {changed ? (
         <div className="caution" role="alert">

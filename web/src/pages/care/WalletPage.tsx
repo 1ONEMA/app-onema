@@ -1,14 +1,20 @@
+import { Fragment, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../lib/auth';
 import { useApi } from '../../lib/hooks';
 import { dateTime } from '../../lib/format';
 import { Badge, Empty, ErrorState, Loading } from '../../ui/ui';
-import { IconCalendar, IconCheck, IconDoc, IconStar } from '../../ui/icons';
+import { IconCalendar, IconCheck, IconDoc, IconHeart, IconStar } from '../../ui/icons';
 import { REQ_STATUS } from './OrdersPages';
 
 const WHEN: Record<string, string> = { AGORA: 'Agora', HOJE: 'Hoje', PROXIMOS_DIAS: 'Nos próximos dias', AGENDAR: 'Data agendada' };
 
 /** Carteira Digital ONEMA — visão do titular com os registros reais da plataforma. */
+export const EVO_SECTIONS = [
+  ['relato', 'Relato'], ['sinaisVitais', 'Sinais vitais'], ['avaliacao', 'Avaliação de enfermagem'], ['procedimentos', 'Procedimentos realizados'],
+  ['orientacoes', 'Orientações'], ['plano', 'Plano e próximos passos'], ['observacoes', 'Observações'],
+] as const;
+
 export function WalletPage() {
   const { me } = useAuth();
   const { data, error, loading, reload } = useApi<any>('/api/care/wallet');
@@ -55,14 +61,57 @@ export function WalletPage() {
         </section>
       </div>
       <section className="surface">
-        <h2><IconDoc /> Documentos e comprovantes</h2>
-        <p className="pending-box">{data.clinicalDocuments.reason}</p>
-        {!data.receipts.length ? <p className="muted mt">Nenhum comprovante ainda.</p> : (
+        <h2><IconDoc /> Evoluções de enfermagem</h2>
+        <p className="small muted">Registros assinados pela especialista ao final de cada atendimento.</p>
+        {!data.clinicalDocuments.length ? <p className="muted">Nenhuma evolução registrada ainda.</p> : (
+          <ul className="list">{data.clinicalDocuments.map((d: any) => (
+            <li key={d.id}>
+              <details className="evo">
+                <summary><strong>{d.label}</strong> <span className="small muted">· {d.itemName} · {dateTime(d.signedAt)}</span></summary>
+                <dl className="kv mt">
+                  {EVO_SECTIONS.map(([k, l]) => d.content[k] && <Fragment key={k}><dt>{l}</dt><dd>{d.content[k]}</dd></Fragment>)}
+                </dl>
+                <p className="small muted mb0">Assinado por {d.specialist}{d.coren ? ` · COREN ${d.coren}` : ''}.</p>
+              </details>
+            </li>
+          ))}</ul>
+        )}
+      </section>
+      <Referral />
+      <section className="surface">
+        <h2><IconDoc /> Comprovantes</h2>
+        {!data.receipts.length ? <p className="muted">Nenhum comprovante ainda.</p> : (
           <ul className="list mt">{data.receipts.map((r: any) => (
             <li key={r.id}><strong>{r.kind === 'PEDIDO' ? 'Comprovante de pedido' : r.kind}</strong> <span className="small muted">· {r.protocol ?? ''} · {dateTime(r.created_at)}</span><p className="small mb0">{r.text}</p></li>
           ))}</ul>
         )}
       </section>
     </>
+  );
+}
+
+/** Indique a ONEMA: link pessoal para compartilhar (WhatsApp/compartilhar do celular ou copiar). */
+function Referral() {
+  const { data } = useApi<any>('/api/care/referral');
+  const [copied, setCopied] = useState(false);
+  if (!data?.link) return null;
+  const text = `Conheci a ONEMA SAÚDE: enfermagem especializada que vai até você, com tudo organizado pelo app. Veja: ${data.link}`;
+  async function share() {
+    try {
+      if (navigator.share) { await navigator.share({ title: 'ONEMA SAÚDE', text, url: data.link }); return; }
+      await navigator.clipboard.writeText(text); setCopied(true);
+    } catch { /* compartilhamento cancelado */ }
+  }
+  return (
+    <section className="surface referral">
+      <h2><IconHeart /> Indique a ONEMA</h2>
+      <p className="mb0">Gostou do cuidado? Compartilhe seu link com quem você ama. {data.referrals > 0 && <strong>{data.referrals} pessoa(s) já se cadastraram pela sua indicação.</strong>}</p>
+      <code>{data.link}</code>
+      <div className="row">
+        <button type="button" className="btn sm deep" onClick={share}>Compartilhar</button>
+        <a className="btn sm secondary" href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener noreferrer">Enviar pelo WhatsApp</a>
+        {copied && <span className="small" role="status">Link copiado.</span>}
+      </div>
+    </section>
   );
 }

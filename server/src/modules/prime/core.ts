@@ -7,6 +7,7 @@
  *  - arrependimento em 7 dias (T1 §7)
  * Todos os parâmetros são versionados em prime_parameters (alteração com RBAC e log).
  */
+import { asaas, createSubscription, ensureCustomer } from '../../lib/asaas.ts';
 import { config } from '../../config.ts';
 import { all, one, run } from '../../db/db.ts';
 import { audit } from '../../lib/audit.ts';
@@ -20,6 +21,13 @@ export const SANDBOX_METHODS = {
   SANDBOX_RECUSADO: 'Cartão de teste (sandbox) — pagamento recusado',
 } as const;
 export type SandboxMethod = keyof typeof SANDBOX_METHODS;
+/** Meios do Asaas: cobrança avulsa (o pagador escolhe Pix, boleto ou cartão na página do Asaas) e assinatura PRIME. */
+export const ASAAS_METHODS = {
+  ASAAS: 'Pix, boleto ou cartão (página segura do Asaas)',
+  ASAAS_CARTAO: 'Cartão de crédito com renovação automática (Asaas)',
+  ASAAS_PIX_BOLETO: 'Pix ou boleto, com link a cada mês (Asaas)',
+} as const;
+export const PAYMENT_METHOD_KEYS = [...Object.keys(SANDBOX_METHODS), ...Object.keys(ASAAS_METHODS)] as [string, ...string[]];
 
 export async function currentParams() {
   const p = await one<any>('SELECT * FROM prime_parameters ORDER BY version DESC LIMIT 1');
@@ -130,11 +138,12 @@ const fmtDateTime = (iso: string) => new Date(iso).toLocaleString('pt-BR', { tim
 export { fmtDate, fmtDateTime };
 
 /** Tenta cobrar o ciclo pendente da assinatura (ativação inicial, renovação ou regularização). */
-export async function chargeCycle(sub: any, method: string, actorId: string | null, correlationId: string | null) {
+export async function chargeCycle(sub: any, method: string, actorId: string | null, correlationId: string | null, opts: { payerCpf?: string | null } = {}) {
   const params = await paramsById(sub.parameters_id);
   const cycle = await cycleById(sub.current_cycle_id);
   if (!cycle || cycle.status === 'PAID') throw conflict('NOTHING_TO_CHARGE', 'Não há cobrança pendente nesta assinatura.');
   const attemptNo = (await one<any>('SELECT COUNT(*)+1 AS n FROM charges WHERE cycle_id = ?', cycle.id))!.n;
+  if (config.paymentProvider === 'ASAAS') return await chargeCycleAsaas(sub, cycle, params, method, attemptNo, actorId, correlationId, opts.payerCpf ?? null);
   const result = sandboxCharge(method);
   const now = nowIso();
   const chargeId = uid();
@@ -152,7 +161,13 @@ export async function chargeCycle(sub: any, method: string, actorId: string | nu
       'Não foi possível confirmar o pagamento; nenhum benefício foi consumido. Tente novamente em "PRIME > Minha assinatura".');
     return { ok: false as const, chargeId };
   }
-  // Pagamento confirmado: define o ciclo a partir de agora (primeiro) ou mantém a janela (renovação).
+  await confirmCycle(sub, cycle, params, actorId, correlationId);
+  return { ok: true as const, chargeId };
+}
+
+/** Ciclo pago (sandbox ou confirmação do Asaas): ativa/renova, emite comprovante e aviso. */
+export async function confirmCycle(sub: any, cycle: any, params: any, actorId: string | null, correlationId: string | null) {
+  const now = nowIso();
   const starts = cycle.starts_at ?? now;
   const ends = cycle.ends_at ?? addMonths(starts, 1);
   await run(`UPDATE subscription_cycles SET status = 'PAID', starts_at = ?, ends_at = ? WHERE id = ?`, starts, ends, cycle.id);
@@ -167,7 +182,41 @@ export async function chargeCycle(sub: any, method: string, actorId: string | nu
     : `Pagamento do ciclo ${cycle.cycle_no} confirmado (${brl(params.monthly_price_cents)}). Ciclo: ${fmtDate(starts)} a ${fmtDate(ends)}.`;
   await receipt(sub.patient_id, first ? 'CONTRATACAO' : 'RENOVACAO', sub.protocol, text);
   await notify(sub.patient_id, 'ESSENCIAL', first ? 'ONEMA PRIME ativado' : 'Pagamento confirmado', text);
-  return { ok: true as const, chargeId };
+}
+
+/**
+ * PRIME pelo Asaas: na adesão cria a assinatura mensal no Asaas e devolve o link do 1º pagamento.
+ * Renovações: o Asaas gera a cobrança de cada mês (cartão é debitado sozinho); aqui só registramos a
+ * cobrança pendente do ciclo, confirmada depois pelo webhook. Nada é cobrado duas vezes.
+ */
+async function chargeCycleAsaas(sub: any, cycle: any, params: any, method: string, attemptNo: number, actorId: string | null, correlationId: string | null, payerCpf: string | null) {
+  const now = nowIso();
+  const open = await one<any>(`SELECT * FROM charges WHERE cycle_id = ? AND status = 'PENDING' ORDER BY created_at DESC LIMIT 1`, cycle.id);
+  if (open?.payment_url) return { ok: false as const, pending: true as const, chargeId: open.id, paymentUrl: open.payment_url as string };
+  let payment: { id: string; invoiceUrl: string } | null = null;
+  if (!sub.provider_ref) {
+    if (!(method in ASAAS_METHODS)) throw unprocessable('INVALID_PAYMENT_METHOD', 'Escolha cartão de crédito (renovação automática) ou Pix/boleto.');
+    const customer = await ensureCustomer(sub.patient_id, payerCpf);
+    const r = await createSubscription({
+      customer, valueCents: params.monthly_price_cents, billingType: method === 'ASAAS_CARTAO' ? 'CREDIT_CARD' : 'UNDEFINED',
+      description: `ONEMA PRIME · assinatura mensal (protocolo ${sub.protocol})`, externalReference: `prime:${sub.id}`,
+    });
+    await run('UPDATE subscriptions SET provider_ref = ?, payment_method = ?, updated_at = ? WHERE id = ?', r.id, method, now, sub.id);
+    payment = r.firstPayment;
+  } else if (actorId) {
+    // Regularização pelo titular: usa a cobrança em aberto que o Asaas já gerou para a assinatura.
+    const list = await asaas<any>('GET', `/subscriptions/${encodeURIComponent(sub.provider_ref)}/payments`);
+    const due = (list?.data ?? []).find((p: any) => ['PENDING', 'OVERDUE'].includes(p.status));
+    if (due) payment = { id: String(due.id), invoiceUrl: String(due.invoiceUrl ?? '') };
+  }
+  const chargeId = open?.id ?? uid();
+  if (open) await run('UPDATE charges SET provider_ref = COALESCE(?, provider_ref), payment_url = ? WHERE id = ?', payment?.id ?? null, payment?.invoiceUrl ?? null, open.id);
+  else {
+    await run(`INSERT INTO charges (id, subscription_id, cycle_id, amount_cents, attempt_no, status, provider, provider_ref, payment_url, created_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?)`, chargeId, sub.id, cycle.id, params.monthly_price_cents, attemptNo, 'PENDING', 'ASAAS', payment?.id ?? null, payment?.invoiceUrl ?? null, now);
+  }
+  await audit({ actorId, action: 'PRIME_CHARGE_ISSUED', subjectType: 'subscription', subjectId: sub.id, correlationId, meta: { cycle: cycle.cycle_no, provider: 'ASAAS' } });
+  return { ok: false as const, pending: true as const, chargeId, paymentUrl: payment?.invoiceUrl ?? null };
 }
 
 /** Motor de ciclos (renovação, novas tentativas, suspensão, encerramento). Idempotente. */
@@ -206,7 +255,8 @@ export async function runBilling(now = nowIso(), correlationId: string | null = 
       }
       // Tentativas espaçadas igualmente dentro da janela (configuração provisória).
       const spacingMs = (params.retry_window_days * 86400000) / (params.retry_max + 1);
-      if (new Date(now).getTime() - new Date(attempts.last).getTime() >= spacingMs) {
+      // Com o Asaas as novas tentativas são do próprio provedor; aqui só vale a suspensão ao fim da janela.
+      if (config.paymentProvider !== 'ASAAS' && new Date(now).getTime() - new Date(attempts.last).getTime() >= spacingMs) {
         await chargeCycle(sub, sub.payment_method, null, correlationId);
         summary.retried++;
       }

@@ -3,6 +3,7 @@
  * com RBAC + motivo + vigência + auditoria, conciliação, estorno e autoteste da precificação.
  * Repasses e margens só aparecem aqui (perfis autorizados) — nunca em rotas públicas ou do paciente.
  */
+import { refundPayment } from '../../lib/asaas.ts';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { all, one, tx } from '../../db/db.ts';
@@ -137,7 +138,7 @@ export async function careAdminRoutes(app: FastifyInstance) {
         (SELECT COUNT(*) FROM care_events WHERE status = 'DISPONIVEL') AS open_events,
         (SELECT COUNT(*) FROM care_events WHERE status = 'ACEITO') AS scheduled_events`);
     return {
-      counts, requests, events: finance ? events : events.map(({ unit_payout_cents, ...e }) => e), ratings,
+      counts, requests, events: finance ? events : events.map(({ unit_payout_cents, ...e }) => e), ratings, growth: await growthSummary(),
       orders: finance ? orders : orders.map(({ payout_total_cents, ...o }) => o),
     };
   });
@@ -191,9 +192,11 @@ export async function careAdminRoutes(app: FastifyInstance) {
     const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
     const { reason } = parse(z.object({ reason: z.string().trim().min(5).max(300) }), req.body);
     return await tx(async () => {
-      const o = await one<any>('SELECT status FROM service_orders WHERE id = ?', id);
+      const o = await one<any>('SELECT status, provider, provider_ref FROM service_orders WHERE id = ?', id);
       if (!o) throw notFound('Pedido não encontrado.');
       if (o.status !== 'PAID') throw conflict('NOT_REFUNDABLE', 'Somente pedidos pagos podem ser estornados.');
+      // Pagamento real: devolve o valor pelo Asaas antes de registrar o estorno.
+      if (o.provider === 'ASAAS' && o.provider_ref) await refundPayment(o.provider_ref, `Estorno ONEMA: ${reason}`);
       const r = await applyPaymentEvent({ eventId: `refund_${id}`, orderId: id, type: 'PAYMENT_REFUNDED', actorId: a.userId }, req.correlationId);
       await audit({ actorId: a.userId, action: 'REFUND_REQUESTED', subjectType: 'service_order', subjectId: id, correlationId: req.correlationId, meta: { reason } });
       return r;
@@ -239,4 +242,16 @@ export async function careAdminRoutes(app: FastifyInstance) {
     results.push({ id: 'P04', title: 'Descontos da seção 7 (5%, teto R$ 20, centavos)', pass: !p4.length, details: p4.length ? p4 : ['19 exemplos conferidos.'] });
     return { checkedAt: nowIso(), source: PRICING_SOURCE, results, runId: uid() };
   });
+}
+
+/** Recomendação (NPS = % promotores 9–10 menos % detratores 0–6) e indicações entre pacientes. */
+async function growthSummary() {
+  const n = (await one<any>(`SELECT COUNT(*) AS total, SUM(CASE WHEN score >= 9 THEN 1 ELSE 0 END) AS promoters, SUM(CASE WHEN score <= 6 THEN 1 ELSE 0 END) AS detractors FROM nps_responses`))!;
+  const total = Number(n.total);
+  const referred = Number((await one<any>('SELECT COUNT(*) AS n FROM users WHERE referred_by IS NOT NULL'))!.n);
+  return {
+    npsResponses: total,
+    nps: total ? Math.round(((Number(n.promoters) - Number(n.detractors)) / total) * 100) : null,
+    referredSignups: referred,
+  };
 }

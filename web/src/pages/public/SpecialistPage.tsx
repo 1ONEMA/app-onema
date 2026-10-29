@@ -119,7 +119,8 @@ function SpecialistArea() {
                     <Badge tone={m.status === 'CONCLUIDO' ? 'dark' : m.status === 'CANCELADO' ? 'red' : ''}>{m.status === 'CONCLUIDO' ? 'Concluído' : m.status === 'CANCELADO' ? 'Cancelado' : 'Agendado'}</Badge>
                     {m.payout_status && <Badge tone="blue">Repasse {m.payout_status === 'A_LIQUIDAR' ? 'a liquidar' : m.payout_status === 'CANCELADO' ? 'cancelado' : 'reservado'}</Badge>}
                     {m.stars && <span className="stars" role="img" aria-label={`${m.stars} estrelas`}>{[1, 2, 3, 4, 5].map((i) => <IconStar key={i} size={16} filled={i <= m.stars} />)}</span>}
-                    {m.status === 'ACEITO' && <Button className="sm green" busy={act.busy} onClick={() => run(`/api/care/specialist/events/${m.id}/complete`)}>Registrar conclusão</Button>}
+                    {m.status === 'ACEITO' && <span className="small muted">{m.started_at ? 'Iniciado' : m.modality === 'PRESENCIAL' ? 'Aguardando início' : 'Remoto'}{m.evolution_status === 'ASSINADA' ? ' · evolução assinada' : ''}</span>}
+                    {m.status === 'ACEITO' && <Link className="btn sm green" to={`/especialista/atendimentos/${m.id}`}>Abrir atendimento</Link>}
                   </div>
                 </li>
               ))}</ul>

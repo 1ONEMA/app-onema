@@ -35,6 +35,15 @@ function form(itemCode: string, extra: Record<string, unknown> = {}) {
     forSelf: true, responsibleAuthorized: false, ...extra,
   };
 }
+/** Especialista inicia com o código do paciente, assina a evolução e conclui o atendimento. */
+export const EVO = { relato: 'Paciente refere melhora da dor.', sinaisVitais: 'PA 120x80 mmHg.', avaliacao: 'Ferida limpa, bordas regulares.', procedimentos: 'Realizado curativo simples.', orientacoes: 'Manter curativo seco.', plano: 'Reavaliar em 48 h.', observacoes: '', pendencias: [] };
+async function finishVisit(sp: Client, eventId: string) {
+  const ev = await one<any>('SELECT visit_code, modality FROM care_events WHERE id = ?', eventId);
+  if (ev.modality === 'PRESENCIAL') expect((await sp.post(`/api/care/specialist/events/${eventId}/start`, { code: ev.visit_code })).status).toBe(200);
+  expect((await sp.post(`/api/care/specialist/events/${eventId}/evolution/sign`, { content: EVO, confirm: true })).status).toBe(200);
+  expect((await sp.post(`/api/care/specialist/events/${eventId}/complete`)).status).toBe(200);
+}
+
 /** Solicitação → aceite → checkout. Retorna a resposta do checkout. */
 async function contract(c: Client, itemCode: string, method = 'SANDBOX_APROVADO', key?: string) {
   const r = await c.post('/api/care/requests', form(itemCode), true);
@@ -204,7 +213,7 @@ describe('P06 — Pedido falhou / estorno', () => {
     const sp = new Client(app); await sp.login(emailOf('especialistaOne'));
     const first = (await sp.get('/api/care/specialist/offers')).body.offers[0];
     await sp.post(`/api/care/specialist/events/${first.id}/accept`);
-    await sp.post(`/api/care/specialist/events/${first.id}/complete`);
+    await finishVisit(sp, first.id);
     const fin = await loginAs(app, 'financeiro');
     const ref = await fin.post(`/api/admin/care/orders/${ok.body.order.id}/refund`, { reason: 'Teste de estorno (homologação)' });
     expect(ref.status).toBe(200);
@@ -444,8 +453,9 @@ describe('Especialista e avaliações por estrelas', () => {
     expect((await sp.post(`/api/care/specialist/events/${ev.id}/accept`)).status).toBe(200);
     expect((await sp.post(`/api/care/specialist/events/${ev.id}/accept`)).status).toBe(409);
     expect((await c.post(`/api/care/events/${ev.id}/review`, { stars: 5 })).status).toBe(422);
-    await sp.post(`/api/care/specialist/events/${ev.id}/complete`);
-    expect((await c.post(`/api/care/events/${ev.id}/review`, { stars: 4, comment: 'Atencioso.' })).status).toBe(200);
+    await finishVisit(sp, ev.id);
+    expect((await c.post(`/api/care/events/${ev.id}/review`, { stars: 4, comment: 'Atencioso.', nps: 10 })).status).toBe(200);
+    expect((await one<any>('SELECT score FROM nps_responses')).score).toBe(10);
     expect((await c.post(`/api/care/events/${ev.id}/review`, { stars: 5 })).status).toBe(409);
     const s = (await sp.get('/api/care/specialist/summary')).body;
     expect(s.rating).toEqual({ count: 1, average: 4 });
@@ -507,7 +517,7 @@ describe('Carteira Digital e textos públicos', () => {
     expect(w.upcoming).toHaveLength(1);
     expect(w.upcoming[0].request_id).toBe(req.id);
     expect(w.done).toHaveLength(0);
-    expect(w.clinicalDocuments.available).toBe(false);
+    expect(w.clinicalDocuments).toEqual([]);
     expect(JSON.stringify(w)).not.toMatch(/payout|repasse/i);
     const other = new Client(app); await other.login(emailOf('responsavel'));
     expect((await other.get('/api/care/wallet')).body.upcoming).toHaveLength(0);

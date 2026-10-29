@@ -1,3 +1,5 @@
+import { useAuth } from '../../lib/auth';
+import { AsaasNotice, openPayment } from '../../ui/AsaasPay';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
@@ -14,6 +16,9 @@ export function PrimeCenterPage() {
   const refund = useSubmit<any>();
   const [dialog, setDialog] = useState<'cancel' | 'refund' | 'terms' | null>(null);
   const [method, setMethod] = useState('');
+  const [cpf, setCpf] = useState('');
+  const { status } = useAuth();
+  const asaasMode = status?.paymentProvider === 'ASAAS';
   const [refundType, setRefundType] = useState<'ARREPENDIMENTO' | 'ESTORNO'>('ARREPENDIMENTO');
   const [reason, setReason] = useState('');
   const [done, setDone] = useState<string | null>(null);
@@ -32,7 +37,10 @@ export function PrimeCenterPage() {
   const hasConfirmed = s.charges.some((c: any) => c.status === 'CONFIRMED');
   const openRefund = data.refunds.some((r: any) => r.status === 'REFUND_PENDING');
 
-  async function doPay() { const r = await pay.run('POST', '/api/prime/subscriptions/current/pay', { paymentMethod: method }, { idempotent: true }); if (r) { setDone(r.paid ? 'Pagamento confirmado. Benefícios do ciclo ativos.' : r.message); reload(); } }
+  async function doPay() {
+    const r = await pay.run('POST', '/api/prime/subscriptions/current/pay', { paymentMethod: method || (asaasMode ? 'ASAAS_PIX_BOLETO' : ''), ...(cpf ? { payerCpf: cpf } : {}) }, { idempotent: true });
+    if (r) { if (r.pending) openPayment(r.paymentUrl); setDone(r.paid ? 'Pagamento confirmado. Benefícios do ciclo ativos.' : r.message); reload(); }
+  }
   async function doCancel() { const r = await cancel.run('POST', '/api/prime/subscriptions/current/cancel', {}, { idempotent: true }); if (r) { setDialog(null); setDone(r.text); reload(); } }
   async function doRefund() { const r = await refund.run('POST', '/api/prime/refund-requests', { type: refundType, reason: reason || undefined }, { idempotent: true }); if (r) { setDialog(null); setDone(r.text); reload(); } }
   async function openTerms(id: string) { setTerms(null); setDialog('terms'); try { setTerms(await api('GET', `/api/prime/texts/by-id/${id}`)); } catch (e: any) { setTerms({ error: e.message }); } }
@@ -63,12 +71,14 @@ export function PrimeCenterPage() {
           {pending && (
             <div className="mt">
               <h3>Regularizar pagamento</h3>
-              <select value={method} onChange={(e) => setMethod(e.target.value)} aria-label="Meio de pagamento">
-                <option value="">Selecione o meio de pagamento</option>
-                {offer.data?.paymentMethods.map((m: any) => <option key={m.id} value={m.id}>{m.label}</option>)}
-              </select>
+              {asaasMode ? <AsaasNotice error={pay.error} cpf={cpf} setCpf={setCpf} /> : (
+                <select value={method} onChange={(e) => setMethod(e.target.value)} aria-label="Meio de pagamento">
+                  <option value="">Selecione o meio de pagamento</option>
+                  {offer.data?.paymentMethods.map((m: any) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                </select>
+              )}
               <Alert error={pay.error} />
-              <Button className="deep mt" busy={pay.busy} disabled={!method} onClick={doPay}>Pagar ciclo pendente (simulação)</Button>
+              <Button className="deep mt" busy={pay.busy} disabled={!asaasMode && !method} onClick={doPay}>{asaasMode ? 'Pagar ciclo pendente' : 'Pagar ciclo pendente (simulação)'}</Button>
               <p className="small muted">Regularizar a assinatura não cria um segundo uso de desconto no mesmo ciclo.</p>
             </div>
           )}

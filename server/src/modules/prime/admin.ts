@@ -1,3 +1,4 @@
+import { refundPayment } from '../../lib/asaas.ts';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { config } from '../../config.ts';
@@ -189,7 +190,12 @@ export async function primeAdminRoutes(app: FastifyInstance) {
       if (!r) throw notFound();
       if (r.status !== 'REFUND_PENDING') throw conflict('INVALID_STATE', 'Solicitação já decidida.');
       const now = nowIso();
-      const provider = b.approve ? `SANDBOX: estorno simulado ref sbx_rf_${uid().slice(0, 8)}` : null;
+      const charge = r.charge_id ? await one<any>('SELECT * FROM charges WHERE id = ?', r.charge_id) : null;
+      let provider: string | null = null;
+      if (b.approve && charge?.provider === 'ASAAS' && charge.provider_ref) {
+        await refundPayment(charge.provider_ref, `Estorno ONEMA PRIME ${r.protocol}`);
+        provider = `ASAAS: estorno solicitado (${charge.provider_ref})`;
+      } else if (b.approve) provider = `SANDBOX: estorno simulado ref sbx_rf_${uid().slice(0, 8)}`;
       await run(`UPDATE refund_requests SET status = ?, decided_by = ?, decided_at = ?, decision_note = ?, provider_result = ? WHERE id = ?`,
         b.approve ? 'REFUNDED' : 'REJECTED', a.userId, now, b.note, provider, id);
       if (b.approve && r.charge_id) {
@@ -200,7 +206,7 @@ export async function primeAdminRoutes(app: FastifyInstance) {
         await run(`UPDATE subscriptions SET status = ?, updated_at = ? WHERE id = ?`, b.approve ? 'REFUNDED' : 'CANCELLED', now, r.subscription_id);
       }
       const text = b.approve
-        ? `Estorno concluído (simulação) referente ao protocolo ${r.protocol}: ${brl(r.amount_cents)} em ${fmtDateTime(now)}.`
+        ? `Estorno ${charge?.provider === 'ASAAS' ? 'solicitado ao meio de pagamento' : 'concluído (simulação)'} referente ao protocolo ${r.protocol}: ${brl(r.amount_cents)} em ${fmtDateTime(now)}.`
         : `Solicitação ${r.protocol} analisada em ${fmtDate(now)}: não aprovada. Motivo registrado pela equipe financeira. Você pode buscar atendimento pelo canal oficial.`;
       await receipt(r.requested_by, b.approve ? 'ESTORNO_CONCLUIDO' : 'ESTORNO', r.protocol, text);
       await notify(r.requested_by, 'ESSENCIAL', b.approve ? 'Estorno concluído' : 'Solicitação analisada', text);
@@ -217,12 +223,13 @@ export async function primeAdminRoutes(app: FastifyInstance) {
       if (!o) throw notFound();
       if (o.status !== 'PAID') throw conflict('INVALID_STATE', 'Somente pedidos pagos podem ser estornados.');
       const now = nowIso(), proto = `EST-${now.slice(0, 10).replace(/-/g, '')}-${id.slice(0, 6).toUpperCase()}`;
+      if (o.provider === 'ASAAS' && o.provider_ref) await refundPayment(o.provider_ref, `Estorno ONEMA ${proto}`);
       await run(`UPDATE service_orders SET status = 'REFUNDED' WHERE id = ?`, id);
       await run(`INSERT INTO refund_requests (id, order_id, type, reason, amount_cents, status, protocol, requested_by, requested_at, provider, provider_result, decided_by, decided_at, decision_note)
            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, uid(), id, 'ESTORNO', 'Estorno de pedido', o.final_price_cents, 'REFUNDED', proto, o.patient_id, now, o.provider,
-        `SANDBOX: estorno simulado`, a.userId, now, note);
+        o.provider === 'ASAAS' ? `ASAAS: estorno solicitado (${o.provider_ref})` : `SANDBOX: estorno simulado`, a.userId, now, note);
       const rel = await run(`UPDATE discount_reservations SET status = 'RELEASED', release_reason = 'ESTORNO_PEDIDO', updated_at = ? WHERE order_id = ? AND status IN ('RESERVED','USED')`, now, id);
-      await receipt(o.patient_id, 'ESTORNO_CONCLUIDO', proto, `Estorno concluído (simulação) do pedido "${o.item_name}": ${brl(o.final_price_cents)}.`);
+      await receipt(o.patient_id, 'ESTORNO_CONCLUIDO', proto, `Estorno ${o.provider === 'ASAAS' ? 'solicitado ao meio de pagamento' : 'concluído (simulação)'} do pedido "${o.item_name}": ${brl(o.final_price_cents)}.`);
       await audit({ actorId: a.userId, action: 'ORDER_REFUNDED', subjectType: 'service_order', subjectId: id, correlationId: req.correlationId, meta: { discountReleased: rel.changes > 0 } });
       return { ok: true, discountReleased: rel.changes > 0 };
     });

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Layout } from './Layout';
 import { useAuth, type Role } from './lib/auth';
@@ -29,6 +29,7 @@ import { PlatformPage } from './pages/public/PlatformPage';
 import { SpecialistPage } from './pages/public/SpecialistPage';
 import { ApplicationPage } from './pages/public/ApplicationPage';
 import { ServicePage } from './pages/public/ServicePage';
+import { VisitPage } from './pages/care/VisitPage';
 import { RequestFlow } from './pages/care/RequestFlow';
 import { MyOrdersPage, RequestDetailPage } from './pages/care/OrdersPages';
 import { CentralPage } from './pages/central/CentralPage';
@@ -60,7 +61,17 @@ function RoleHome() {
   return <Navigate to="/conta" replace />;
 }
 
+/** Link de indicação (?indicacao=CÓDIGO): guardado no aparelho até o cadastro. */
+function useReferralCapture() {
+  const loc = useLocation();
+  useEffect(() => {
+    const code = new URLSearchParams(loc.search).get('indicacao');
+    if (code && /^[A-Za-z0-9]{6,12}$/.test(code)) { try { localStorage.setItem('onema.indicacao', code.toUpperCase()); } catch { /* sem armazenamento */ } }
+  }, [loc.search]);
+}
+
 export default function App() {
+  useReferralCapture();
   return (
     <>
     <Splash />
@@ -69,7 +80,8 @@ export default function App() {
       <Route path="/inicio" element={<RoleHome />} />
       <Route path="/plataforma" element={<Layout><PlatformPage /></Layout>} />
       <Route path="/especialista" element={<Layout><SpecialistPage /></Layout>} />
-      <Route path="/especialista/candidatura" element={<RequireAuth><Layout><ApplicationPage /></Layout></RequireAuth>} />
+      <Route path="/especialista/atendimentos/:id" element={<RequireAuth roles={['ESPECIALISTA']}><VisitPage /></RequireAuth>} />
+      <Route path="/especialista/candidatura" element={<RequireAuth><ApplicationPage /></RequireAuth>} />
       <Route path="/cuidados/:key" element={<Layout><ServicePage /></Layout>} />
       <Route path="/solicitar" element={<Layout><RequestFlow /></Layout>} />
       <Route path="/solicitacoes/:id" element={<RequireAuth roles={['PACIENTE']}><RequestDetailPage /></RequireAuth>} />

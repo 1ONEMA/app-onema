@@ -22,7 +22,7 @@ Nenhuma destas pendências foi preenchida por suposição. O sistema exibe a pen
 | P-006 | Conteúdo das 17 aulas, vídeos, legendas, transcrições, direitos e checksums | Aulas sem conteúdo; C01 da demonstração usa texto fictício |
 | P-007 | Rótulos internos C04-A03/A04 | Nota registrada na versão |
 | P-008 | Modelo final do certificado, signatários, revogação, dados do QR | Emissão bloqueada até aprovação do modelo; QR mostra nome mascarado (a confirmar) |
-| P-009 | Provedor de pagamento, fiscal, reembolso, chargeback; política de acesso com pagamento PENDENTE | Somente sandbox; matrícula exige PAGO (configurável) |
+| P-009 | Provedor de pagamento, fiscal, reembolso, chargeback; política de acesso com pagamento PENDENTE | **Asaas integrado** (pedidos, Academy e PRIME, webhook e estornos — `docs/ASAAS.md`); falta configurar a chave/webhook no ambiente e definir nota fiscal, política de reembolso e chargeback |
 | P-010 | Regra formal de credenciamento | **Parcial:** candidatura com CPF/COREN/documentos (`/especialista/candidatura`) e conferência pelo Credenciamento implantadas; ofertas só para perfil APTO. Falta o RT definir a regra formal dos “demais gates” (hoje decisão humana) |
 | P-011 | Conteúdo offline | Offline não disponibiliza dados; tela de indisponibilidade |
 | P-012 | Prazos de retenção | Sem expurgo automático |
