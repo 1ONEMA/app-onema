@@ -91,9 +91,15 @@ describe('Asaas — pedidos de cuidado', () => {
     // estorno pelo Financeiro devolve pelo Asaas
     const fin = await loginAs(app, 'financeiro');
     const orderId = (await one<any>('SELECT id FROM service_orders')).id;
-    expect((await fin.post(`/api/admin/care/orders/${orderId}/refund`, { reason: 'Teste de estorno real' })).status).toBe(200);
-    expect(fake.calls.some((x) => x.method === 'POST' && x.path === `/payments/${pay.id}/refund`)).toBe(true);
+    const rf = await fin.post(`/api/admin/care/orders/${orderId}/refund`, { reason: 'Teste de estorno real' });
+    expect(rf.body.refund.status).toBe('DEVOLUCAO_SOLICITADA'); // estorno solicitado ≠ dinheiro devolvido
+    const refundCall = fake.calls.find((x) => x.method === 'POST' && x.path === `/payments/${pay.id}/refund`);
+    expect(refundCall?.body.value).toBeUndefined(); // integral
+    expect((await one<any>('SELECT status FROM service_orders')).status).toBe('PAID');
+    expect((await hook(ev('evt_5', 'PAYMENT_REFUNDED', pay))).json().outcome).toBe('REEMBOLSO_DEVOLVIDO');
     expect((await one<any>('SELECT status FROM service_orders')).status).toBe('REFUNDED');
+    expect((await one<any>('SELECT status FROM care_refunds')).status).toBe('DEVOLVIDO');
+    expect((await one<any>(`SELECT payload_json FROM asaas_webhook_events WHERE event_id = 'evt_5'`)).payload_json).not.toMatch(/customer|cpf/i);
   });
 
   it('desistir com cobrança em aberto cancela a cobrança no Asaas; cobrança vencida não cancela o pedido', async () => {

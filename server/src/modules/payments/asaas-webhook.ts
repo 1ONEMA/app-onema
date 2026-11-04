@@ -15,11 +15,20 @@ import { addMonths, nowIso, uid } from '../../lib/util.ts';
 import { applyPaymentEvent as applyCareEvent } from '../care/core.ts';
 import { applyPaymentEvent as applyAcademyEvent } from '../academy/routes.ts';
 import { confirmCycle, cycleById, notify, paramsById } from '../prime/core.ts';
+import { applyTransferStatus, notifyRole, openChargeback } from '../finance/payouts.ts';
+import { confirmRefund } from '../finance/refunds.ts';
 
 const PAID = new Set(['PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED']);
 // Vencida (OVERDUE) ainda pode ser paga: só pausa o PRIME. Cobrança removida (DELETED) encerra o pedido.
 const FAILED = new Set(['PAYMENT_OVERDUE', 'PAYMENT_DELETED']);
-const REFUNDED = new Set(['PAYMENT_REFUNDED']);
+const REFUNDED = new Set(['PAYMENT_REFUNDED', 'PAYMENT_PARTIALLY_REFUNDED']);
+const CHARGEBACK = new Set(['PAYMENT_CHARGEBACK_REQUESTED', 'PAYMENT_CHARGEBACK_DISPUTE', 'PAYMENT_AWAITING_CHARGEBACK_REVERSAL']);
+/** Payload mínimo guardado para auditoria/conciliação (sem dados do cliente). */
+const minimal = (b: any) => JSON.stringify({
+  event: b?.event, dateCreated: b?.dateCreated,
+  payment: b?.payment ? { id: b.payment.id, status: b.payment.status, value: b.payment.value, netValue: b.payment.netValue, billingType: b.payment.billingType, externalReference: b.payment.externalReference } : undefined,
+  transfer: b?.transfer ? { id: b.transfer.id, status: b.transfer.status, value: b.transfer.value, transferFee: b.transfer.transferFee, failReason: b.transfer.failReason, externalReference: b.transfer.externalReference } : undefined,
+});
 const cents = (v: unknown) => Math.round(Number(v) * 100);
 /** Situação da cobrança no Asaas (PENDING, OVERDUE, RECEIVED...). */
 const paymentStatus = (p: any) => String(p?.status ?? '');
@@ -33,22 +42,45 @@ export async function handleAsaasEvent(body: any, correlationId: string | null):
   return await tx(async () => {
     if (await one('SELECT 1 AS ok FROM asaas_webhook_events WHERE event_id = ?', eventId)) return 'DUPLICADO';
     let outcome = 'IGNORADO';
-    if (p && (PAID.has(event) || FAILED.has(event) || REFUNDED.has(event))) {
+    if (body?.transfer && event.startsWith('TRANSFER_')) {
+      outcome = `REPASSE_${(await applyTransferStatus(body.transfer, correlationId)) ?? 'NAO_ENCONTRADO'}`;
+    } else if (p && CHARGEBACK.has(event)) {
+      const ref = String(p.externalReference ?? '');
+      const o = ref.startsWith('care:') ? await one<any>('SELECT id, provider_ref FROM service_orders WHERE id = ?', ref.slice(5)) : null;
+      outcome = o && o.provider_ref === String(p.id) ? await openChargeback(o.id, event, correlationId) : 'CHARGEBACK_SEM_PEDIDO';
+      if (!o) await audit({ actorId: null, action: 'CHARGEBACK_UNMATCHED', subjectType: 'webhook', correlationId, meta: { event, payment: String(p.id) } });
+    } else if (p && (PAID.has(event) || FAILED.has(event) || REFUNDED.has(event))) {
       const ref = String(p.externalReference ?? '');
       const kind = PAID.has(event) ? 'CONFIRMED' : REFUNDED.has(event) ? 'REFUNDED' : 'DECLINED';
-      if (ref.startsWith('care:')) outcome = await careEvent(ref.slice(5), p, kind, correlationId);
-      else if (ref.startsWith('academy:')) outcome = await academyEvent(ref.slice(8), p, kind, correlationId);
+      if (ref.startsWith('care:')) outcome = await careEvent(ref.slice(5), p, kind, correlationId, event);
+      else if (event === 'PAYMENT_PARTIALLY_REFUNDED') {
+        outcome = 'ESTORNO_PARCIAL_EXTERNO';
+        await audit({ actorId: null, action: 'PARTIAL_REFUND_OUTSIDE_APP', subjectType: 'webhook', correlationId, meta: { payment: String(p.id) } });
+      } else if (ref.startsWith('academy:')) outcome = await academyEvent(ref.slice(8), p, kind, correlationId);
       else if (p.subscription) outcome = await primeEvent(String(p.subscription), p, kind, correlationId);
       else outcome = 'SEM_REFERENCIA';
     }
-    await run('INSERT INTO asaas_webhook_events (event_id, event, payment_id, outcome, received_at) VALUES (?,?,?,?,?)', eventId, event, p?.id ?? null, outcome, nowIso());
+    await run('INSERT INTO asaas_webhook_events (event_id, event, payment_id, outcome, received_at, payload_json) VALUES (?,?,?,?,?,?)',
+      eventId, event, p?.id ?? body?.transfer?.id ?? null, outcome, nowIso(), minimal(body));
     return outcome;
   });
 }
 
-async function careEvent(orderId: string, p: any, kind: string, correlationId: string | null) {
+export async function careEvent(orderId: string, p: any, kind: string, correlationId: string | null, event = '') {
   const o = await one<any>('SELECT * FROM service_orders WHERE id = ?', orderId);
   if (!o || o.provider_ref !== String(p.id)) return 'PEDIDO_NAO_ENCONTRADO';
+  if (kind === 'REFUNDED') {
+    // Devolução pedida pela ONEMA: confirma o "dinheiro devolvido". Feita direto no painel do Asaas: registra e alerta.
+    if (await one(`SELECT 1 AS ok FROM care_refunds WHERE order_id = ? AND status = 'DEVOLUCAO_SOLICITADA'`, orderId)) return await confirmRefund(orderId, null, `asaas_${p.id}_REFUNDED`, correlationId);
+    if (event === 'PAYMENT_PARTIALLY_REFUNDED') {
+      await audit({ actorId: null, action: 'PARTIAL_REFUND_OUTSIDE_APP', subjectType: 'service_order', subjectId: o.id, correlationId });
+      await notifyRole(['FINANCEIRO'], 'Estorno parcial feito fora do app', `O pedido ${o.item_code} teve estorno parcial direto no Asaas. Registre a memória de cálculo.`);
+      return 'ESTORNO_PARCIAL_EXTERNO';
+    }
+  }
+  if (kind === 'CONFIRMED' && p.netValue != null && p.value != null) {
+    await run('UPDATE service_orders SET provider_fee_cents = ?, provider_net_cents = ? WHERE id = ?', cents(p.value) - cents(p.netValue), cents(p.netValue), o.id);
+  }
   if (kind === 'DECLINED' && paymentStatus(p) === 'OVERDUE') return 'PEDIDO_VENCIDO_AGUARDANDO';
   if (kind === 'CONFIRMED' && o.status === 'FAILED') {
     // Pago depois de cancelado: não libera sozinho; a Central decide (estorno ou reativação) com o registro.

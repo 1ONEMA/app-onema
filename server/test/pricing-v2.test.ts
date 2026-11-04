@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { Client, all, emailOf, one, setup } from './helpers.ts';
+import { Client, all, emailOf, loginAs, one, setup } from './helpers.ts';
 import { PRICING_V1 } from '../src/db/content/pricing-v1.ts';
 import { PRICING_V2_SOURCE, seedPricingV2 } from '../src/modules/care/catalog.ts';
 import { config } from '../src/config.ts';
@@ -25,5 +25,9 @@ describe('Reajuste nov/2026 (+R$ 10 em todo o catálogo)', () => {
     // Academy R$ 29,90 e PRIME inalterado (R$ 34,90)
     expect(config.academyFeeCents).toBe(2990);
     expect((await c.get('/api/prime/offer')).body.monthlyPriceCents).toBe(3490);
+    // autoteste da Central reconhece a tabela reajustada (repasses inalterados)
+    const fin = await loginAs(app, 'financeiro');
+    const check = (await fin.get('/api/admin/care/selfcheck')).body.results;
+    expect(check.filter((x: any) => !x.pass).map((x: any) => `${x.id}: ${x.details.join(' | ')}`)).toEqual([]);
   });
 });

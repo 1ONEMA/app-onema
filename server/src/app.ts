@@ -14,6 +14,7 @@ import { authRoutes } from './modules/auth/routes.ts';
 import { careAdminRoutes } from './modules/care/admin.ts';
 import { careRoutes } from './modules/care/routes.ts';
 import { reportShareRoutes } from './modules/care/report-share.ts';
+import { financeRoutes } from './modules/finance/routes.ts';
 import { karyRoutes } from './modules/kary/routes.ts';
 import { specialistRoutes } from './modules/specialist/routes.ts';
 import { cafeRoutes } from './modules/cafe/routes.ts';
@@ -111,6 +112,7 @@ export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean 
   await app.register(primeAdminRoutes);
   await app.register(careRoutes);
   await app.register(reportShareRoutes);
+  await app.register(financeRoutes);
   await app.register(careAdminRoutes);
   await app.register(karyRoutes);
   await app.register(specialistRoutes);

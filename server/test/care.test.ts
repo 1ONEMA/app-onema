@@ -220,10 +220,16 @@ describe('P06 — Pedido falhou / estorno', () => {
     const fin = await loginAs(app, 'financeiro');
     const ref = await fin.post(`/api/admin/care/orders/${ok.body.order.id}/refund`, { reason: 'Teste de estorno (homologação)' });
     expect(ref.status).toBe(200);
+    // um ato já realizado: vai para análise com memória de cálculo (sem estorno automático)
+    expect(ref.body.refund).toMatchObject({ status: 'EM_ANALISE', actsTotal: 4, actsDone: 1, actsCancelled: 3, paidCents: 70990 });
+    expect(ref.body.refund.calcMemo.join(' ')).toMatch(/Saldo a devolver/);
     const twice = await fin.post(`/api/admin/care/orders/${ok.body.order.id}/refund`, { reason: 'Repetição' });
     expect(twice.status).toBe(409);
+    const dec = await fin.post(`/api/admin/finance/refunds/${ref.body.refund.id}/decide`, { approve: true, note: 'Saldo conforme memória de cálculo.' });
+    expect(dec.body.refund).toMatchObject({ status: 'DEVOLVIDO', amountCents: ref.body.refund.suggestedCents });
     const ord = await one<any>('SELECT * FROM service_orders WHERE id = ?', ok.body.order.id);
-    expect(ord.status).toBe('REFUNDED');
+    expect(ord.status).toBe('PAID'); // parcial: o pedido segue pago pelo ato realizado
+    expect(ord.refunded_cents).toBe(ref.body.refund.suggestedCents);
     const payouts = await all<any>('SELECT status FROM payout_entries WHERE order_id = ?', ord.id);
     expect(payouts.filter((p) => p.status === 'A_LIQUIDAR')).toHaveLength(1); // ato já realizado mantém o repasse
     expect(payouts.filter((p) => p.status === 'CANCELADO')).toHaveLength(3);

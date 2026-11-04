@@ -47,6 +47,17 @@ export const config = {
   asaasApiKey: (process.env.ASAAS_API_KEY ?? '').trim(),
   /** Token que o Asaas envia no cabeçalho `asaas-access-token` de cada webhook (definido no painel do Asaas). */
   asaasWebhookToken: (process.env.ASAAS_WEBHOOK_TOKEN ?? '').trim(),
+  /**
+   * Transferências (repasse por Pix) pelo Asaas: desligadas por padrão. O pacote financeiro v1.0 autoriza somente
+   * Sandbox; com chave de produção exige também ASAAS_PRODUCTION_APPROVED=true (Portão D). Sem isso o Financeiro
+   * paga fora do sistema e registra o comprovante (modo manual).
+   */
+  asaasTransfersEnabled: bool(process.env.ASAAS_TRANSFERS_ENABLED, false),
+  asaasProductionApproved: bool(process.env.ASAAS_PRODUCTION_APPROVED, false),
+  /** Repasse acima deste valor exige segunda aprovação (padrão R$ 500,00). */
+  payoutDualApprovalCents: Number(process.env.PAYOUT_DUAL_APPROVAL_CENTS ?? 50000),
+  /** Bloqueio após cadastrar/trocar a chave Pix antes de receber (padrão 24 h). */
+  bankChangeHoldHours: Number(process.env.BANK_CHANGE_HOLD_HOURS ?? 24),
   /** WhatsApp permanece desligado até integração oficial validada (PRIME T3). */
   whatsappEnabled: bool(process.env.WHATSAPP_ENABLED, false),
   /** Política comercial Academy: matrícula exige pedido PAGO (P-009 - confirmar). */

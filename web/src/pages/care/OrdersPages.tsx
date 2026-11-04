@@ -4,7 +4,7 @@ import { Fragment, useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useApi, useSubmit } from '../../lib/hooks';
 import { dateTime, label, money } from '../../lib/format';
-import { Alert, Badge, Button, Empty, ErrorState, Loading, PageHeader } from '../../ui/ui';
+import { Alert, Badge, Button, Empty, ErrorState, Field, Loading, PageHeader, fieldError } from '../../ui/ui';
 import { IconArrowRight, IconCheck, IconStar } from '../../ui/icons';
 
 export const REQ_STATUS: Record<string, { label: string; tone: string }> = {
@@ -186,10 +186,50 @@ export function RequestDetailPage() {
           <p className="small muted">A Central ONEMA confirma a agenda com um especialista validado. O mesmo enfermeiro não é obrigatório em todos os atendimentos de um pacote.</p>
         </section>
       </div>
+      {o && ['PAID', 'REFUNDED'].includes(o.status) && <RefundCard orderId={o.id} paid={o.status === 'PAID'} onDone={reload} />}
       <section className="surface mt">
         <h2>Linha do tempo do atendimento</h2>
         <CareTimeline items={data.timeline} />
       </section>
     </>
+  );
+}
+
+/**
+ * Reembolso pelo titular: antes do início é integral e automático; com parte do pacote realizada,
+ * o Financeiro calcula o saldo. Mostra a diferença entre "devolução solicitada" e "dinheiro devolvido".
+ */
+function RefundCard({ orderId, paid, onDone }: { orderId: string; paid: boolean; onDone: () => void }) {
+  const { data, reload } = useApi<any>(`/api/care/orders/${orderId}/refunds`);
+  const send = useSubmit<any>();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const list = data?.refunds ?? [];
+  const active = list.find((r: any) => !['RECUSADO', 'FALHA', 'DEVOLVIDO'].includes(r.status));
+  if (!list.length && !paid) return null;
+  async function submit() {
+    const r = await send.run('POST', `/api/care/orders/${orderId}/refund-request`, { reason });
+    if (r) { setOpen(false); reload(); onDone(); }
+  }
+  return (
+    <section className="surface mt">
+      <h2>Cancelamento e reembolso</h2>
+      {list.map((r: any) => (
+        <div key={r.id} className={r.status === 'DEVOLVIDO' ? 'success' : r.status === 'RECUSADO' || r.status === 'FALHA' ? 'caution' : 'caution'} role="status">
+          <strong>{r.statusLabel}</strong> · protocolo {r.protocol} · {r.amountCents != null ? money(r.amountCents) : 'valor em análise'}
+          {r.status === 'DEVOLUCAO_SOLICITADA' && <p className="small mb0">A devolução foi pedida ao meio de pagamento. Avisaremos quando o dinheiro for devolvido (cartão: conforme a fatura; Pix: na conta de origem).</p>}
+          {r.decisionNote && r.status === 'RECUSADO' && <p className="small mb0">{r.decisionNote}</p>}
+          <details className="small"><summary>Como o valor foi calculado</summary><ul>{r.calcMemo.map((m: string, i: number) => <li key={i}>{m}</li>)}</ul></details>
+        </div>
+      ))}
+      {paid && !active && (open ? (
+        <div className="mt">
+          <Field label="Motivo do cancelamento" error={fieldError(send.error, 'reason')}><textarea rows={2} value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} /></Field>
+          <p className="small muted">Antes do início do atendimento o reembolso é integral, sem multa. Se parte do pacote já foi realizada, o Financeiro ONEMA calcula o saldo e você recebe a memória de cálculo.</p>
+          <Alert error={send.error && !Array.isArray(send.error.details) ? send.error : null} />
+          <div className="row"><Button className="deep" busy={send.busy} onClick={submit}>Confirmar pedido de reembolso</Button><button type="button" className="btn secondary" onClick={() => setOpen(false)}>Voltar</button></div>
+        </div>
+      ) : <p className="mt mb0"><button type="button" className="linklike" onClick={() => setOpen(true)}>Cancelar e pedir reembolso</button></p>)}
+    </section>
   );
 }

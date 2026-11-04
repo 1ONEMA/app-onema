@@ -217,7 +217,7 @@ export function patientOrderView(o: any) {
   return {
     id: o.id, itemCode: o.item_code, itemName: o.item_name, kind: o.item_kind, versionNo: o.version_no, status: o.status,
     basePriceCents: o.full_price_cents, discountCents: o.discount_cents, totalCents: o.final_price_cents, noDiscountReason: o.no_discount_reason,
-    actsTotal: o.acts_total, billingPeriod: o.billing_period, provider: o.provider, providerRef: o.provider_ref,
+    actsTotal: o.acts_total, billingPeriod: o.billing_period, provider: o.provider, refundedCents: o.refunded_cents ?? 0,
     createdAt: o.created_at, paidAt: o.paid_at, refundedAt: o.refunded_at, offer: snap?.item ?? null, cycleId: o.cycle_id,
     paymentUrl: o.status === 'PENDING_PAYMENT' ? o.payment_url ?? null : null,
   };

@@ -18,6 +18,7 @@ import { PAYMENT_METHOD_KEYS, SANDBOX_METHODS, notify, quote } from '../prime/co
 import { cancelPayment } from '../../lib/asaas.ts';
 import { newVisitCode } from './visit.ts';
 import { primeActive } from './report-share.ts';
+import { notifyRole } from '../finance/payouts.ts';
 import { careTimeline } from './timeline.ts';
 import { cpfSchema } from '../../lib/cpf.ts';
 import { currentVersion, offerByCode, publicOffer } from './catalog.ts';
@@ -419,6 +420,7 @@ export async function careRoutes(app: FastifyInstance) {
       // Liquidação segue o mecanismo aprovado da operação: aqui o repasse fica "a liquidar" (sem nova regra).
       await run(`UPDATE payout_entries SET status = 'A_LIQUIDAR', updated_at = ? WHERE event_id = ? AND status = 'RESERVADO'`, now, id);
       await audit({ actorId: a.userId, action: 'CARE_EVENT_COMPLETED', subjectType: 'care_event', subjectId: id, correlationId: req.correlationId });
+      await notifyRole(['OPERADOR_CENTRAL'], 'Atendimento para validar', 'Um atendimento foi concluído e assinado pelo paciente. Valide em Central › Financeiro para programar o repasse.');
       return { ok: true };
     });
   });

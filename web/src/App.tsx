@@ -37,6 +37,7 @@ import { Splash } from './ui/Splash';
 import { InstitutionalPage } from './pages/public/InstitutionalPage';
 import { ReportSharesPage, WalletPage } from './pages/care/WalletPage';
 import { ReportPage } from './pages/public/ReportPage';
+import { MyPayoutsPage } from './pages/care/MyPayoutsPage';
 
 function RequireAuth({ children, roles }: { children: ReactNode; roles?: Role[] }) {
   const { me, loading, error, has } = useAuth();
@@ -82,6 +83,7 @@ export default function App() {
       <Route path="/plataforma" element={<Layout><PlatformPage /></Layout>} />
       <Route path="/especialista" element={<Layout><SpecialistPage /></Layout>} />
       <Route path="/especialista/atendimentos/:id" element={<RequireAuth roles={['ESPECIALISTA']}><VisitPage /></RequireAuth>} />
+      <Route path="/especialista/repasses" element={<RequireAuth roles={['ESPECIALISTA']}><MyPayoutsPage /></RequireAuth>} />
       <Route path="/especialista/candidatura" element={<RequireAuth><ApplicationPage /></RequireAuth>} />
       <Route path="/cuidados/:key" element={<Layout><ServicePage /></Layout>} />
       <Route path="/solicitar" element={<Layout><RequestFlow /></Layout>} />

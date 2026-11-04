@@ -979,4 +979,112 @@ CREATE TABLE report_shares (
 CREATE INDEX ix_report_shares_patient ON report_shares(patient_id, created_at);
 ALTER TABLE report_shares ENABLE ROW LEVEL SECURITY;
 ` },
+  { name: '018_financeiro_repasses', sql: `
+-- 018: Pacote financeiro Asaas (MVP v1.0): repasse por Pix externo após atendimento validado,
+-- destino bancário verificado, reembolso com memória de cálculo, ocorrências (chargeback) e conciliação.
+ALTER TABLE payout_entries DROP CONSTRAINT IF EXISTS payout_entries_status_check;
+ALTER TABLE payout_entries ADD CONSTRAINT payout_entries_status_check CHECK (status IN (
+  'RESERVADO','A_LIQUIDAR','VALIDADO','RECUSADO','PROGRAMADO','ENVIADO','CONFIRMADO','FALHA','SALDO_INSUFICIENTE','ENVIO_INCERTO','BLOQUEADO','CANCELADO'));
+ALTER TABLE payout_entries ADD COLUMN gross_cents INTEGER;
+ALTER TABLE payout_entries ADD COLUMN withholding_cents INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE payout_entries ADD COLUMN validated_by TEXT REFERENCES users(id);
+ALTER TABLE payout_entries ADD COLUMN validated_at TEXT;
+ALTER TABLE payout_entries ADD COLUMN validation_note TEXT;
+ALTER TABLE payout_entries ADD COLUMN due_at TEXT;
+ALTER TABLE payout_entries ADD COLUMN authorized_by TEXT REFERENCES users(id);
+ALTER TABLE payout_entries ADD COLUMN authorized_at TEXT;
+ALTER TABLE payout_entries ADD COLUMN second_approver_id TEXT REFERENCES users(id);
+ALTER TABLE payout_entries ADD COLUMN bank_destination_id TEXT;
+ALTER TABLE payout_entries ADD COLUMN transfer_id TEXT;
+ALTER TABLE payout_entries ADD COLUMN transfer_status TEXT;
+ALTER TABLE payout_entries ADD COLUMN transfer_fee_cents INTEGER;
+ALTER TABLE payout_entries ADD COLUMN transfer_receipt_url TEXT;
+ALTER TABLE payout_entries ADD COLUMN transfer_requested_at TEXT;
+ALTER TABLE payout_entries ADD COLUMN sent_at TEXT;
+ALTER TABLE payout_entries ADD COLUMN confirmed_at TEXT;
+ALTER TABLE payout_entries ADD COLUMN failure_reason TEXT;
+ALTER TABLE payout_entries ADD COLUMN blocked_from TEXT;
+ALTER TABLE payout_entries ADD COLUMN blocked_reason TEXT;
+ALTER TABLE payout_entries ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE payout_entries ADD COLUMN alerts_sent TEXT NOT NULL DEFAULT '';
+ALTER TABLE payout_entries ADD COLUMN reprocess_requested_by TEXT REFERENCES users(id);
+CREATE UNIQUE INDEX uq_payout_transfer ON payout_entries(transfer_id) WHERE transfer_id IS NOT NULL;
+
+ALTER TABLE service_orders ADD COLUMN provider_fee_cents INTEGER;
+ALTER TABLE service_orders ADD COLUMN provider_net_cents INTEGER;
+ALTER TABLE service_orders ADD COLUMN refunded_cents INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE service_orders ADD COLUMN contested_at TEXT;
+ALTER TABLE asaas_webhook_events ADD COLUMN payload_json TEXT;
+
+-- Destino do repasse: chave Pix selada (AES-GCM); só a forma mascarada é exibida.
+CREATE TABLE bank_destinations (
+  id TEXT PRIMARY KEY,
+  specialist_id TEXT NOT NULL REFERENCES users(id),
+  pix_key_sealed TEXT NOT NULL,
+  pix_key_hash TEXT NOT NULL,
+  pix_key_type TEXT NOT NULL CHECK (pix_key_type IN ('CPF','EMAIL','PHONE','EVP')),
+  masked_key TEXT NOT NULL,
+  holder_name TEXT NOT NULL,
+  holder_check TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('PENDENTE_VERIFICACAO','VERIFICADA','RECUSADA','SUBSTITUIDA')),
+  is_change INTEGER NOT NULL DEFAULT 0,
+  available_from TEXT NOT NULL,
+  verified_by TEXT REFERENCES users(id),
+  second_approver_id TEXT REFERENCES users(id),
+  verified_at TEXT,
+  decision_note TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX uq_bank_destination_current ON bank_destinations(specialist_id) WHERE status IN ('PENDENTE_VERIFICACAO','VERIFICADA');
+
+-- Reembolso: solicitação → análise → valor definido → devolução solicitada ao Asaas → devolvido.
+CREATE TABLE care_refunds (
+  id TEXT PRIMARY KEY,
+  order_id TEXT NOT NULL REFERENCES service_orders(id),
+  protocol TEXT NOT NULL UNIQUE,
+  requested_by TEXT NOT NULL REFERENCES users(id),
+  reason TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('SOLICITADO','EM_ANALISE','VALOR_DEFINIDO','DEVOLUCAO_SOLICITADA','DEVOLVIDO','RECUSADO','FALHA')),
+  acts_total INTEGER NOT NULL,
+  acts_done INTEGER NOT NULL,
+  acts_cancelled INTEGER NOT NULL,
+  paid_cents INTEGER NOT NULL,
+  suggested_cents INTEGER NOT NULL,
+  amount_cents INTEGER,
+  balance_cents INTEGER,
+  calc_memo TEXT NOT NULL,
+  decided_by TEXT REFERENCES users(id),
+  decision_note TEXT,
+  decided_at TEXT,
+  provider_status TEXT,
+  nf_status TEXT NOT NULL DEFAULT 'PENDENTE_CONTADOR',
+  requested_to_provider_at TEXT,
+  refunded_at TEXT,
+  receipt_text TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX uq_care_refund_open ON care_refunds(order_id) WHERE status NOT IN ('RECUSADO','FALHA');
+
+-- Ocorrências financeiras (chargeback, divergências, recuperação de repasse).
+CREATE TABLE financial_occurrences (
+  id TEXT PRIMARY KEY,
+  order_id TEXT REFERENCES service_orders(id),
+  payout_id TEXT REFERENCES payout_entries(id),
+  kind TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('ABERTA','EM_RECUPERACAO','ENCERRADA')),
+  recovery_cents INTEGER NOT NULL DEFAULT 0,
+  detail TEXT NOT NULL,
+  resolution TEXT,
+  resolved_by TEXT REFERENCES users(id),
+  resolved_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX uq_occurrence_open ON financial_occurrences(order_id, kind) WHERE status <> 'ENCERRADA';
+ALTER TABLE bank_destinations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE care_refunds ENABLE ROW LEVEL SECURITY;
+ALTER TABLE financial_occurrences ENABLE ROW LEVEL SECURITY;
+` },
 ];
