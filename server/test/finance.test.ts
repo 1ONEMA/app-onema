@@ -207,13 +207,19 @@ describe('Repasse por Pix no Asaas (T06–T09, T12)', () => {
   it('T12: chargeback bloqueia repasse pendente; revertido devolve ao estado anterior', async () => {
     const { payout, orderId, fin } = await readyPayout();
     asaasOn();
-    await run('UPDATE service_orders SET provider_ref = ? WHERE id = ?', 'pay_cb', orderId);
+    await run(`UPDATE service_orders SET provider = 'ASAAS', provider_ref = ? WHERE id = ?`, 'pay_cb', orderId);
     const cb = { id: 'evt_cb', event: 'PAYMENT_CHARGEBACK_REQUESTED', payment: { id: 'pay_cb', externalReference: `care:${orderId}`, value: 1 } };
     expect((await hook(cb)).json().outcome).toBe('CHARGEBACK_REGISTRADO');
     expect((await one<any>('SELECT status, blocked_from FROM payout_entries WHERE id = ?', payout.id))).toMatchObject({ status: 'BLOQUEADO', blocked_from: 'VALIDADO' });
     expect((await fin.post(`/api/admin/finance/payouts/${payout.id}/authorize`)).status).toBe(409);
     const occ = await one<any>('SELECT * FROM financial_occurrences');
     expect(occ).toMatchObject({ kind: 'CHARGEBACK', status: 'ABERTA' });
+    // revertida só com o Asaas confirmando o pagamento
+    let payStatus = 'CHARGEBACK_REQUESTED';
+    setAsaasTransport(async (method, url) => (method === 'GET' && url.endsWith('/payments/pay_cb') ? { status: 200, json: { id: 'pay_cb', status: payStatus } } : { status: 404, json: {} }));
+    const bad = await fin.post(`/api/admin/finance/occurrences/${occ.id}/resolve`, { outcome: 'REVERTIDA', note: 'Contestação ganha.' });
+    expect(bad.body.error?.code, JSON.stringify(bad.body)).toBe('CHARGEBACK_NOT_REVERSED');
+    payStatus = 'RECEIVED';
     expect((await fin.post(`/api/admin/finance/occurrences/${occ.id}/resolve`, { outcome: 'REVERTIDA', note: 'Contestação ganha.' })).status).toBe(200);
     expect((await one<any>('SELECT status FROM payout_entries WHERE id = ?', payout.id)).status).toBe('VALIDADO');
   });
@@ -231,6 +237,25 @@ describe('Repasse por Pix no Asaas (T06–T09, T12)', () => {
     await run('UPDATE payout_entries SET validated_at = ? WHERE id = ?', past, payout.id);
     expect(await payoutAlerts()).toBe(1);
     expect(await payoutAlerts()).toBe(0);
+  });
+});
+
+describe('Revisão de segurança', () => {
+  it('quem concedeu o perfil ao primeiro aprovador não pode ser o segundo', async () => {
+    const { payout, fin } = await readyPayout();
+    config.payoutDualApprovalCents = 1000;
+    await run(`UPDATE user_roles SET granted_by = ? WHERE user_id = ? AND role = 'FINANCEIRO'`, await idOf('adminPrime'), await idOf('financeiro'));
+    expect((await fin.post(`/api/admin/finance/payouts/${payout.id}/authorize`)).body.pending).toBe('SEGUNDA_APROVACAO');
+    const adm = await loginAs(app, 'adminPrime');
+    expect((await adm.post(`/api/admin/finance/payouts/${payout.id}/authorize`)).body.error.code).toBe('SEGREGATION_OF_DUTIES');
+  });
+
+  it('ato remoto aceito ou com evolução registrada não gera estorno integral automático', async () => {
+    const { c, orderId, eventId } = await visit();
+    await run(`UPDATE care_events SET modality = 'REMOTO' WHERE id = ?`, eventId);
+    const r = await c.post(`/api/care/orders/${orderId}/refund-request`, { reason: 'Quero cancelar' });
+    expect(r.body.refund.status).toBe('EM_ANALISE');
+    expect((await one<any>('SELECT status FROM care_events WHERE id = ?', eventId)).status).toBe('ACEITO');
   });
 });
 

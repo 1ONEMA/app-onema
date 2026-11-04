@@ -8,17 +8,18 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { all, one, run, tx } from '../../db/db.ts';
 import { audit } from '../../lib/audit.ts';
-import { transfersMode } from '../../lib/asaas.ts';
+import { findTransferByReference, transfersMode } from '../../lib/asaas.ts';
 import { parse, requireRoles } from '../../lib/context.ts';
 import { validCpf } from '../../lib/cpf.ts';
 import { AppError, badRequest, conflict, forbidden, notFound } from '../../lib/errors.ts';
 import { lookupHash, rateLimit, sealField, verifyPassword } from '../../lib/security.ts';
 import { nowIso, uid } from '../../lib/util.ts';
 import { config } from '../../config.ts';
+import { sendEmail } from '../../lib/email.ts';
 import { openField } from '../../lib/security.ts';
 import { notify } from '../prime/core.ts';
 import {
-  PAYOUT_LABEL, authorizePayout, currentDestination, maskPixKey, notifyRole, payoutBlockers, resolveOccurrence,
+  PAYOUT_LABEL, applyTransferStatus, authorizePayout, independentApprovers, currentDestination, maskPixKey, notifyRole, payoutBlockers, resolveOccurrence,
   resolveUncertain, sendTransfer, validatePayout,
 } from './payouts.ts';
 import { REFUND_LABEL, decideRefund, refundView, requestRefund } from './refunds.ts';
@@ -74,7 +75,7 @@ export async function financeRoutes(app: FastifyInstance) {
     const cpf = openField(appl.cpf);
     const holderCheck = key.pixKeyType === 'CPF' ? (key.pixKey === cpf ? 'CPF_CONFERE' : 'CPF_DIFERENTE') : 'CONFERIR_TITULAR';
     if (holderCheck === 'CPF_DIFERENTE') throw badRequest('PIX_KEY_NOT_OWNER', 'A chave Pix do tipo CPF precisa ser o seu próprio CPF (o mesmo da candidatura).');
-    return await tx(async () => {
+    const out = await tx(async () => {
       const now = nowIso();
       const cur = await currentDestination(a.userId);
       const hash = lookupHash('pix', key.pixKey);
@@ -93,8 +94,15 @@ export async function financeRoutes(app: FastifyInstance) {
         isChange ? `Sua chave Pix de repasse foi alterada para ${maskPixKey(key.pixKey, key.pixKeyType)}. Por segurança, novos repasses ficam bloqueados por ${config.bankChangeHoldHours} h e a Central confere a titularidade. Se não foi você, fale com a Central ONEMA imediatamente.`
           : `Chave Pix ${maskPixKey(key.pixKey, key.pixKeyType)} cadastrada para seus repasses.`);
       if (!autoVerified) await notifyRole(['FINANCEIRO'], 'Chave Pix para conferir', `Uma especialista ${isChange ? 'trocou' : 'cadastrou'} a chave Pix. Confira a titularidade em Central › Financeiro.`);
-      return { destination: destinationView(await one('SELECT * FROM bank_destinations WHERE id = ?', id)) };
+      return { isChange, masked: maskPixKey(key.pixKey, key.pixKeyType), destination: destinationView(await one('SELECT * FROM bank_destinations WHERE id = ?', id)) };
     });
+    // Aviso fora do app (e-mail): se a senha foi roubada, a especialista fica sabendo por outro canal durante o bloqueio de 24 h.
+    if (out.isChange) {
+      const email = (await one<any>('SELECT email FROM users WHERE id = ?', a.userId))!.email;
+      const text = `Sua chave Pix de repasse na ONEMA SAÚDE foi alterada para ${out.masked}. Se não foi você, responda este e-mail ou fale com a Central ONEMA imediatamente: os repasses ficam bloqueados por ${config.bankChangeHoldHours} h.`;
+      await sendEmail({ to: email, subject: 'ONEMA SAÚDE: sua chave Pix foi alterada', text, html: `<p>${text}</p>` });
+    }
+    return { destination: out.destination };
   });
 
   // ---------------- Paciente: reembolso ----------------
@@ -199,7 +207,16 @@ export async function financeRoutes(app: FastifyInstance) {
       await audit({ actorId: a.userId, action: 'PAYOUT_REPROCESS_REQUESTED', subjectType: 'payout', subjectId: id, correlationId: req.correlationId });
       return { status: 'FALHA', pending: 'APROVACAO_ADMIN' };
     }
-    if (!a.roles.includes('ADMIN_PRIME') || p.reprocess_requested_by === a.userId) throw forbidden('A aprovação do reprocessamento precisa ser de um administrador diferente de quem pediu.', 'SEGREGATION_OF_DUTIES');
+    if (!a.roles.includes('ADMIN_PRIME') || !(await independentApprovers(p.reprocess_requested_by, a.userId))) throw forbidden('A aprovação do reprocessamento precisa ser de um administrador independente de quem pediu.', 'SEGREGATION_OF_DUTIES');
+    // Antes de reenviar: confirma no Asaas que nenhuma transferência anterior deste repasse está ativa.
+    if (p.attempts > 0) {
+      const since = new Date(new Date(p.transfer_requested_at ?? p.created_at).getTime() - 86400000).toISOString().slice(0, 10);
+      const prev = await findTransferByReference(`payout:${p.id}`, since);
+      if (prev && !['FAILED', 'CANCELLED'].includes(String(prev.status))) {
+        if (!p.transfer_id || p.transfer_id === String(prev.id)) await applyTransferStatus(prev, req.correlationId);
+        throw conflict('TRANSFER_ALREADY_EXISTS', 'Já existe uma transferência ativa para este repasse no Asaas. Nada foi reenviado.');
+      }
+    }
     await run('UPDATE payout_entries SET reprocess_requested_by = NULL, updated_at = ? WHERE id = ?', nowIso(), id);
     await audit({ actorId: a.userId, action: 'PAYOUT_REPROCESS_APPROVED', subjectType: 'payout', subjectId: id, correlationId: req.correlationId });
     return { status: await sendTransfer(id, req.correlationId) };
@@ -228,7 +245,7 @@ export async function financeRoutes(app: FastifyInstance) {
         }
         await run(`UPDATE bank_destinations SET status = 'VERIFICADA', verified_by = ?, decision_note = ?, verified_at = ?, updated_at = ? WHERE id = ?`, a.userId, b.note, now, now, id);
       } else {
-        if (d.verified_by === a.userId) throw forbidden('A segunda aprovação precisa ser de outra pessoa.', 'SEGREGATION_OF_DUTIES');
+        if (!(await independentApprovers(d.verified_by, a.userId))) throw forbidden('A segunda aprovação precisa ser de outra pessoa, independente de quem fez a primeira.', 'SEGREGATION_OF_DUTIES');
         await run(`UPDATE bank_destinations SET status = 'VERIFICADA', second_approver_id = ?, verified_at = ?, decision_note = ?, updated_at = ? WHERE id = ?`, a.userId, now, `${d.decision_note ?? ''} | ${b.note}`.slice(0, 500), now, id);
       }
       await audit({ actorId: a.userId, action: b.approve ? 'BANK_DESTINATION_VERIFIED' : 'BANK_DESTINATION_REJECTED', subjectType: 'bank_destination', subjectId: id, correlationId: req.correlationId });

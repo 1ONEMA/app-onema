@@ -34,7 +34,31 @@ export function InstitutionalPage() {
           </ul>
           <h2>Como exercer</h2>
           <p>Escreva para <a href="mailto:atendimento@onemasaude.com.br">atendimento@onemasaude.com.br</a> ou fale com a <button className="linklike" onClick={openKary}>Kary</button>. Na sua conta você já pode exportar o histórico, ajustar preferências e revogar o acesso de responsáveis.</p>
-          <p className="pending-box">Dados do encarregado (DPO) e prazos de retenção: aguardando definição oficial da ONEMA SAÚDE.</p>
+          <h2>Com quem compartilhamos (operadores)</h2>
+          <p>Somente o necessário para cada finalidade, com contrato e medidas de segurança. Não vendemos dados.</p>
+          <div className="table-wrap" tabIndex={0} role="region" aria-label="Fornecedores que tratam dados"><table>
+            <thead><tr><th>Fornecedor</th><th>Para quê</th><th>Quais dados</th></tr></thead>
+            <tbody>
+              <tr><td>Anthropic (IA Claude)</td><td>Kary: organizar o ditado da especialista em evolução de enfermagem (revisada e assinada por ela) e responder dúvidas no chat</td><td>Texto do ditado do atendimento e mensagens do chat. Sem nome, CPF ou contato do paciente. A IA não decide nada clínico</td></tr>
+              <tr><td>Asaas</td><td>Cobranças (Pix, boleto, cartão), estornos e repasse por Pix às especialistas</td><td>Nome, CPF e e-mail de quem paga; chave Pix da especialista. Dados do cartão ficam só no Asaas</td></tr>
+              <tr><td>Supabase (banco de dados)</td><td>Armazenamento da plataforma</td><td>Cadastro, pedidos, prontuário (evoluções) e registros de auditoria, com campos sensíveis criptografados</td></tr>
+              <tr><td>Netlify</td><td>Hospedagem do site e dos documentos enviados</td><td>Tráfego técnico (endereço IP) e arquivos da candidatura em armazenamento privado</td></tr>
+              <tr><td>Resend</td><td>E-mails da conta (recuperar senha, convites)</td><td>E-mail do destinatário. Nenhuma informação de saúde no e-mail</td></tr>
+              <tr><td>Google ou Apple (no aparelho da especialista)</td><td>Ditado por voz, quando usado</td><td>O áudio é transcrito pelo serviço de voz do navegador do celular. Quem preferir pode digitar</td></tr>
+            </tbody>
+          </table></div>
+          <h2>Por quanto tempo guardamos</h2>
+          <div className="table-wrap" tabIndex={0} role="region" aria-label="Prazos de retenção"><table>
+            <thead><tr><th>Dado</th><th>Prazo</th></tr></thead>
+            <tbody>
+              <tr><td>Prontuário: evoluções de enfermagem assinadas e registros do atendimento</td><td>20 anos a partir do último registro</td></tr>
+              <tr><td>Registros de acesso à aplicação (IP, data e hora)</td><td>Mínimo de 6 meses (Marco Civil da Internet)</td></tr>
+              <tr><td>Pedidos, pagamentos, reembolsos e repasses</td><td>Prazo legal fiscal e contábil (a confirmar com o contador da ONEMA)</td></tr>
+              <tr><td>Documentos da candidatura de especialistas</td><td>Enquanto durar o credenciamento e pelo prazo legal posterior (a confirmar)</td></tr>
+              <tr><td>Links de relatório compartilhados</td><td>Expiram em 7 dias e podem ser revogados a qualquer momento</td></tr>
+            </tbody>
+          </table></div>
+          <p className="pending-box">Encarregado de dados (DPO): nome e contato serão publicados aqui assim que definidos pela ONEMA SAÚDE. Até lá, use o e-mail acima.</p>
         </div>
       ) : text.loading && !text.data ? <Loading /> : text.error ? <ErrorState error={text.error} onRetry={text.reload} /> : (
         <div className="inst-body">

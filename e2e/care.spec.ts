@@ -27,7 +27,9 @@ test('paciente, especialista e Central: jornada completa com evidências', async
   // Catálogo público: "Saiba mais →" em todos os cards e nenhuma cifra
   await expect(page.locator('#catalogo').getByRole('link', { name: /Saiba mais sobre/ })).toHaveCount(8);
   await expect(page.getByText('Saber mais')).toHaveCount(0);
-  expect(await page.locator('main').innerText()).not.toMatch(/R\$/);
+  // Preços do catálogo nunca aparecem em público; só a mensalidade e a regra do PRIME (ajuste de 04/11/2026).
+  expect(await page.locator('#catalogo').innerText()).not.toMatch(/R\$/);
+  expect((await page.locator('main').innerText()).replace(/R\$[\s\u00a0]?(34,90|20,00)/g, '')).not.toMatch(/R\$/);
 
   // Kary
   await page.getByRole('button', { name: /Falar com a Kary/ }).click();
@@ -44,7 +46,9 @@ test('paciente, especialista e Central: jornada completa com evidências', async
   await page.locator('#catalogo').getByRole('link', { name: 'Saiba mais sobre Pós-alta Hospitalar' }).click();
   await expect(page.getByRole('heading', { name: 'Pós-alta Hospitalar' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Orientações' })).toBeVisible();
-  expect(await page.locator('main').innerText()).not.toMatch(/R\$/);
+  // Preços do catálogo nunca aparecem em público; só a mensalidade e a regra do PRIME (ajuste de 04/11/2026).
+  expect(await page.locator('#catalogo').innerText()).not.toMatch(/R\$/);
+  expect((await page.locator('main').innerText()).replace(/R\$[\s\u00a0]?(34,90|20,00)/g, '')).not.toMatch(/R\$/);
   await shot(page, 'evid-03-saiba-mais', p);
   // Ordem aprovada: cadastro/autenticação → necessidade → materiais → orçamento
   await page.getByRole('link', { name: /Solicitar este cuidado/ }).click();

@@ -24,8 +24,12 @@ export const REFUND_LABEL: Record<string, string> = {
 /** Memória de cálculo: valor dos atos realizados proporcional ao repasse de cada ato (atos presenciais pesam mais). */
 export async function refundCalc(orderId: string) {
   const o = (await one<any>('SELECT * FROM service_orders WHERE id = ?', orderId))!;
-  const events = await all<any>('SELECT id, label, status, started_at, unit_payout_cents, specialist_id FROM care_events WHERE order_id = ? ORDER BY seq', orderId);
-  const done = events.filter((e) => e.status === 'CONCLUIDO' || e.started_at);
+  const events = await all<any>(`SELECT e.id, e.label, e.status, e.modality, e.started_at, e.unit_payout_cents, e.specialist_id,
+      (SELECT COUNT(*) FROM care_evolutions v WHERE v.event_id = e.id) AS evolutions FROM care_events e WHERE e.order_id = ? ORDER BY e.seq`, orderId);
+  // Realizado = concluído, iniciado com o código do paciente ou com evolução registrada (atos remotos não têm "início").
+  const done = events.filter((e) => e.status === 'CONCLUIDO' || e.started_at || Number(e.evolutions) > 0);
+  // Ato remoto já aceito pode ter acontecido sem registro ainda: nunca é estorno automático.
+  const remoteAccepted = events.some((e) => e.status === 'ACEITO' && e.modality === 'REMOTO' && !done.includes(e));
   const paid = o.final_price_cents - (o.refunded_cents ?? 0);
   const weight = (list: any[]) => list.reduce((s, e) => s + (e.unit_payout_cents || 1), 0);
   const total = weight(events) || 1;
@@ -39,7 +43,7 @@ export async function refundCalc(orderId: string) {
       : 'Nenhum ato iniciado: reembolso integral, sem multa.',
     `Saldo a devolver: ${brl(suggested)}. Tarifas do meio de pagamento absorvidas pela ONEMA.`,
   ];
-  return { order: o, events, done, actsTotal: events.length, actsDone: done.length, paid, suggested, memo };
+  return { order: o, events, done, remoteAccepted, actsTotal: events.length, actsDone: done.length, paid, suggested, memo };
 }
 
 /** Paciente (ou o Financeiro em nome dele) pede o reembolso. Sem atos iniciados: integral e automático. */
@@ -56,7 +60,7 @@ export async function requestRefund(orderId: string, actorId: string, reason: st
     const now = nowIso();
     const id = uid();
     const protocol = `REE-${now.slice(0, 10).replace(/-/g, '')}-${randomToken(4).replace(/[^A-Za-z0-9]/g, '').slice(0, 5).toUpperCase()}`;
-    const automatic = c.actsDone === 0;
+    const automatic = c.actsDone === 0 && !c.remoteAccepted;
     await run(`INSERT INTO care_refunds (id, order_id, protocol, requested_by, reason, status, acts_total, acts_done, acts_cancelled, paid_cents, suggested_cents, amount_cents, balance_cents, calc_memo,
         decided_by, decision_note, decided_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       id, orderId, protocol, actorId, reason, automatic ? 'VALOR_DEFINIDO' : 'EM_ANALISE', c.actsTotal, c.actsDone, c.actsTotal - c.actsDone, c.paid, c.suggested,
@@ -106,6 +110,16 @@ async function executeRefund(id: string, actorId: string | null, correlationId: 
     try {
       await refundPayment(o.provider_ref, `Reembolso ONEMA ${f.protocol}`, full ? undefined : f.amount_cents);
     } catch (e: any) {
+      if (e instanceof AppError && e.code === 'PAYMENT_PROVIDER_UNAVAILABLE') {
+        // Sem resposta: o Asaas pode ter processado. Trata como solicitado; o webhook confirma ou o Financeiro confere no painel.
+        await tx(async () => {
+          await cancelOpenActs(o.id);
+          await run(`UPDATE care_refunds SET status = 'DEVOLUCAO_SOLICITADA', provider_status = 'SEM_RESPOSTA', requested_to_provider_at = ?, updated_at = ? WHERE id = ?`, now, now, id);
+        });
+        await notifyRole(['FINANCEIRO'], 'Reembolso sem resposta do Asaas', `Confira no painel do Asaas se a devolução do protocolo ${f.protocol} foi registrada. Não repita sem conferir.`);
+        await audit({ actorId, action: 'REFUND_PROVIDER_UNCERTAIN', subjectType: 'care_refund', subjectId: id, correlationId });
+        return;
+      }
       await run(`UPDATE care_refunds SET status = 'FALHA', provider_status = ?, updated_at = ? WHERE id = ?`, String(e?.code ?? 'ERRO').slice(0, 60), nowIso(), id);
       await notifyRole(['FINANCEIRO'], 'Falha ao solicitar reembolso', `O Asaas não aceitou a devolução do protocolo ${f.protocol}: ${String(e?.message ?? '').slice(0, 200)}`);
       await audit({ actorId, action: 'REFUND_PROVIDER_FAILED', subjectType: 'care_refund', subjectId: id, correlationId });

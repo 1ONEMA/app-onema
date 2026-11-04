@@ -1065,7 +1065,7 @@ CREATE TABLE care_refunds (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
-CREATE UNIQUE INDEX uq_care_refund_open ON care_refunds(order_id) WHERE status NOT IN ('RECUSADO','FALHA');
+CREATE UNIQUE INDEX uq_care_refund_open ON care_refunds(order_id) WHERE status NOT IN ('RECUSADO','FALHA','DEVOLVIDO');
 
 -- Ocorrências financeiras (chargeback, divergências, recuperação de repasse).
 CREATE TABLE financial_occurrences (

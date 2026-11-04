@@ -104,8 +104,14 @@ export async function createPixTransfer(p: { valueCents: number; pixKey: string;
 export const getTransfer = (id: string) => asaas<any>('GET', `/transfers/${encodeURIComponent(id)}`);
 /** Procura uma transferência pelo id interno (após timeout), sem criar outra. */
 export async function findTransferByReference(ref: string, sinceDate: string) {
-  const r = await asaas<any>('GET', `/transfers?dateCreated%5Bge%5D=${sinceDate}&limit=100`);
-  return (r?.data ?? []).find((t: any) => t.externalReference === ref || String(t.description ?? '').includes(ref)) ?? null;
+  for (let offset = 0; offset < 5000; offset += 100) {
+    const r = await asaas<any>('GET', `/transfers?dateCreated%5Bge%5D=${sinceDate}&limit=100&offset=${offset}`);
+    const hit = (r?.data ?? []).find((t: any) => t.externalReference === ref || String(t.description ?? '').includes(ref));
+    if (hit) return hit;
+    if (!r?.hasMore) return null;
+  }
+  // Volume acima do esperado: sem conclusão segura (trata como "sem resposta").
+  throw new AppError(502, 'PAYMENT_PROVIDER_UNAVAILABLE', 'Consulta de transferências incompleta.');
 }
 
 /** Assinatura mensal (PRIME). Cartão: o Asaas guarda o cartão no 1º pagamento e renova sozinho; Pix/boleto: link a cada mês. */

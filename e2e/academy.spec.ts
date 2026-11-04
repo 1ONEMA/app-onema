@@ -35,7 +35,8 @@ test('especialista: pagamento sandbox, matrícula, aulas, atividade e avaliaçã
     await step.getByRole('button', { name: 'Confirmar decisão' }).click();
     await expect(step.getByText('Correta', { exact: true })).toBeVisible();
   }
-  await expect(page.getByText('Atividade concluída')).toBeVisible();
+  await expect(page.getByText('Atividade concluída.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Voltar ao curso' }).first()).toBeVisible();
   await shot(page, 'academy-atividade', info.project.name);
 
   await page.goto('/academy/cursos/C01');
