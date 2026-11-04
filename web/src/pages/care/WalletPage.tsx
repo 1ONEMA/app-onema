@@ -2,8 +2,9 @@ import { Fragment, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../lib/auth';
 import { useApi } from '../../lib/hooks';
+import { ApiError, api } from '../../lib/api';
 import { dateTime } from '../../lib/format';
-import { Badge, Empty, ErrorState, Loading } from '../../ui/ui';
+import { Alert, Badge, Empty, ErrorState, Loading } from '../../ui/ui';
 import { IconCalendar, IconCheck, IconDoc, IconHeart, IconStar } from '../../ui/icons';
 import { REQ_STATUS } from './OrdersPages';
 
@@ -72,10 +73,15 @@ export function WalletPage() {
                   {EVO_SECTIONS.map(([k, l]) => d.content[k] && <Fragment key={k}><dt>{l}</dt><dd>{d.content[k]}</dd></Fragment>)}
                 </dl>
                 <p className="small muted mb0">Assinado por {d.specialist}{d.coren ? ` · COREN ${d.coren}` : ''}.</p>
+                <ShareReport id={d.id} label={d.label} prime={data.primeActive} />
               </details>
             </li>
           ))}</ul>
         )}
+      </section>
+      <section className="surface lifescore">
+        <h2><IconHeart /> LifeScore ONEMA</h2>
+        <p className="mb0 muted">Em breve: um indicador do seu cuidado ao longo do tempo, calculado a partir dos atendimentos registrados. Ele aparecerá aqui assim que a metodologia for validada pela equipe clínica ONEMA.</p>
       </section>
       <Referral />
       <section className="surface">
@@ -113,5 +119,72 @@ function Referral() {
         {copied && <span className="small" role="status">Link copiado.</span>}
       </div>
     </section>
+  );
+}
+
+/**
+ * Compartilhar o relatório do atendimento (benefício ONEMA PRIME): gera um link seguro, válido por 7 dias,
+ * e abre o WhatsApp ou o e-mail com o link. O conteúdo clínico não vai no texto da mensagem.
+ */
+function ShareReport({ id, label, prime }: { id: string; label: string; prime: boolean }) {
+  const [err, setErr] = useState<ApiError | null>(null);
+  const [last, setLast] = useState<{ url: string; expiresAt: string } | null>(null);
+  if (!prime) return <p className="small muted mt">Compartilhar este relatório por WhatsApp ou e-mail é um benefício do <Link to="/prime">ONEMA PRIME</Link>.</p>;
+  async function share(channel: 'WHATSAPP' | 'EMAIL') {
+    setErr(null);
+    // A janela do WhatsApp é aberta já no clique (antes da resposta) para não ser bloqueada pelo navegador.
+    const win = channel === 'WHATSAPP' ? window.open('about:blank', '_blank') : null;
+    try {
+      const r = await api<any>('POST', `/api/care/evolutions/${id}/share`, { channel });
+      setLast(r);
+      const text = `Relatório do atendimento "${label}" na ONEMA SAÚDE (link válido até ${dateTime(r.expiresAt)}): ${r.url}`;
+      if (channel === 'WHATSAPP') {
+        const to = `https://wa.me/?text=${encodeURIComponent(text)}`;
+        if (win) { win.opener = null; win.location.href = to; } else window.location.href = to;
+      } else window.location.href = `mailto:?subject=${encodeURIComponent('Relatório de atendimento ONEMA SAÚDE')}&body=${encodeURIComponent(text)}`;
+    } catch (e) { win?.close(); setErr(e as ApiError); }
+  }
+  return (
+    <div className="mt">
+      <div className="row">
+        <button type="button" className="btn sm deep" onClick={() => share('WHATSAPP')}>Enviar pelo WhatsApp</button>
+        <button type="button" className="btn sm secondary" onClick={() => share('EMAIL')}>Enviar por e-mail</button>
+      </div>
+      {last && <p className="small muted mb0" role="status">Link gerado, válido até {dateTime(last.expiresAt)}. Você pode revogá-lo em <Link to="/carteira/compartilhamentos">Compartilhamentos</Link>.</p>}
+      <Alert error={err} />
+    </div>
+  );
+}
+
+/** Links de relatório que o titular gerou: quem abriu quantas vezes, validade e revogação. */
+export function ReportSharesPage() {
+  const { data, error, loading, reload } = useApi<any>('/api/care/report-shares');
+  const [err, setErr] = useState<ApiError | null>(null);
+  if (loading && !data) return <Loading />;
+  if (error) return <ErrorState error={error} onRetry={reload} />;
+  async function revoke(id: string) {
+    setErr(null);
+    try { await api('POST', `/api/care/report-shares/${id}/revoke`, {}); reload(); } catch (e) { setErr(e as ApiError); }
+  }
+  const now = new Date().toISOString();
+  return (
+    <div className="flow">
+      <div className="eyebrow-teal">Carteira Digital ONEMA</div>
+      <h1 className="display-light">Relatórios compartilhados</h1>
+      <p className="lead">Cada link vale por 7 dias. Revogue quando quiser: quem recebeu deixa de conseguir abrir.</p>
+      <Alert error={err} />
+      {!data.shares.length ? <Empty title="Você ainda não compartilhou nenhum relatório." /> : (
+        <ul className="list">{data.shares.map((s: any) => {
+          const active = !s.revoked_at && s.expires_at > now;
+          return (
+            <li key={s.id}><div className="row between"><strong>{s.label}</strong>
+              <Badge tone={active ? '' : 'dark'}>{s.revoked_at ? 'Revogado' : active ? 'Ativo' : 'Expirado'}</Badge></div>
+              <div className="small muted">{s.channel === 'EMAIL' ? 'E-mail' : s.channel === 'WHATSAPP' ? 'WhatsApp' : 'Link'} · criado {dateTime(s.created_at)} · válido até {dateTime(s.expires_at)} · aberto {s.access_count} vez(es){s.last_access_at ? `, última ${dateTime(s.last_access_at)}` : ''}</div>
+              {active && <button type="button" className="linklike small" onClick={() => revoke(s.id)}>Revogar link</button>}</li>
+          );
+        })}</ul>
+      )}
+      <p><Link to="/carteira">Voltar à Carteira</Link></p>
+    </div>
   );
 }

@@ -4,9 +4,10 @@
  *    parâmetros PRIME). Nada é preenchido por estimativa: o que é pendente fica NULL/DRAFT com a referência.
  *  - seedDemo(): dados FICTÍCIOS para homologação local. Bloqueado em produção.
  */
-import { seedPricingV1 } from '../modules/care/catalog.ts';
+import { seedPricingV1, seedPricingV2 } from '../modules/care/catalog.ts';
 import { seedCafeLibrary } from '../modules/cafe/routes.ts';
 import { config } from '../config.ts';
+import { audit } from '../lib/audit.ts';
 import { hashPassword } from '../lib/security.ts';
 import { hashObj, nowIso, sha256, stableJson, uid } from '../lib/util.ts';
 import { all, insertMany, one, run, tx } from './db.ts';
@@ -103,6 +104,9 @@ export async function seedOfficial() {
     const pricing = await seedPricingV1();
     if (pricing.created) created.push(`PRECOS_V1(${pricing.created})`);
     for (const d of pricing.divergences) console.warn(`[precificação] divergência: ${d}`);
+    const v2 = await seedPricingV2();
+    if (v2.created) created.push(`PRECOS_V2(${v2.created})`);
+    for (const d of v2.divergences) console.warn(`[precificação v2] ${d}`);
     const cafe = await seedCafeLibrary();
     if (cafe) created.push(`CAFE(${cafe})`);
     return created;
@@ -212,6 +216,53 @@ export async function seedDemo(part: 'all' | 'base' | 'academy' = 'all') {
     }
     return { users: DEMO_USERS.map((u) => u.email), password: DEMO_PASSWORD };
   });
+}
+
+/**
+ * Demonstração (testes da ONEMA): atividades e avaliações de C02–C04 ainda sem regra oficial ficam testáveis com
+ * conteúdo fictício e REGRA PROVISÓRIA marcada (6 decisões; 12 questões, 10 acertos, 3 tentativas — só preenche o que
+ * estiver em branco; regras oficiais já cadastradas, como C04 8/10 com críticas, são mantidas). Só roda em demonstração.
+ * O conteúdo oficial entra depois como nova versão pelo painel (Conteúdo Academy) e substitui esta.
+ */
+export async function seedAcademyDemoRest(now = nowIso(), gestorId?: string, rtId?: string) {
+  if (config.appEnv === 'production') return 0;
+  gestorId ??= (await one<any>('SELECT id FROM users WHERE email = ?', emailOfDemo('gestor')))?.id;
+  rtId ??= (await one<any>('SELECT id FROM users WHERE email = ?', emailOfDemo('rt')))?.id;
+  if (!gestorId || !rtId) return 0;
+  let changed = 0;
+  const courses = await all<any>(`SELECT c.code, c.current_version_id AS cv FROM academy_courses c WHERE c.code <> 'C01' AND c.current_version_id IS NOT NULL ORDER BY c.sort_order`);
+  const options = JSON.stringify([
+    { id: 'o1', text: 'Opção incorreta (demonstração)', correct: false, feedback: 'Feedback de demonstração: esta não é a opção esperada. Revise e tente novamente.' },
+    { id: 'o2', text: 'Opção correta (demonstração)', correct: true, feedback: 'Feedback de demonstração: decisão registrada como correta.' },
+    { id: 'o3', text: 'Outra opção incorreta (demonstração)', correct: false, feedback: 'Feedback de demonstração: revise e tente novamente.' },
+  ]);
+  const qopts = JSON.stringify([{ id: 'o1', text: 'Alternativa A (demonstração)' }, { id: 'o2', text: 'Resposta esperada (demonstração)' }, { id: 'o3', text: 'Alternativa C (demonstração)' }, { id: 'o4', text: 'Alternativa D (demonstração)' }]);
+  for (const c of courses) {
+    const act = await one<any>(`SELECT a.* FROM academy_activities a JOIN academy_course_versions cv ON cv.id = a.course_version_id
+      WHERE a.course_version_id = ? AND a.state = 'DRAFT' AND cv.activity_required = 1 ORDER BY a.version DESC LIMIT 1`, c.cv);
+    if (act && !(await one('SELECT 1 AS ok FROM academy_activity_steps WHERE activity_id = ?', act.id))) {
+      await run('UPDATE academy_activities SET intro = ?, required_correct = COALESCE(required_correct, 6), source_note = ?, created_by = ? WHERE id = ?',
+        `${DEMO_LABEL} Micro-simulação neutra (regra provisória) para testar o fluxo do curso ${c.code}.`, 'Regra provisória de demonstração: 6 decisões corretas.', gestorId, act.id);
+      await insertMany('academy_activity_steps', ['id', 'activity_id', 'sort_order', 'prompt', 'options_json'],
+        [1, 2, 3, 4, 5, 6].map((i) => [uid(), act.id, i, `Decisão de demonstração ${i}: escolha a opção marcada como "correta (demonstração)".`, options]));
+      await run(`UPDATE academy_activities SET state = 'APPROVED', approved_by = ?, approved_at = ? WHERE id = ?`, rtId, now, act.id);
+      changed++;
+    }
+    const asm = await one<any>(`SELECT * FROM academy_assessments WHERE course_version_id = ? AND state = 'DRAFT' ORDER BY version DESC LIMIT 1`, c.cv);
+    if (asm && !(await one('SELECT 1 AS ok FROM academy_questions WHERE assessment_id = ?', asm.id))) {
+      const count = asm.question_count ?? 12;
+      const critical = new Set(asm.critical_gate ? [3, 6, 8, 10].filter((n) => n <= count) : []);
+      await run('UPDATE academy_assessments SET question_count = ?, pass_min_correct = COALESCE(pass_min_correct, 10), max_attempts = COALESCE(max_attempts, 3), source_note = ? WHERE id = ?',
+        count, `${asm.source_note ?? ''} [Demonstração: campos em branco preenchidos com regra provisória]`.trim(), asm.id);
+      await insertMany('academy_questions', ['id', 'assessment_id', 'position', 'critical', 'stem', 'options_json', 'correct_option_id', 'created_by', 'created_at'],
+        Array.from({ length: count }, (_, k) => [uid(), asm.id, k + 1, critical.has(k + 1) ? 1 : 0,
+          `${DEMO_LABEL} ${c.code} · Questão ${k + 1}: selecione a alternativa "Resposta esperada (demonstração)".`, qopts, 'o2', gestorId, now]));
+      await run(`UPDATE academy_assessments SET state = 'APPROVED', approved_by = ?, approved_at = ? WHERE id = ?`, rtId, now, asm.id);
+      changed++;
+    }
+  }
+  if (changed) await audit({ actorId: null, action: 'ACADEMY_DEMO_RULES_LOADED', subjectType: 'academy', meta: { changed, note: 'regra provisória de demonstração' } });
+  return changed;
 }
 
 export { stableJson };

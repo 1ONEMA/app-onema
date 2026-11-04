@@ -58,7 +58,7 @@ test('paciente, especialista e Central: jornada completa com evidências', async
   await page.getByRole('button', { name: /Continuar/ }).click();
   await page.getByText('Sim, tenho os materiais').click();
   await page.getByRole('button', { name: /Ver valores do atendimento/ }).click();
-  await expect(page.getByText('R$ 729,90').first()).toBeVisible();
+  await expect(page.getByText('R$ 739,90').first()).toBeVisible();
   await shot(page, 'evid-04-valores-paciente', p);
   await page.getByRole('button', { name: /Continuar/ }).click();
   await expect(page.getByRole('heading', { name: 'Onde e quando?' })).toBeVisible();
@@ -72,9 +72,9 @@ test('paciente, especialista e Central: jornada completa com evidências', async
   await shot(page, 'evid-06-revisao-orcamento', p);
   await page.getByText(/aceito este orçamento/).click();
   await page.getByRole('button', { name: /Ir para o pagamento/ }).click();
-  await expect(page.getByRole('button', { name: 'Confirmar e pagar R$ 729,90' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Confirmar e pagar R$ 739,90' })).toBeVisible();
   await shot(page, 'evid-07-pagamento', p);
-  await page.getByRole('button', { name: 'Confirmar e pagar R$ 729,90' }).click();
+  await page.getByRole('button', { name: 'Confirmar e pagar R$ 739,90' }).click();
   await expect(page.getByText(/Pagamento confirmado \(simulação\)/)).toBeVisible();
   await expect(page.getByText('Avaliação inicial')).toBeVisible();
   await expect(page.getByText('Avaliação final')).toBeVisible();
@@ -90,7 +90,7 @@ test('paciente, especialista e Central: jornada completa com evidências', async
   await expect(sp.getByRole('heading', { name: 'Ofertas disponíveis' })).toBeVisible();
   await expect(sp.getByText('R$ 170,00').first()).toBeVisible();
   await expect(sp.getByText('R$ 50,00').first()).toBeVisible();
-  await expect(sp.getByText('R$ 729,90')).toHaveCount(0); // preço ao paciente não aparece
+  await expect(sp.getByText('R$ 739,90')).toHaveCount(0); // preço ao paciente não aparece
   await shot(sp, 'evid-09-especialista-ofertas', p);
   // aceita e conclui as 4 ofertas deste pedido (identificadas pela região)
   const mineOffer = () => sp.locator('li', { hasText: `Vila Mariana ${p}` }).getByRole('button', { name: 'Aceitar atendimento' });
@@ -122,8 +122,18 @@ test('paciente, especialista e Central: jornada completa com evidências', async
     if (i === 0) await shot(sp, 'evid-10a-evolucao', p);
     await sp.getByRole('button', { name: 'Assinar evolução' }).click();
     await expect(sp.getByText('Assinada')).toBeVisible();
+    // Paciente confere a evolução e assina; só então a especialista conclui (início do repasse)
+    await expect(sp.getByRole('button', { name: 'Registrar conclusão' })).toBeDisabled();
+    await page.goto(requestUrl);
+    const card = page.locator('li', { hasText: title }).getByRole('region', { name: 'Assinar atendimento' });
+    await card.getByLabel('Seu nome completo').fill('Maria Fictícia');
+    await card.getByText('Confirmo que o atendimento foi realizado.').click();
+    if (i === 0) await shot(page, 'evid-10b-assinatura-paciente', p);
+    await card.getByRole('button', { name: 'Assinar atendimento' }).click();
+    await expect(page.locator('li', { hasText: title }).getByText(/Atendimento assinado por Maria Fictícia/)).toBeVisible();
+    await expect(sp.getByText(/Assinado por Maria Fictícia/)).toBeVisible({ timeout: 15_000 });
     await sp.getByRole('button', { name: 'Registrar conclusão' }).click();
-    await expect(sp).toHaveURL(/\/especialista/);
+    await expect(sp.getByText(/Atendimento concluído em/)).toBeVisible();
   }
   await expect(sp.getByText('Repasse a liquidar').first()).toBeVisible();
   await shot(sp, 'evid-10-especialista-atendimentos', p);
@@ -131,7 +141,9 @@ test('paciente, especialista e Central: jornada completa com evidências', async
 
   // Paciente avalia com estrelas
   await page.reload();
+  await expect(page.getByRole('heading', { name: 'Linha do tempo do atendimento' })).toBeVisible();
   await page.getByRole('radio', { name: '5 estrelas' }).first().click();
+  await page.getByLabel('Comentário (opcional)').first().fill('Atendimento atencioso e pontual.');
   await page.getByRole('button', { name: 'Enviar avaliação' }).first().click();
   await expect(page.getByLabel('Sua avaliação: 5 de 5 estrelas').first()).toBeVisible();
 

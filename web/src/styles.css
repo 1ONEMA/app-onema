@@ -779,3 +779,7 @@ h3 { font-weight: 600; letter-spacing: -0.01em; }
 .nps-scale button.on { background: var(--deep); color: #fff; border-color: var(--deep); }
 .referral { display: grid; gap: 8px; }
 .referral code { word-break: break-all; font-size: 13px; }
+/* Assinatura do paciente */
+.sign-card { display: grid; gap: 8px; margin: 10px 0; padding: 14px; border-radius: 14px; border: 1px solid var(--deep); background: #F6F9FF; }
+.sign-card .field { display: grid; gap: 4px; }
+.sp-photo { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid var(--line); margin: 6px 0; }

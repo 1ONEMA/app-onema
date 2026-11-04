@@ -14,9 +14,11 @@ import { idempotent, parse, requireRoles } from '../../lib/context.ts';
 import { conflict, forbidden, notFound, unprocessable } from '../../lib/errors.ts';
 import { hmac, safeEqual } from '../../lib/security.ts';
 import { nowIso, protocol, randomToken, uid } from '../../lib/util.ts';
-import { PAYMENT_METHOD_KEYS, SANDBOX_METHODS, quote } from '../prime/core.ts';
+import { PAYMENT_METHOD_KEYS, SANDBOX_METHODS, notify, quote } from '../prime/core.ts';
 import { cancelPayment } from '../../lib/asaas.ts';
 import { newVisitCode } from './visit.ts';
+import { primeActive } from './report-share.ts';
+import { careTimeline } from './timeline.ts';
 import { cpfSchema } from '../../lib/cpf.ts';
 import { currentVersion, offerByCode, publicOffer } from './catalog.ts';
 import { applyPaymentEvent, buildQuote, patientOrderView, placeOrder } from './core.ts';
@@ -148,11 +150,16 @@ export async function careRoutes(app: FastifyInstance) {
     const events = current ? await all<any>(`SELECT e.id, e.seq, e.label, e.modality, e.status, e.completed_at, e.started_at, u.name AS specialist_name,
         CASE WHEN e.status = 'ACEITO' AND e.started_at IS NULL AND e.modality = 'PRESENCIAL' THEN e.visit_code END AS visit_code,
         (SELECT sa.coren_number || '-' || sa.coren_uf FROM specialist_applications sa WHERE sa.user_id = e.specialist_id AND sa.status = 'APROVADA') AS specialist_coren,
+        e.patient_signed_at, e.patient_signature_name, (SELECT v.content_json FROM care_evolutions v WHERE v.event_id = e.id AND v.status = 'ASSINADA') AS evolution_json,
         (SELECT stars FROM specialist_reviews s WHERE s.event_id = e.id) AS my_stars,
         (SELECT ROUND(AVG(s.stars), 1) FROM specialist_reviews s WHERE s.specialist_id = e.specialist_id) AS specialist_rating,
         (SELECT COUNT(*) FROM specialist_reviews s WHERE s.specialist_id = e.specialist_id) AS specialist_reviews
         FROM care_events e LEFT JOIN users u ON u.id = e.specialist_id WHERE e.order_id = ? ORDER BY e.seq`, current.id) : [];
-    return { request: requestView(r, current), attempts: orders.map(patientOrderView), events };
+    return {
+      request: requestView(r, current), attempts: orders.map(patientOrderView),
+      events: events.map(({ evolution_json, ...e }: any) => ({ ...e, evolution: evolution_json ? JSON.parse(evolution_json) : null, awaiting_signature: !!evolution_json && e.status === 'ACEITO' && !e.patient_signed_at })),
+      timeline: current ? await careTimeline(a.userId, current.id) : [],
+    };
   });
 
   /** Edição: recalcula o orçamento; se mudou algo que afeta valores, nova versão e aceite invalidado (P09). */
@@ -266,6 +273,7 @@ export async function careRoutes(app: FastifyInstance) {
     const open = await all<any>(`SELECT id, protocol, status, item_code, quote_json, created_at FROM care_requests WHERE requester_id = ? AND status IN ('ORCADO','ORCAMENTO_PENDENTE','ACEITO') ORDER BY created_at DESC`, a.userId);
     const receipts = await all<any>('SELECT id, kind, protocol, text, created_at FROM prime_receipts WHERE patient_id = ? ORDER BY created_at DESC LIMIT 50', a.userId);
     return {
+      primeActive: await primeActive(a.userId),
       upcoming: events.filter((e) => e.status === 'ACEITO' || e.status === 'DISPONIVEL'),
       done: events.filter((e) => e.status === 'CONCLUIDO'),
       pendingRequests: open.map((r) => ({ id: r.id, protocol: r.protocol, status: r.status, itemName: JSON.parse(r.quote_json).offer.name, createdAt: r.created_at })),
@@ -277,6 +285,30 @@ export async function careRoutes(app: FastifyInstance) {
           WHERE v.patient_id = ? AND v.status = 'ASSINADA' ORDER BY v.signed_at DESC LIMIT 100`, a.userId))
         .map((d) => ({ id: d.id, signedAt: d.signed_at, label: d.label, itemName: d.item_name, specialist: d.specialist_name, coren: d.specialist_coren, content: JSON.parse(d.content_json) })),
     };
+  });
+
+  /**
+   * Assinatura do atendimento pelo paciente/responsável (quem contratou), depois que a especialista registrou e assinou
+   * a evolução. Sem esta assinatura a especialista não conclui e o repasse não começa.
+   */
+  app.post('/api/care/events/:id/sign', async (req) => {
+    const a = patient(req);
+    const { id } = parse(idParam, req.params);
+    const b = parse(z.object({
+      name: z.string().trim().min(3, 'Digite seu nome completo para assinar.').max(120),
+      confirm: z.literal(true, { message: 'Confirme que o atendimento foi realizado.' }),
+    }), req.body);
+    return await tx(async () => {
+      const e = await one<any>(`SELECT e.*, o.patient_id, (SELECT status FROM care_evolutions v WHERE v.event_id = e.id) AS evolution FROM care_events e JOIN service_orders o ON o.id = e.order_id WHERE e.id = ? FOR UPDATE`, id);
+      if (!e || e.patient_id !== a.userId) throw notFound('Atendimento não encontrado.');
+      if (e.patient_signed_at) throw conflict('ALREADY_SIGNED', 'Este atendimento já foi assinado.');
+      if (e.status !== 'ACEITO' || e.evolution !== 'ASSINADA') throw unprocessable('NOT_READY_TO_SIGN', 'A assinatura fica disponível depois que a especialista registrar a evolução do atendimento.');
+      const now = nowIso();
+      await run('UPDATE care_events SET patient_signed_at = ?, patient_signed_by = ?, patient_signature_name = ?, updated_at = ? WHERE id = ?', now, a.userId, b.name, now, id);
+      await audit({ actorId: a.userId, action: 'CARE_EVENT_SIGNED_BY_PATIENT', subjectType: 'care_event', subjectId: id, correlationId: req.correlationId });
+      if (e.specialist_id) await notify(e.specialist_id, 'ESSENCIAL', 'Atendimento assinado pelo paciente', `O atendimento "${e.label}" foi assinado. Você já pode registrar a conclusão.`);
+      return { ok: true, signedAt: now };
+    });
   });
 
   /** Avaliação por estrelas do atendimento concluído (separada das notas da Academy). */
@@ -377,9 +409,11 @@ export async function careRoutes(app: FastifyInstance) {
     const { id } = parse(idParam, req.params);
     return await tx(async () => {
       const now = nowIso();
-      const ev = await one<any>(`SELECT e.modality, e.started_at, (SELECT status FROM care_evolutions v WHERE v.event_id = e.id) AS evolution FROM care_events e WHERE e.id = ? AND e.specialist_id = ?`, id, a.userId);
+      const ev = await one<any>(`SELECT e.modality, e.started_at, e.patient_signed_at, (SELECT status FROM care_evolutions v WHERE v.event_id = e.id) AS evolution FROM care_events e WHERE e.id = ? AND e.specialist_id = ?`, id, a.userId);
       if (ev?.modality === 'PRESENCIAL' && !ev.started_at) throw unprocessable('VISIT_NOT_STARTED', 'Inicie o atendimento com o código do paciente antes de concluir.');
       if (ev && ev.evolution !== 'ASSINADA') throw unprocessable('EVOLUTION_REQUIRED', 'Registre e assine a evolução de enfermagem antes de concluir o atendimento.');
+      // O início do repasse é a conclusão, liberada somente depois da assinatura do paciente/responsável.
+      if (ev && !ev.patient_signed_at) throw unprocessable('PATIENT_SIGNATURE_REQUIRED', 'Aguarde o paciente ou responsável assinar o atendimento no app dele para concluir.');
       const r = await run(`UPDATE care_events SET status = 'CONCLUIDO', completed_at = ?, updated_at = ? WHERE id = ? AND status = 'ACEITO' AND specialist_id = ?`, now, now, id, a.userId);
       if (!r.changes) throw conflict('EVENT_NOT_ACCEPTED', 'Só é possível concluir um atendimento aceito por você.');
       // Liquidação segue o mecanismo aprovado da operação: aqui o repasse fica "a liquidar" (sem nova regra).

@@ -689,7 +689,7 @@ export async function academyAdminRoutes(app: FastifyInstance) {
     };
   });
   app.post('/api/admin/academy/training-status/:id/decision', async (req) => {
-    const a = requireRoles(req, ['CREDENCIAMENTO']);
+    const a = requireRoles(req, ['CREDENCIAMENTO', 'ADMIN_ACADEMY']);
     const { id } = parse(idParam, req.params);
     const body = parse(z.object({
       decision: z.enum(['PENDENTE', 'APTO', 'NAO_APTO']),

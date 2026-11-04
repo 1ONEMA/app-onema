@@ -1,3 +1,6 @@
+import { Fragment } from 'react';
+import { CareTimeline } from '../care/OrdersPages';
+import { EVO_SECTIONS } from '../care/WalletPage';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { dateTime, label, money } from '../../lib/format';
@@ -49,7 +52,18 @@ export function SupportViewPage() {
       <div className="pills">{allowed.map((k) => <button key={k} className={scope === k ? 'active' : ''} onClick={() => setScope(k)}>{{ AGENDA: 'Agenda', DOCUMENTOS: 'Documentos', COBRANCAS: 'Cobranças e recibos' }[k]}</button>)}</div>
       {!scope ? <p className="muted">Escolha uma área acima.</p> : view.loading ? <Loading /> : view.error ? <ErrorState error={view.error} /> : (
         <section className="surface">
-          {!view.data.available ? <p className="caution">{view.data.reason}</p> : (
+          {!view.data.available ? <p className="caution">{view.data.reason}</p> : view.data.scope === 'AGENDA' ? (
+            <><h2>Linha do tempo dos atendimentos</h2><CareTimeline items={view.data.timeline} /></>
+          ) : view.data.scope === 'DOCUMENTOS' ? (
+            <><h2>Evoluções de enfermagem</h2>
+              {!view.data.documents.length ? <p className="muted">Nenhuma evolução registrada ainda.</p> : (
+                <ul className="list">{view.data.documents.map((d: any, i: number) => (
+                  <li key={i}><details className="evo"><summary><strong>{d.label}</strong> <span className="small muted">· {dateTime(d.signedAt)}</span></summary>
+                    <dl className="kv mt">{EVO_SECTIONS.map(([k, l]) => d.content[k] && <Fragment key={k}><dt>{l}</dt><dd>{d.content[k]}</dd></Fragment>)}</dl>
+                    <p className="small muted mb0">Assinado por {d.specialist}.</p></details></li>
+                ))}</ul>
+              )}</>
+          ) : (
             <>
               <h2>Cobranças PRIME</h2>
               {!view.data.charges.length ? <p className="muted">Nenhuma.</p> : <ul className="list small">{view.data.charges.map((c: any, i: number) => <li key={i}>{dateTime(c.created_at)} · ciclo {c.cycle_no} · {money(c.amount_cents)} — {label(c.status)}</li>)}</ul>}

@@ -1,3 +1,4 @@
+import { careTimeline } from '../care/timeline.ts';
 import { cancelSubscription } from '../../lib/asaas.ts';
 import { cpfSchema } from '../../lib/cpf.ts';
 import type { FastifyInstance } from 'fastify';
@@ -10,7 +11,7 @@ import { idempotent, parse, requireRoles, requireUser } from '../../lib/context.
 import { badRequest, conflict, forbidden, notFound, unprocessable } from '../../lib/errors.ts';
 import { addDays, addMonths, brl, nowIso, protocol, sha256, uid } from '../../lib/util.ts';
 import {
-  ASAAS_METHODS, PAYMENT_METHOD_KEYS, SANDBOX_METHODS, benefitState, chargeCycle, currentParams, cycleById, cycleUsage, fmtDate, fmtDateTime, latestSubscription,
+  ASAAS_METHODS, PAYMENT_METHOD_KEYS, SANDBOX_METHODS, primeRuleText, benefitState, chargeCycle, currentParams, cycleById, cycleUsage, fmtDate, fmtDateTime, latestSubscription,
   latestText, newSubscriptionProtocol, notify, openSubscription, paramsById, quote, receipt, sandboxCharge,
 } from './core.ts';
 import { placeOrder } from '../care/core.ts';
@@ -153,6 +154,12 @@ export async function primeRoutes(app: FastifyInstance) {
   });
 
   /** Textos oficiais públicos (consulta antes de contratar — CDC/Decreto 7.962): Termos PRIME (T1) e Aviso de privacidade (T2). */
+  /** Oferta PRIME vigente (pública): a regra é a mesma em termos, telas e cálculo. */
+  app.get('/api/public/prime', async () => {
+    const p = await currentParams();
+    return { monthlyPriceCents: p.monthly_price_cents, discountBps: p.discount_bps, discountCapCents: p.discount_cap_cents, usesPerCycle: p.uses_per_cycle, rule: primeRuleText(p) };
+  });
+
   app.get('/api/public/legal/:code', async (req) => {
     const { code } = parse(z.object({ code: z.enum(['T1', 'T2']) }), req.params);
     const t = await latestText(code);
@@ -559,6 +566,12 @@ export async function primeRoutes(app: FastifyInstance) {
         orders: await all(`SELECT item_name, final_price_cents, status, created_at FROM service_orders WHERE patient_id = ? ORDER BY created_at DESC LIMIT 50`, g.patient_id),
       };
     }
+    if (scope === 'AGENDA') return { patientName, scope, available: true, timeline: await careTimeline(g.patient_id) };
+    if (scope === 'DOCUMENTOS') {
+      const docs = await all<any>(`SELECT v.signed_at, v.content_json, e.label, u.name AS specialist FROM care_evolutions v JOIN care_events e ON e.id = v.event_id JOIN users u ON u.id = v.specialist_id
+        WHERE v.patient_id = ? AND v.status = 'ASSINADA' ORDER BY v.signed_at DESC LIMIT 100`, g.patient_id);
+      return { patientName, scope, available: true, documents: docs.map((d) => ({ signedAt: d.signed_at, label: d.label, specialist: d.specialist, content: JSON.parse(d.content_json) })) };
+    }
     return {
       patientName, scope, available: false,
       reason: scope === 'AGENDA'
@@ -573,9 +586,10 @@ export async function primeRoutes(app: FastifyInstance) {
     const sub = await openSubscription(a.userId) ?? await latestSubscription(a.userId);
     const timeline = [
       ...(await all<any>('SELECT created_at AS at, kind, protocol, text FROM prime_receipts WHERE patient_id = ?', a.userId)).map((r) => ({ at: r.at, type: r.kind, title: labelKind(r.kind), detail: r.text })),
+      ...(await careTimeline(a.userId)).filter((t) => t.kind !== 'PAGAMENTO').map((t) => ({ at: t.at, type: t.kind, title: t.title, detail: t.detail })),
       ...(await all<any>('SELECT created_at AS at, item_name, status, final_price_cents FROM service_orders WHERE patient_id = ?', a.userId))
         .map((o) => ({ at: o.at, type: 'PEDIDO', title: `Pedido: ${o.item_name}`, detail: `${brl(o.final_price_cents)} · ${o.status === 'PAID' ? 'pago' : o.status === 'FAILED' ? 'pagamento não confirmado' : o.status.toLowerCase()}` })),
-    ].sort((x, y) => (x.at < y.at ? 1 : -1)).slice(0, 50);
+    ].sort((x, y) => (x.at < y.at ? 1 : -1)).slice(0, 80);
     return {
       prime: sub ? { status: sub.status, benefitActive: (await benefitState(sub)).active } : null,
       integrations: {

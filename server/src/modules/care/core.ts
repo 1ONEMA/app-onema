@@ -13,7 +13,7 @@ import { conflict, notFound, unprocessable } from '../../lib/errors.ts';
 import { brl, nowIso, uid } from '../../lib/util.ts';
 import { currentParams, notify, quote, receipt, sandboxCharge } from '../prime/core.ts';
 import { offerByCode, publicOffer } from './catalog.ts';
-import { createPayment, ensureCustomer } from '../../lib/asaas.ts';
+import { createPayment, dueDateFor, ensureCustomer } from '../../lib/asaas.ts';
 
 /** Mês de referência (São Paulo) para ofertas mensais: chave de não duplicidade CAT-08/PAC-05. */
 export function billingPeriod(iso = nowIso()) {
@@ -128,7 +128,9 @@ export async function placeOrder(inp: PlaceOrderInput) {
   if (config.paymentProvider === 'ASAAS') {
     // Cobrança real: o pedido aguarda o pagamento na página do Asaas; a confirmação chega pelo webhook.
     const customer = await ensureCustomer(inp.patientId, inp.payerCpf);
-    const p = await createPayment({ customer, valueCents: q.finalPriceCents, description: `ONEMA SAÚDE · ${item.code} ${item.name}`, externalReference: `care:${orderId}` });
+    const snap = inp.request?.acceptedSnapshot ?? {};
+    const p = await createPayment({ customer, valueCents: q.finalPriceCents, description: `ONEMA SAÚDE · ${item.code} ${item.name}`, externalReference: `care:${orderId}`,
+      dueDate: dueDateFor({ whenPref: snap.whenPref, whenDate: snap.whenDate }) });
     await run('UPDATE service_orders SET provider_ref = ?, payment_url = ? WHERE id = ?', p.id, p.invoiceUrl, orderId);
     const order = await one<any>('SELECT * FROM service_orders WHERE id = ?', orderId);
     return { order, paid: false, paymentUrl: p.invoiceUrl };

@@ -177,7 +177,7 @@ export async function confirmCycle(sub: any, cycle: any, params: any, actorId: s
   await audit({ actorId, action: first ? 'PRIME_ACTIVE' : 'PRIME_CYCLE_PAID', subjectType: 'subscription', subjectId: sub.id, correlationId, meta: { cycle: cycle.cycle_no } });
   const text = first
     ? `Seu ONEMA PRIME foi ativado. Mensalidade: ${brl(params.monthly_price_cents)}. Ciclo atual: ${fmtDate(starts)} a ${fmtDate(ends)}. ` +
-      `Próxima cobrança prevista: ${fmtDate(ends)}. Desconto disponível neste ciclo: ${params.discount_bps / 100}% em um pedido elegível, até ${brl(params.discount_cap_cents)}. ` +
+      `Próxima cobrança prevista: ${fmtDate(ends)}. Desconto do ciclo: ${primeRuleText(params)} ` +
       `Veja seus termos, preferências e protocolo ${sub.protocol} na Central PRIME.`
     : `Pagamento do ciclo ${cycle.cycle_no} confirmado (${brl(params.monthly_price_cents)}). Ciclo: ${fmtDate(starts)} a ${fmtDate(ends)}.`;
   await receipt(sub.patient_id, first ? 'CONTRATACAO' : 'RENOVACAO', sub.protocol, text);
@@ -268,3 +268,8 @@ export async function runBilling(now = nowIso(), correlationId: string | null = 
 }
 
 export function newSubscriptionProtocol() { return protocol('PRIME'); }
+
+/** Texto único da regra do desconto (termos, telas e Kary usam este mesmo texto). */
+export function primeRuleText(p: { discount_bps: number; discount_cap_cents: number }) {
+  return `${p.discount_bps / 100}% de desconto, limitado a ${brl(p.discount_cap_cents)}, em um pedido elegível por ciclo mensal. Pacotes recebem o desconto uma vez.`;
+}

@@ -23,7 +23,7 @@ export function PrimeOfferPage() {
           <p>Organize seus atendimentos, veja seus próximos passos registrados e escolha quem pode acompanhar você.</p>
           <ul className="list">
             <li>Carteira Digital e histórico pessoal</li>
-            <li>Um desconto de {pct(o.discountBps)} por ciclo, até {money(o.discountCapCents)}</li>
+            <li>{pct(o.discountBps)} de desconto, limitado a {money(o.discountCapCents)}, em um pedido elegível por ciclo mensal. Pacotes recebem o desconto uma vez.</li>
             <li>Lembretes escolhidos por você</li>
             <li>Responsável principal com permissões</li>
           </ul>

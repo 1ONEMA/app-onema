@@ -58,13 +58,27 @@ export async function ensureCustomer(userId: string, cpf?: string | null): Promi
   return c.id;
 }
 
-export async function createPayment(p: { customer: string; valueCents: number; description: string; externalReference: string; billingType?: string }) {
+export async function createPayment(p: { customer: string; valueCents: number; description: string; externalReference: string; billingType?: string; dueDate?: string }) {
   const r = await asaas<any>('POST', '/payments', {
-    // Vencimento em 2 dias: dá tempo para boleto/Pix; cartão é cobrado na hora.
-    customer: p.customer, billingType: p.billingType ?? 'UNDEFINED', value: reais(p.valueCents), dueDate: todaySP(2),
+    customer: p.customer, billingType: p.billingType ?? 'UNDEFINED', value: reais(p.valueCents), dueDate: p.dueDate ?? todaySP(),
     description: p.description.slice(0, 500), externalReference: p.externalReference,
   });
   return { id: String(r.id), invoiceUrl: String(r.invoiceUrl ?? '') };
+}
+
+/**
+ * Vencimento (decisão ONEMA, 04/11/2026): no mesmo dia da solicitação; se o paciente agendou uma data,
+ * um dia antes do atendimento (nunca antes de hoje).
+ */
+export function dueDateFor(when: { whenPref?: string | null; whenDate?: string | null }) {
+  const today = todaySP();
+  if (when.whenPref === 'AGENDAR' && when.whenDate && /^\d{4}-\d{2}-\d{2}$/.test(when.whenDate)) {
+    const d = new Date(`${when.whenDate}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - 1);
+    const dayBefore = d.toISOString().slice(0, 10);
+    return dayBefore > today ? dayBefore : today;
+  }
+  return today;
 }
 export const cancelPayment = (id: string) => asaas('DELETE', `/payments/${encodeURIComponent(id)}`);
 export const refundPayment = (id: string, description: string) => asaas('POST', `/payments/${encodeURIComponent(id)}/refund`, { description: description.slice(0, 200) });

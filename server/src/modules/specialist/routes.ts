@@ -20,7 +20,12 @@ import { nowIso, sha256, uid } from '../../lib/util.ts';
 import { notify } from '../prime/core.ts';
 
 export const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] as const;
-const DOC_KINDS = ['IDENTIDADE', 'COREN', 'COMPROVANTE_ENDERECO', 'OUTRO'] as const;
+const DOC_KINDS = ['FOTO', 'IDENTIDADE', 'COREN', 'DIPLOMA_FRENTE', 'DIPLOMA_VERSO', 'CERTIFICADO', 'COMPROVANTE_ENDERECO', 'OUTRO'] as const;
+/** Obrigatórios para enviar a candidatura (ajustes após testes, 04/11/2026). Certificados e comprovante são opcionais. */
+export const REQUIRED_DOCS = ['FOTO', 'IDENTIDADE', 'COREN', 'DIPLOMA_FRENTE', 'DIPLOMA_VERSO'] as const;
+const DOC_LABEL: Record<string, string> = {
+  FOTO: 'foto', IDENTIDADE: 'identidade com CPF', COREN: 'carteira do COREN', DIPLOMA_FRENTE: 'diploma (frente)', DIPLOMA_VERSO: 'diploma (verso)',
+};
 const MAX_DOC_BYTES = 5 * 1024 * 1024;
 /** Tipo real pelo conteúdo do arquivo (assinatura), não pelo que o navegador declara. */
 export function sniffDocMime(b: Buffer): string | null {
@@ -54,7 +59,7 @@ function ownView(a: any, docs: any[]) {
   return {
     id: a.id, status: a.status, fullName: a.full_name, cpfMasked: maskCpf(openField(a.cpf)), corenNumber: a.coren_number, corenUf: a.coren_uf, phone: a.phone,
     regions: a.regions, needs: JSON.parse(a.needs_json), availability: a.availability, submittedAt: a.submitted_at, decisionNote: a.decision_note,
-    decidedAt: a.decided_at, documents: docs, missingDocuments: (['IDENTIDADE', 'COREN'] as const).filter((k) => !docs.some((d) => d.kind === k)),
+    decidedAt: a.decided_at, documents: docs, missingDocuments: REQUIRED_DOCS.filter((k) => !docs.some((d) => d.kind === k)),
   };
 }
 const EDITABLE = ['RASCUNHO', 'PENDENCIA'];
@@ -108,12 +113,19 @@ export async function specialistRoutes(app: FastifyInstance) {
     const { kind } = parse(z.object({ kind: z.enum(DOC_KINDS) }), fields);
     if (!file || !file.buf.length) throw badRequest('FILE_REQUIRED', 'Selecione um arquivo.');
     if (file.buf.length > MAX_DOC_BYTES) throw badRequest('FILE_TOO_LARGE', 'O arquivo deve ter no máximo 5 MB.');
-    if ((await docsOf(row.id)).length >= 10) throw unprocessable('TOO_MANY_DOCUMENTS', 'Limite de 10 documentos por candidatura. Remova um arquivo antes de enviar outro.');
+    if ((await docsOf(row.id)).length >= 20) throw unprocessable('TOO_MANY_DOCUMENTS', 'Limite de 20 documentos por candidatura. Remova um arquivo antes de enviar outro.');
     const mime = sniffDocMime(file.buf);
     if (!mime) throw badRequest('FILE_TYPE', 'Envie PDF, JPG, PNG ou WEBP.');
     file.mime = mime;
     const id = uid(), key = `specialist-doc-${id}`;
     await putObject(key, file.buf);
+    // Documento único (foto, identidade, COREN, diploma…): o novo arquivo substitui o anterior. Certificados acumulam.
+    if (kind !== 'CERTIFICADO' && kind !== 'OUTRO') {
+      for (const old of await all<any>('SELECT id, storage_key FROM specialist_documents WHERE application_id = ? AND kind = ?', row.id, kind)) {
+        await run('DELETE FROM specialist_documents WHERE id = ?', old.id);
+        await deleteObjects(old.storage_key, 0);
+      }
+    }
     await run(`INSERT INTO specialist_documents (id, application_id, kind, filename, mime, size_bytes, sha256, storage_key, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
       id, row.id, kind, path.basename(file.filename).slice(0, 150), file.mime, file.buf.length, sha256(file.buf), key, nowIso());
     await audit({ actorId: a.userId, action: 'SPECIALIST_DOCUMENT_UPLOADED', subjectType: 'specialist_application', subjectId: row.id, correlationId: req.correlationId, meta: { kind } });
@@ -140,8 +152,8 @@ export async function specialistRoutes(app: FastifyInstance) {
       if (!row) throw unprocessable('APPLICATION_REQUIRED', 'Preencha seus dados antes de enviar.');
       if (!EDITABLE.includes(row.status)) throw conflict('APPLICATION_LOCKED', 'Sua candidatura já foi enviada.');
       const docs = await docsOf(row.id);
-      const missing = (['IDENTIDADE', 'COREN'] as const).filter((k) => !docs.some((d) => d.kind === k));
-      if (missing.length) throw unprocessable('DOCUMENTS_REQUIRED', `Envie os documentos obrigatórios: ${missing.map((m) => (m === 'COREN' ? 'carteira do COREN' : 'documento de identidade')).join(' e ')}.`);
+      const missing = REQUIRED_DOCS.filter((k) => !docs.some((d) => d.kind === k));
+      if (missing.length) throw unprocessable('DOCUMENTS_REQUIRED', `Envie os documentos obrigatórios: ${missing.map((m) => DOC_LABEL[m]).join(', ')}.`);
       const now = nowIso();
       await run(`UPDATE specialist_applications SET status = 'ENVIADA', submitted_at = ?, updated_at = ? WHERE id = ?`, now, now, row.id);
       await audit({ actorId: a.userId, action: 'SPECIALIST_APPLICATION_SUBMITTED', subjectType: 'specialist_application', subjectId: row.id, correlationId: req.correlationId });
@@ -152,6 +164,23 @@ export async function specialistRoutes(app: FastifyInstance) {
 
   // ---------- Credenciamento ----------
   const REVIEW = ['CREDENCIAMENTO', 'ADMIN_ACADEMY', 'AUDITOR'] as const;
+  /** Foto da especialista para o paciente do atendimento identificá-la (somente quem contratou aquele atendimento). */
+  app.get('/api/care/events/:id/specialist-photo', async (req, reply) => {
+    const a = requireRoles(req, ['PACIENTE']);
+    const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
+    const d = await one<any>(`SELECT d.* FROM care_events e JOIN service_orders o ON o.id = e.order_id
+      JOIN specialist_applications sa ON sa.user_id = e.specialist_id AND sa.status = 'APROVADA'
+      JOIN specialist_documents d ON d.application_id = sa.id AND d.kind = 'FOTO'
+      WHERE e.id = ? AND o.patient_id = ? AND e.status IN ('ACEITO','CONCLUIDO') ORDER BY d.created_at DESC LIMIT 1`, id, a.userId);
+    if (!d || !d.mime.startsWith('image/')) throw notFound('Foto não disponível.');
+    const buf = await getObject(d.storage_key);
+    if (!buf || sha256(buf) !== d.sha256) throw notFound('Foto não disponível.');
+    reply.header('Content-Type', d.mime);
+    reply.header('Cache-Control', 'private, no-store');
+    reply.header('Content-Security-Policy', "default-src 'none'; img-src 'self'; sandbox");
+    return reply.send(buf);
+  });
+
   app.get('/api/admin/specialist-applications', async (req) => {
     const a = requireRoles(req, [...REVIEW]);
     const fullCpf = a.roles.includes('CREDENCIAMENTO');
@@ -183,7 +212,7 @@ export async function specialistRoutes(app: FastifyInstance) {
   });
 
   app.post('/api/admin/specialist-applications/:id/decision', async (req) => {
-    const a = requireRoles(req, ['CREDENCIAMENTO']);
+    const a = requireRoles(req, ['CREDENCIAMENTO', 'ADMIN_ACADEMY']);
     const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
     const b = parse(z.object({
       decision: z.enum(['APROVADA', 'PENDENCIA', 'RECUSADA']),

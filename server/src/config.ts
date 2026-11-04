@@ -51,7 +51,8 @@ export const config = {
   whatsappEnabled: bool(process.env.WHATSAPP_ENABLED, false),
   /** Política comercial Academy: matrícula exige pedido PAGO (P-009 - confirmar). */
   academyRequirePayment: bool(process.env.ACADEMY_REQUIRE_PAYMENT, true),
-  academyFeeCents: 1990,
+  /** Taxa da Jornada de Integração (ajuste de 04/11/2026: R$ 29,90). */
+  academyFeeCents: 2990,
   journeyVersion: 'JORNADA_INTEGRACAO_V1',
   /** Validade provisória do convite ao responsável (não definida na fonte). */
   shareInviteTtlDays: Number(process.env.SHARE_INVITE_TTL_DAYS ?? 7),

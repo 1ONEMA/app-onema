@@ -151,7 +151,7 @@ describe('Responsável principal', () => {
     expect((await op.post(`/api/admin/prime/share-grants/${gid}/verify`, { approve: true, note: 'Autorização conferida em teste' })).status).toBe(200);
     const agenda = await r.get(`/api/prime/share/${gid}/view/AGENDA`);
     expect(agenda.status).toBe(200);
-    expect(agenda.body.available).toBe(false); // integração pendente, sem dado inventado
+    expect(agenda.body).toMatchObject({ available: true, timeline: [] }); // linha do tempo real do paciente (sem atendimentos ainda)
     expect((await r.get(`/api/prime/share/${gid}/view/DOCUMENTOS`)).status).toBe(403);
     expect((await r.get(`/api/prime/share/${gid}/view/COBRANCAS`)).status).toBe(403);
     const rev = await p.post(`/api/prime/share/${gid}/revoke`);

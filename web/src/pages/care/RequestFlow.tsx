@@ -220,7 +220,7 @@ export function RequestFlow() {
                 {!price.data.personal.discountCents && <p className="small muted mb0">{price.data.personal.noDiscountReason ?? `Disponível para assinantes PRIME ativos (adesão separada de ${money(price.data.prime.monthlyPriceCents)}/mês).`}</p>}
                 <div className="price-line total"><span>Valor do atendimento</span><strong>{money(price.data.personal.totalCents)}</strong></div>
               </div>
-              <p className="small muted">O PRIME é opcional e contratado separadamente ({money(price.data.prime.monthlyPriceCents)} por ciclo mensal): {price.data.prime.discountBps / 100}% em um pedido por ciclo, até {money(price.data.prime.capCents)}. Ele não é incluído automaticamente. <Link to="/prime">Conhecer o PRIME</Link></p>
+              <p className="small muted">O PRIME é opcional e contratado separadamente ({money(price.data.prime.monthlyPriceCents)} por ciclo mensal): {price.data.prime.discountBps / 100}% de desconto, limitado a {money(price.data.prime.capCents)}, em um pedido elegível por ciclo mensal (pacotes: uma vez). Ele não é incluído automaticamente. <Link to="/prime">Conhecer o PRIME</Link></p>
               {d.materialsSupplyRequested && <div className="caution">Você pediu cotação de materiais: o orçamento completo ficará pendente e o pagamento bloqueado até haver valor aprovado.</div>}
               <p className="small muted">Não pedimos cartão para mostrar preços. O total final aparece na revisão, antes de qualquer autorização de pagamento.</p>
             </>

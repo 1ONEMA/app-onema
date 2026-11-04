@@ -46,7 +46,7 @@ test('paciente: cadastro, adesão PRIME, checkout com desconto, preferências, r
   }
   await request(/Pós-alta Hospitalar/, 'Pós-Alta 14 dias');
   await expect(page.getByText('− R$ 20,00')).toBeVisible();
-  await expect(page.getByText('R$ 709,90').first()).toBeVisible();
+  await expect(page.getByText('R$ 719,90').first()).toBeVisible();
   await page.getByRole('button', { name: /Continuar/ }).click();
   await page.getByLabel('Nome do paciente').fill('Paciente E2E Fictício');
   await page.getByLabel('Telefone').fill('(11) 98888-7777');
@@ -54,7 +54,7 @@ test('paciente: cadastro, adesão PRIME, checkout com desconto, preferências, r
   await page.getByRole('button', { name: /Revisar solicitação/ }).click();
   await page.getByText(/aceito este orçamento/).click();
   await page.getByRole('button', { name: /Ir para o pagamento/ }).click();
-  await page.getByRole('button', { name: 'Confirmar e pagar R$ 709,90' }).click();
+  await page.getByRole('button', { name: 'Confirmar e pagar R$ 719,90' }).click();
   await expect(page.getByText(/Pagamento confirmado \(simulação\)/)).toBeVisible();
   await request(/Monitoramento ONEMA/, 'Orientação on-line');
   await expect(page.getByText('O desconto PRIME já foi usado neste ciclo')).toBeVisible();

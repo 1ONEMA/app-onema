@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useApi, useSubmit } from '../../lib/hooks';
 import { Alert, Badge, Button, ErrorState, Loading, PageHeader } from '../../ui/ui';
 
@@ -53,6 +53,16 @@ export function ActivityPage() {
           {!s.solved && inProgress && <Button className="sm" busy={decide.busy} disabled={!choice[s.id]} onClick={() => send(s.id)}>Confirmar decisão</Button>}
         </section>
       ))}
+      {attempt?.state === 'CONCLUIDA' && (
+        <section className="surface success-panel">
+          <strong>Atividade concluída.</strong>
+          <p className="mb0">Volte ao curso para seguir para a avaliação final.</p>
+          <div className="row mt">
+            <Link to={`/academy/cursos/${code}`} className="btn deep">Voltar ao curso</Link>
+            <Link to="/academy" className="btn secondary">Ir para a Minha Jornada</Link>
+          </div>
+        </section>
+      )}
     </>
   );
 }

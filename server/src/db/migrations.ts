@@ -944,4 +944,39 @@ ALTER TABLE users ADD COLUMN referral_code TEXT;
 ALTER TABLE users ADD COLUMN referred_by TEXT REFERENCES users(id);
 CREATE UNIQUE INDEX uq_users_referral_code ON users(referral_code);
 ` },
+  { name: '014_evolucao_assincrona', sql: `
+-- 014: organização da evolução pela Kary em segundo plano (a tela acompanha o andamento).
+ALTER TABLE care_evolutions ADD COLUMN ai_status TEXT;
+ALTER TABLE care_evolutions ADD COLUMN ai_error TEXT;
+ALTER TABLE care_evolutions ADD COLUMN ai_requested_at TEXT;
+` },
+  { name: '015_assinatura_paciente', sql: `
+-- 015: o paciente/responsável assina o atendimento; só então a especialista conclui e o repasse começa.
+ALTER TABLE care_events ADD COLUMN patient_signed_at TEXT;
+ALTER TABLE care_events ADD COLUMN patient_signed_by TEXT REFERENCES users(id);
+ALTER TABLE care_events ADD COLUMN patient_signature_name TEXT;
+` },
+  { name: '016_documentos_candidatura', sql: `
+-- 016: candidatura com foto, identidade aberta (frente e verso), diploma frente/verso e certificados (vários).
+ALTER TABLE specialist_documents DROP CONSTRAINT IF EXISTS specialist_documents_kind_check;
+ALTER TABLE specialist_documents ADD CONSTRAINT specialist_documents_kind_check
+  CHECK (kind IN ('FOTO','IDENTIDADE','COREN','DIPLOMA_FRENTE','DIPLOMA_VERSO','CERTIFICADO','COMPROVANTE_ENDERECO','OUTRO'));
+` },
+  { name: '017_compartilhar_relatorio', sql: `
+-- 017: compartilhamento do relatório (evolução) pelo titular PRIME: link com validade, revogável e com acesso registrado.
+CREATE TABLE report_shares (
+  id TEXT PRIMARY KEY,
+  token_hash TEXT NOT NULL UNIQUE,
+  patient_id TEXT NOT NULL REFERENCES users(id),
+  evolution_id TEXT NOT NULL REFERENCES care_evolutions(id),
+  channel TEXT NOT NULL CHECK (channel IN ('WHATSAPP','EMAIL','LINK')),
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  revoked_at TEXT,
+  access_count INTEGER NOT NULL DEFAULT 0,
+  last_access_at TEXT
+);
+CREATE INDEX ix_report_shares_patient ON report_shares(patient_id, created_at);
+ALTER TABLE report_shares ENABLE ROW LEVEL SECURITY;
+` },
 ];

@@ -55,7 +55,7 @@ export const FAQ: { id: string; keywords: RegExp; answer: KaryAnswer }[] = [
     answer: { kind: 'FAQ', text: 'É simples: 1) entre ou crie sua conta; 2) escolha a necessidade e o atendimento; 3) diga se tem os materiais; 4) veja o orçamento; 5) informe onde e quando; 6) revise o orçamento completo; 7) confirme e pague. Preencher a solicitação não obriga a contratar nem autoriza cobrança.',
       links: [L('Começar agora', '/solicitar')] } },
   { id: 'prime', keywords: /(prime|assinatura|mensalidade|desconto)/i,
-    answer: { kind: 'FAQ', text: 'O ONEMA PRIME é uma assinatura mensal opcional, com adesão separada, que dá desconto em um pedido elegível por ciclo. Valores e condições aparecem depois do cadastro, na página do PRIME. O desconto não reduz o repasse do especialista e nenhum atendimento está incluído na mensalidade.',
+    answer: { kind: 'FAQ', text: 'O ONEMA PRIME é uma assinatura mensal opcional (R$ 34,90 por mês), com adesão separada: 5% de desconto, limitado a R$ 20, em um pedido elegível por ciclo mensal. Pacotes recebem o desconto uma vez. O desconto não reduz o repasse do especialista e nenhum atendimento está incluído na mensalidade. O desconto não reduz o repasse do especialista e nenhum atendimento está incluído na mensalidade.',
       links: [L('Ver o ONEMA PRIME', '/prime')] } },
   { id: 'materiais', keywords: /(material|materiais|insumo|curativo.*(trazer|comprar)|quem (leva|fornece))/i,
     answer: { kind: 'FAQ', text: 'Na solicitação você responde se tem os materiais (Sim, Não ou Não sei). A resposta não gera taxa automática. Medicamentos, dispositivos e materiais especiais não estão incluídos automaticamente; se pedir que a ONEMA cote os materiais, o orçamento fica pendente até haver valor aprovado, e o pagamento fica bloqueado até lá.' } },
@@ -97,6 +97,6 @@ Você ajuda com: como usar a plataforma, como solicitar cuidado, serviços do ca
 Limites obrigatórios:
 - Não faça diagnóstico, não indique remédios, doses ou condutas clínicas; sugira uma Avaliação de Enfermagem ou Orientação on-line.
 - Em qualquer sinal de urgência, diga para ligar 192 (SAMU) imediatamente.
-- Não peça nem repita dados pessoais ou de saúde. NUNCA informe preços, valores, faixas, descontos em reais ou estimativas financeiras: os valores aparecem somente no orçamento, dentro da solicitação, depois do cadastro. Não invente prazos ou benefícios; se não souber, diga que a Central ONEMA confirma.
+- Não peça nem repita dados pessoais ou de saúde. NUNCA informe preços de atendimentos, faixas ou estimativas: os valores dos atendimentos aparecem somente no orçamento, dentro da solicitação, depois do cadastro. Sobre o PRIME, use exatamente: R$ 34,90 por mês; 5% de desconto, limitado a R$ 20, em um pedido elegível por ciclo mensal; pacotes recebem o desconto uma vez. Não invente prazos ou benefícios; se não souber, diga que a Central ONEMA confirma.
 - Nesta versão de homologação os pagamentos são simulados.
 - Repasses aos especialistas e margens internas são confidenciais: não os informe a pacientes.`;

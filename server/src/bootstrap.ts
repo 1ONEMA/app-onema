@@ -5,8 +5,8 @@
 import { config } from './config.ts';
 import { all, one, run, tx } from './db/db.ts';
 import { migrate, pendingMigrations } from './db/migrate.ts';
-import { seedDemo, seedOfficial } from './db/seed.ts';
-import { seedPricingV1 } from './modules/care/catalog.ts';
+import { seedAcademyDemoRest, seedDemo, seedOfficial } from './db/seed.ts';
+import { PRICING_V2_SOURCE, seedPricingV1, seedPricingV2 } from './modules/care/catalog.ts';
 import { seedCafeLibrary } from './modules/cafe/routes.ts';
 import { MIGRATIONS } from './db/migrations.ts';
 import { ROLES, type Role } from './lib/roles.ts';
@@ -55,7 +55,7 @@ async function runInit(opts: ReadyOptions): Promise<string[]> {
   // Uma consulta: versão concluída + progresso parcial (etapas já feitas em requisições anteriores).
   let settings = new Map<string, string>();
   try {
-    settings = new Map((await all<any>(`SELECT key, value FROM system_settings WHERE key IN ('bootstrap_version', 'bootstrap_progress', 'app_secret', 'payment_webhook_secret', 'schema_head')`))
+    settings = new Map((await all<any>(`SELECT key, value FROM system_settings WHERE key IN ('bootstrap_version', 'bootstrap_progress', 'app_secret', 'payment_webhook_secret', 'schema_head', 'demo_academy_rest')`))
       .map((r) => [r.key, r.value]));
   } catch (e: any) {
     if (e?.code !== '42P01') throw e; // 42P01 = tabela ainda não existe (banco vazio)
@@ -71,6 +71,17 @@ async function runInit(opts: ReadyOptions): Promise<string[]> {
     if (!(await one('SELECT 1 AS ok FROM catalog_item_versions LIMIT 1'))) {
       const r = await seedPricingV1();
       log(`precificação oficial v1 carregada (${r.created} registros)`);
+    }
+    // Reajuste +R$ 10 (nov/2026) em bancos já em uso: uma consulta quando já aplicado.
+    if (process.env.PRICING_V2_DISABLED !== '1' && !(await one('SELECT 1 AS ok FROM catalog_item_versions WHERE source = ? LIMIT 1', PRICING_V2_SOURCE))) {
+      const r = await seedPricingV2();
+      log(`reajuste de preços aplicado (${r.created} itens)${r.divergences.length ? `; divergências: ${r.divergences.join(' ')}` : ''}`);
+    }
+    // Demonstração: C02–C04 testáveis (atividade e avaliação provisórias) em bancos de demonstração já em uso.
+    if (process.env.SEED_DEMO === 'true' && !settings.get('demo_academy_rest')) {
+      const n = await tx(async () => await seedAcademyDemoRest());
+      await run(`INSERT INTO system_settings (key, value, created_at) VALUES ('demo_academy_rest', ?, ?) ON CONFLICT (key) DO NOTHING`, String(n), nowIso());
+      log(`Academy demonstração: ${n} etapas liberadas`);
     }
     // Café com a ONEMA: biblioteca anual em bancos inicializados antes do devocional diário.
     if (!(await one("SELECT 1 AS ok FROM devotionals WHERE day_key = '12-31'"))) log(`Café com a ONEMA: ${await seedCafeLibrary()} devocionais carregados`);
