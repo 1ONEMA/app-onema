@@ -120,3 +120,40 @@ export async function seedPricingV1() {
     return { created, divergences };
   });
 }
+
+/** Reajuste aprovado após os testes (04/11/2026): +R$ 10,00 em todo o catálogo, inclusive pacotes. Repasses inalterados. */
+export const PRICING_V2_SOURCE = 'AJUSTE_2026_11_MAIS_10';
+export const PRICING_V2_DELTA_CENTS = 1000;
+
+/**
+ * Carga idempotente do reajuste: cria uma nova versão (preço + R$ 10) para cada item da tabela oficial,
+ * copiando composição e repasses da versão vigente. Itens já reajustados ou com preço alterado manualmente
+ * pelo Financeiro não são tocados (a divergência é devolvida para conferência).
+ */
+export async function seedPricingV2(opts: { force?: boolean } = {}) {
+  // Os testes de homologação da tabela v1 (P01–P15) desligam o reajuste para conferir os valores originais.
+  if (process.env.PRICING_V2_DISABLED === '1' && !opts.force) return { created: 0, divergences: [] as string[] };
+  return await tx(async () => {
+    const now = nowIso();
+    const divergences: string[] = [];
+    let created = 0;
+    for (const d of PRICING_V1) {
+      const item = await one<any>('SELECT * FROM catalog_items WHERE code = ?', d.code);
+      if (!item) continue;
+      if (await one('SELECT 1 AS ok FROM catalog_item_versions WHERE catalog_item_id = ? AND source = ?', item.id, PRICING_V2_SOURCE)) continue;
+      const cur = await currentVersion(item.id, now);
+      if (!cur) continue;
+      if (cur.price_cents !== d.price) { divergences.push(`${d.code}: preço vigente ${cur.price_cents} ≠ tabela v1 ${d.price} (reajuste não aplicado).`); continue; }
+      await insertVersion(item.id, {
+        priceCents: cur.price_cents + PRICING_V2_DELTA_CENTS, primeEligible: !!cur.prime_eligible, actsLabel: cur.acts_label,
+        periodDays: cur.period_days, recurring: cur.recurring, inclusions: JSON.parse(cur.inclusions_json), exclusions: JSON.parse(cur.exclusions_json),
+        validFrom: now, reason: 'Reajuste de R$ 10,00 em todo o catálogo, inclusive pacotes (ajustes após os testes, 04/11/2026). Repasses inalterados.',
+        source: PRICING_V2_SOURCE, components: (await components(cur.id)).map(({ seq: _s, ...c }) => c),
+      }, null);
+      await syncItemSummary(item.id, now);
+      created++;
+    }
+    if (created) await audit({ actorId: null, action: 'PRICING_V2_LOADED', subjectType: 'catalog', meta: { created, deltaCents: PRICING_V2_DELTA_CENTS } });
+    return { created, divergences };
+  });
+}

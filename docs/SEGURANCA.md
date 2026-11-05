@@ -71,3 +71,19 @@ Controles verificados **sem falha**: SQL 100% parametrizado; sem `dangerouslySet
 | SEC-19 | — | Implementado | Evolução de enfermagem | Assinada é imutável (gatilho no banco); só a especialista do atendimento acessa; ditado bruto não vai ao paciente |
 | SEC-20 | P2 | Pendente (decisão) | IA com dado de saúde | O ditado vai à API da Anthropic para ser organizado. Exige base legal/aviso de privacidade (LGPD art. 11) e contrato com o fornecedor; a enfermeira é orientada a não ditar nome, CPF ou endereço |
 | SEC-21 | P3 | Aceito | Ditado por voz do navegador | O reconhecimento de voz do celular pode enviar o áudio ao serviço do sistema (Google/Apple). Alternativa: digitar ou usar o microfone do teclado |
+
+## Adendo (04/11/2026) — ajustes pós-testes e pacote financeiro
+Revisão independente do código novo (relatório compartilhado, assinatura do paciente, linha do tempo, candidatura, repasses, reembolsos, webhooks). Corrigido antes da publicação:
+- **Reembolso integral indevido:** ato remoto já realizado (sem "início" registrado) contava como não iniciado. Agora conta como realizado qualquer ato concluído, iniciado ou com evolução; remoto aceito nunca gera estorno automático.
+- **Pagamento em dobro após timeout:** busca da transferência agora percorre todas as páginas e usa a referência completa; reprocessar consulta o Asaas de novo e bloqueia se houver transferência ativa.
+- **Dupla aprovação burlável:** a segunda aprovação não pode vir de quem concedeu (ou recebeu) o perfil do primeiro aprovador; ninguém valida ou autoriza o próprio repasse.
+- **Troca de chave Pix com senha roubada:** aviso por e-mail fora do app, bloqueio de 24 h e duas aprovações; titular divergente informado pelo Asaas bloqueia a chave.
+- **Chargeback encerrado por uma pessoa:** "revertida" exige o Asaas mostrar o pagamento como recebido.
+- **Repasse após estorno integral externo:** bloqueado (a exceção vale só quando o próprio reembolso decidido levou o pedido a estornado).
+- Segundo reembolso no mesmo pedido e reembolso sem resposta do Asaas tratados sem erro 500 nem atendimento órfão.
+- Link público de relatório: token aleatório de 32 bytes guardado só como hash, 7 dias, revogável, limitado por IP, `noindex`, sem pendências internas e só o primeiro nome do paciente.
+- Foto da especialista: só o paciente do pedido, só da candidatura aprovada, com conferência de integridade.
+- Payload do webhook guardado em forma mínima (sem dados do cliente). Id do pagamento no Asaas deixou de ser enviado à tela do paciente.
+- Dependências: `npm audit` sem vulnerabilidades.
+
+Riscos residuais: a conferência de titularidade de chaves que não são CPF depende do Financeiro (o Asaas só informa o titular após a transferência); especialistas não usam MFA; o alerta de concessão de perfil FINANCEIRO não é automático (acompanhar pela Auditoria).

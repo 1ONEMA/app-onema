@@ -6,7 +6,7 @@ test('especialista: pagamento sandbox, matrícula, aulas, atividade e avaliaçã
   await login(page, 'especialista.demo@exemplo.test');
   await expect(page).toHaveURL(/academy/);
   await shot(page, 'academy-entrada', info.project.name);
-  await page.getByRole('button', { name: /Gerar pedido de R\$ 19,90/ }).click();
+  await page.getByRole('button', { name: /Gerar pedido de R\$ 29,90/ }).click();
   await page.getByRole('button', { name: 'Simular pagamento aprovado' }).click();
   await page.getByRole('button', { name: 'Iniciar Jornada de Integração' }).click();
   await expect(page.getByText('0 de 4 cursos aprovados')).toBeVisible();
@@ -35,7 +35,8 @@ test('especialista: pagamento sandbox, matrícula, aulas, atividade e avaliaçã
     await step.getByRole('button', { name: 'Confirmar decisão' }).click();
     await expect(step.getByText('Correta', { exact: true })).toBeVisible();
   }
-  await expect(page.getByText('Atividade concluída')).toBeVisible();
+  await expect(page.getByText('Atividade concluída.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Voltar ao curso' }).first()).toBeVisible();
   await shot(page, 'academy-atividade', info.project.name);
 
   await page.goto('/academy/cursos/C01');

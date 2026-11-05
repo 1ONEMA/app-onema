@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { Client, all, emailOf, loginAs, one, setup } from './helpers.ts';
 import { config } from '../src/config.ts';
-import { setAsaasTransport } from '../src/lib/asaas.ts';
+import { dueDateFor, setAsaasTransport, todaySP } from '../src/lib/asaas.ts';
 import { PRICING_V1 } from '../src/db/content/pricing-v1.ts';
 
 /** Asaas simulado: mesmas rotas e formatos da API v3 usados pelo app. */
@@ -62,7 +62,7 @@ describe('Asaas — pedidos de cuidado', () => {
     const r = await c.post(`/api/care/requests/${req.id}/checkout`, { ...body, payerCpf: CPF }, true);
     expect(r.body).toMatchObject({ paid: false, pending: true, paymentUrl: expect.stringContaining('asaas.com') });
     expect(fake.customers[0]).toMatchObject({ cpfCnpj: '52998224725', externalReference: expect.any(String) });
-    expect(fake.payments[0]).toMatchObject({ billingType: 'UNDEFINED', value: req.quote.totalCents / 100, externalReference: `care:${r.body.order.id}` });
+    expect(fake.payments[0]).toMatchObject({ billingType: 'UNDEFINED', value: req.quote.totalCents / 100, externalReference: `care:${r.body.order.id}`, dueDate: todaySP() });
     // CPF não fica guardado na ONEMA; só o id do cliente no Asaas
     const u = await one<any>('SELECT * FROM users WHERE email = ?', emailOf('paciente'));
     expect(u.asaas_customer_id).toBe('cus_1');
@@ -91,9 +91,15 @@ describe('Asaas — pedidos de cuidado', () => {
     // estorno pelo Financeiro devolve pelo Asaas
     const fin = await loginAs(app, 'financeiro');
     const orderId = (await one<any>('SELECT id FROM service_orders')).id;
-    expect((await fin.post(`/api/admin/care/orders/${orderId}/refund`, { reason: 'Teste de estorno real' })).status).toBe(200);
-    expect(fake.calls.some((x) => x.method === 'POST' && x.path === `/payments/${pay.id}/refund`)).toBe(true);
+    const rf = await fin.post(`/api/admin/care/orders/${orderId}/refund`, { reason: 'Teste de estorno real' });
+    expect(rf.body.refund.status).toBe('DEVOLUCAO_SOLICITADA'); // estorno solicitado ≠ dinheiro devolvido
+    const refundCall = fake.calls.find((x) => x.method === 'POST' && x.path === `/payments/${pay.id}/refund`);
+    expect(refundCall?.body.value).toBeUndefined(); // integral
+    expect((await one<any>('SELECT status FROM service_orders')).status).toBe('PAID');
+    expect((await hook(ev('evt_5', 'PAYMENT_REFUNDED', pay))).json().outcome).toBe('REEMBOLSO_DEVOLVIDO');
     expect((await one<any>('SELECT status FROM service_orders')).status).toBe('REFUNDED');
+    expect((await one<any>('SELECT status FROM care_refunds')).status).toBe('DEVOLVIDO');
+    expect((await one<any>(`SELECT payload_json FROM asaas_webhook_events WHERE event_id = 'evt_5'`)).payload_json).not.toMatch(/customer|cpf/i);
   });
 
   it('desistir com cobrança em aberto cancela a cobrança no Asaas; cobrança vencida não cancela o pedido', async () => {
@@ -155,3 +161,16 @@ describe('Asaas — ONEMA Academy e PRIME', () => {
     expect(await all('SELECT 1 FROM academy_payment_orders')).toHaveLength(0);
   });
 });
+
+describe('Vencimento da cobrança', () => {
+  it('mesmo dia da solicitação; com data agendada, um dia antes do atendimento (nunca antes de hoje)', () => {
+    const today = todaySP();
+    const plus = (n: number) => { const d = new Date(`${today}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+    expect(dueDateFor({ whenPref: 'HOJE' })).toBe(today);
+    expect(dueDateFor({ whenPref: 'PROXIMOS_DIAS' })).toBe(today);
+    expect(dueDateFor({ whenPref: 'AGENDAR', whenDate: plus(5) })).toBe(plus(4));
+    expect(dueDateFor({ whenPref: 'AGENDAR', whenDate: plus(1) })).toBe(today);
+    expect(dueDateFor({ whenPref: 'AGENDAR', whenDate: today })).toBe(today);
+  });
+});
+

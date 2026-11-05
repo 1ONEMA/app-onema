@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
+import { api } from '../../lib/api';
 import { useApi, useSubmit } from '../../lib/hooks';
 import { Alert, Badge, Button, ErrorState, Field, Loading, PageHeader, fieldError } from '../../ui/ui';
 import { IconCheck, IconShield } from '../../ui/icons';
@@ -31,10 +32,15 @@ function useDictation(onText: (t: string) => void) {
   return { supported: !!SR, on, toggle };
 }
 
+/** Atualiza a tela enquanto aguarda a assinatura do paciente. */
+function SignatureWatcher({ onPoll }: { onPoll: () => void }) {
+  useEffect(() => { const t = window.setInterval(onPoll, 5000); return () => window.clearInterval(t); }, [onPoll]);
+  return <p className="small" role="status">Aguardando a assinatura…</p>;
+}
+
 /** Atendimento da especialista: início com o código do paciente, evolução ditada e organizada pela Kary, assinatura e conclusão. */
 export function VisitPage() {
   const { id } = useParams();
-  const nav = useNavigate();
   const { data, error, loading, reload } = useApi<any>(`/api/care/specialist/events/${id}/evolution`);
   const start = useSubmit<any>();
   const organize = useSubmit<any>();
@@ -47,6 +53,7 @@ export function VisitPage() {
   const [evo, setEvo] = useState<Evo | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [working, setWorking] = useState(false);
   const mic = useDictation((t) => setDictation((d) => (d ? `${d} ${t}` : t)));
   useEffect(() => { document.title = 'Atendimento · ONEMA ONE'; }, []);
   useEffect(() => {
@@ -68,11 +75,21 @@ export function VisitPage() {
   }
   async function doOrganize() {
     const r = await organize.run('POST', `/api/care/specialist/events/${id}/evolution/organize`, { dictation });
-    if (r) { setEvo({ ...EMPTY, ...r.evolution.content }); setNotice(r.message); }
+    if (!r) return;
+    let ev = r.evolution;
+    setWorking(ev.aiStatus === 'PROCESSANDO');
+    // Acompanha a organização feita em segundo plano (até ~2 min).
+    for (let i = 0; i < 60 && ev.aiStatus === 'PROCESSANDO'; i++) {
+      await new Promise((res) => setTimeout(res, 2000));
+      try { ev = (await api<any>('GET', `/api/care/specialist/events/${id}/evolution`)).evolution; } catch { /* tenta de novo */ }
+    }
+    setWorking(false);
+    setEvo({ ...EMPTY, ...ev.content });
+    setNotice(ev.aiMessage ?? null);
   }
   async function doSave() { if (evo && await save.run('PUT', `/api/care/specialist/events/${id}/evolution`, { dictation, content: evo })) setNotice('Rascunho salvo.'); }
   async function doSign() { if (evo && await sign.run('POST', `/api/care/specialist/events/${id}/evolution/sign`, { content: evo, confirm })) { setNotice(null); reload(); } }
-  async function doComplete() { if (await complete.run('POST', `/api/care/specialist/events/${id}/complete`, {})) nav('/especialista#ofertas'); }
+  async function doComplete() { if (await complete.run('POST', `/api/care/specialist/events/${id}/complete`, {})) reload(); }
 
   return (
     <div className="flow">
@@ -110,10 +127,11 @@ export function VisitPage() {
             <p className="small muted">Não diga nome completo, CPF ou endereço do paciente no ditado. O áudio é convertido em texto pelo próprio celular.</p>
             <div className="row">
               {mic.supported && <Button type="button" className={mic.on ? 'sm red' : 'sm secondary'} onClick={mic.toggle}>{mic.on ? 'Parar ditado' : 'Ditar'}</Button>}
-              <Button className="sm deep" busy={organize.busy} disabled={dictation.trim().length < 20} onClick={doOrganize}>{data.aiEnabled ? 'Organizar com a Kary' : 'Usar o ditado no rascunho'}</Button>
+              <Button className="sm deep" busy={organize.busy || working} disabled={dictation.trim().length < 20} onClick={doOrganize}>{data.aiEnabled ? 'Organizar com a Kary' : 'Usar o ditado no rascunho'}</Button>
               {!evo && <Button type="button" className="sm ghost" onClick={() => setEvo({ ...EMPTY })}>Preencher manualmente</Button>}
             </div>
             <Alert error={organize.error && !Array.isArray(organize.error.details) ? organize.error : null} />
+            {working && <div className="callout small mt" role="status">A Kary está organizando o ditado. Isso leva alguns segundos…</div>}
             {notice && <div className="callout small mt" role="status">{notice}</div>}
             {evo && (
               <div className="evo-form mt">
@@ -140,11 +158,24 @@ export function VisitPage() {
       </section>
 
       <section className="flow-card mt">
-        <h2>3. Concluir</h2>
-        <p className="muted">A conclusão libera o repasse do atendimento e pede a avaliação do paciente.</p>
-        <Alert error={complete.error} />
-        <Button className="green" busy={complete.busy} disabled={!signed} onClick={doComplete}>Registrar conclusão</Button>
-        {!signed && <p className="small muted">Disponível depois de assinar a evolução.</p>}
+        <h2>3. Assinatura do paciente ou responsável</h2>
+        {e.patientSignedAt ? <div className="success" role="status"><IconCheck size={18} /> Assinado por {e.patientSignatureName} em {new Date(e.patientSignedAt).toLocaleString('pt-BR')}.</div>
+          : !signed ? <p className="muted">Depois que você assinar a evolução, o paciente ou responsável confirma o atendimento no app dele.</p>
+          : <><p className="muted">Peça ao paciente ou responsável para abrir o pedido no app e tocar em <strong>Assinar atendimento</strong>. Esta tela atualiza sozinha.</p><SignatureWatcher onPoll={reload} /></>}
+      </section>
+
+      <section className="flow-card mt">
+        <h2>4. Concluir</h2>
+        {e.status === 'CONCLUIDO' ? (
+          <div className="success" role="status"><IconCheck size={18} /> Atendimento concluído em {new Date(e.completedAt).toLocaleString('pt-BR')}. O repasse segue para validação da ONEMA.</div>
+        ) : (
+          <>
+            <p className="muted">A conclusão libera o repasse do atendimento (após a validação da ONEMA) e pede a avaliação do paciente.</p>
+            <Alert error={complete.error} />
+            <Button className="green" busy={complete.busy} disabled={!signed || !e.patientSignedAt} onClick={doComplete}>Registrar conclusão</Button>
+            {(!signed || !e.patientSignedAt) && <p className="small muted">Disponível depois da sua assinatura da evolução e da assinatura do paciente ou responsável.</p>}
+          </>
+        )}
       </section>
       <p className="small"><Link to="/especialista#ofertas">Voltar aos meus atendimentos</Link></p>
     </div>

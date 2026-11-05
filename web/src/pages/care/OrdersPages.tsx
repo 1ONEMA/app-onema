@@ -1,9 +1,10 @@
 import { PendingPayment } from '../../ui/AsaasPay';
-import { useEffect, useState } from 'react';
+import { EVO_SECTIONS } from './WalletPage';
+import { Fragment, useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useApi, useSubmit } from '../../lib/hooks';
 import { dateTime, label, money } from '../../lib/format';
-import { Alert, Badge, Button, Empty, ErrorState, Loading, PageHeader } from '../../ui/ui';
+import { Alert, Badge, Button, Empty, ErrorState, Field, Loading, PageHeader, fieldError } from '../../ui/ui';
 import { IconArrowRight, IconCheck, IconStar } from '../../ui/icons';
 
 export const REQ_STATUS: Record<string, { label: string; tone: string }> = {
@@ -60,6 +61,7 @@ export function MyOrdersPage() {
 function Stars({ eventId, current, onDone }: { eventId: string; current: number | null; onDone: () => void }) {
   const [stars, setStars] = useState(current ?? 0);
   const [nps, setNps] = useState<number | null>(null);
+  const [comment, setComment] = useState('');
   const s = useSubmit<any>();
   if (current) return <span className="stars" role="img" aria-label={`Sua avaliação: ${current} de 5 estrelas`}>{[1, 2, 3, 4, 5].map((i) => <IconStar key={i} size={18} filled={i <= current} />)}</span>;
   return (
@@ -77,11 +79,43 @@ function Stars({ eventId, current, onDone }: { eventId: string; current: number 
           ))}
         </div>
       </fieldset>
+      <label className="field">
+        <span className="small">Comentário (opcional)</span>
+        <textarea rows={2} maxLength={400} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Conte como foi o atendimento" />
+      </label>
       <div className="row">
-        <Button className="sm deep" disabled={!stars} busy={s.busy} onClick={async () => { if (await s.run('POST', `/api/care/events/${eventId}/review`, { stars, ...(nps !== null ? { nps } : {}) })) onDone(); }}>Enviar avaliação</Button>
+        <Button className="sm deep" disabled={!stars} busy={s.busy} onClick={async () => { if (await s.run('POST', `/api/care/events/${eventId}/review`, { stars, comment, ...(nps !== null ? { nps } : {}) })) onDone(); }}>Enviar avaliação</Button>
       </div>
       <Alert error={s.error} />
     </div>
+  );
+}
+
+/** Assinatura do atendimento pelo paciente/responsável, com a evolução registrada à vista. */
+function SignCard({ event: e, onDone }: { event: any; onDone: () => void }) {
+  const [name, setName] = useState('');
+  const [ok, setOk] = useState(false);
+  const s = useSubmit<any>();
+  return (
+    <div className="sign-card" role="region" aria-label="Assinar atendimento">
+      <strong>Confirme o atendimento</strong>
+      <p className="small mb0">A especialista registrou a evolução abaixo. Confira e assine para confirmar que o atendimento foi realizado.</p>
+      <dl className="kv small">{EVO_SECTIONS.map(([k, l]) => e.evolution?.[k] && <Fragment key={k}><dt>{l}</dt><dd>{e.evolution[k]}</dd></Fragment>)}</dl>
+      <label className="field"><span className="small">Seu nome completo</span><input type="text" autoComplete="name" value={name} onChange={(ev) => setName(ev.target.value)} /></label>
+      <label className="choice mandatory"><input type="checkbox" checked={ok} onChange={(ev) => setOk(ev.target.checked)} /><span>Confirmo que o atendimento foi realizado.</span></label>
+      <Alert error={s.error} />
+      <Button className="sm green" busy={s.busy} disabled={!ok || name.trim().length < 3} onClick={async () => { if (await s.run('POST', `/api/care/events/${e.id}/sign`, { name, confirm: ok })) onDone(); }}>Assinar atendimento</Button>
+    </div>
+  );
+}
+
+/** Linha do tempo do atendimento (fatos registrados), para o paciente e para o responsável. */
+export function CareTimeline({ items }: { items: any[] }) {
+  if (!items?.length) return <p className="small muted">Os próximos passos aparecem aqui assim que acontecerem.</p>;
+  return (
+    <ol className="timeline">{items.map((t, i) => (
+      <li key={i}><strong>{t.title}</strong> <span className="small muted">{dateTime(t.at)}</span>{t.detail && <p className="mb0 small">{t.detail}</p>}</li>
+    ))}</ol>
   );
 }
 
@@ -129,6 +163,10 @@ export function RequestDetailPage() {
                     <Badge tone={EVENT_STATUS[e.status].tone}>{EVENT_STATUS[e.status].label}</Badge>
                   </div>
                   {e.specialist_name && <div className="small muted">Especialista: {e.specialist_name}{Number(e.specialist_reviews) > 0 ? ` · ${Number(e.specialist_rating).toFixed(1).replace('.', ',')} ★ (${e.specialist_reviews} ${Number(e.specialist_reviews) > 1 ? 'avaliações' : 'avaliação'})` : ''}{e.completed_at ? ` · concluído em ${dateTime(e.completed_at)}` : ''}</div>}
+                  {e.specialist_name && ['ACEITO', 'CONCLUIDO'].includes(e.status) && (
+                    <img className="sp-photo" src={`/api/care/events/${e.id}/specialist-photo`} alt={`Foto de ${e.specialist_name}`} width={56} height={56}
+                      onError={(ev) => { (ev.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                  )}
                   {e.specialist_coren && <div className="small muted">COREN {e.specialist_coren} · especialista validada pela Central ONEMA</div>}
                   {e.visit_code && (
                     <div className="visit-code" role="status">
@@ -138,6 +176,8 @@ export function RequestDetailPage() {
                     </div>
                   )}
                   {e.started_at && e.status === 'ACEITO' && <div className="small"><IconCheck size={14} /> Atendimento iniciado em {dateTime(e.started_at)} (código confirmado)</div>}
+                  {e.awaiting_signature && <SignCard event={e} onDone={reload} />}
+                  {e.patient_signed_at && <div className="small"><IconCheck size={14} /> Atendimento assinado por {e.patient_signature_name} em {dateTime(e.patient_signed_at)}</div>}
                   {e.status === 'CONCLUIDO' && <div className="mt"><Stars eventId={e.id} current={e.my_stars} onDone={reload} /></div>}
                 </li>
               ))}
@@ -146,6 +186,50 @@ export function RequestDetailPage() {
           <p className="small muted">A Central ONEMA confirma a agenda com um especialista validado. O mesmo enfermeiro não é obrigatório em todos os atendimentos de um pacote.</p>
         </section>
       </div>
+      {o && ['PAID', 'REFUNDED'].includes(o.status) && <RefundCard orderId={o.id} paid={o.status === 'PAID'} onDone={reload} />}
+      <section className="surface mt">
+        <h2>Linha do tempo do atendimento</h2>
+        <CareTimeline items={data.timeline} />
+      </section>
     </>
+  );
+}
+
+/**
+ * Reembolso pelo titular: antes do início é integral e automático; com parte do pacote realizada,
+ * o Financeiro calcula o saldo. Mostra a diferença entre "devolução solicitada" e "dinheiro devolvido".
+ */
+function RefundCard({ orderId, paid, onDone }: { orderId: string; paid: boolean; onDone: () => void }) {
+  const { data, reload } = useApi<any>(`/api/care/orders/${orderId}/refunds`);
+  const send = useSubmit<any>();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const list = data?.refunds ?? [];
+  const active = list.find((r: any) => !['RECUSADO', 'FALHA', 'DEVOLVIDO'].includes(r.status));
+  if (!list.length && !paid) return null;
+  async function submit() {
+    const r = await send.run('POST', `/api/care/orders/${orderId}/refund-request`, { reason });
+    if (r) { setOpen(false); reload(); onDone(); }
+  }
+  return (
+    <section className="surface mt">
+      <h2>Cancelamento e reembolso</h2>
+      {list.map((r: any) => (
+        <div key={r.id} className={r.status === 'DEVOLVIDO' ? 'success' : r.status === 'RECUSADO' || r.status === 'FALHA' ? 'caution' : 'caution'} role="status">
+          <strong>{r.statusLabel}</strong> · protocolo {r.protocol} · {r.amountCents != null ? money(r.amountCents) : 'valor em análise'}
+          {r.status === 'DEVOLUCAO_SOLICITADA' && <p className="small mb0">A devolução foi pedida ao meio de pagamento. Avisaremos quando o dinheiro for devolvido (cartão: conforme a fatura; Pix: na conta de origem).</p>}
+          {r.decisionNote && r.status === 'RECUSADO' && <p className="small mb0">{r.decisionNote}</p>}
+          <details className="small"><summary>Como o valor foi calculado</summary><ul>{r.calcMemo.map((m: string, i: number) => <li key={i}>{m}</li>)}</ul></details>
+        </div>
+      ))}
+      {paid && !active && (open ? (
+        <div className="mt">
+          <Field label="Motivo do cancelamento" error={fieldError(send.error, 'reason')}><textarea rows={2} value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} /></Field>
+          <p className="small muted">Antes do início do atendimento o reembolso é integral, sem multa. Se parte do pacote já foi realizada, o Financeiro ONEMA calcula o saldo e você recebe a memória de cálculo.</p>
+          <Alert error={send.error && !Array.isArray(send.error.details) ? send.error : null} />
+          <div className="row"><Button className="deep" busy={send.busy} onClick={submit}>Confirmar pedido de reembolso</Button><button type="button" className="btn secondary" onClick={() => setOpen(false)}>Voltar</button></div>
+        </div>
+      ) : <p className="mt mb0"><button type="button" className="linklike" onClick={() => setOpen(true)}>Cancelar e pedir reembolso</button></p>)}
+    </section>
   );
 }

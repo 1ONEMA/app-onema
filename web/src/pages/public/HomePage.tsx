@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../lib/auth';
 import { useApi } from '../../lib/hooks';
+import { money } from '../../lib/format';
 import { DailyVerse } from '../../ui/DailyVerse';
 import { openKary } from '../../ui/Kary';
 import { AppIcon } from '../../ui/Brand';
@@ -70,6 +71,7 @@ function PhoneMock() {
 export function HomePage() {
   const { me, has, isAdmin } = useAuth();
   const { data } = useApi<any>('/api/care/needs');
+  const { data: prime } = useApi<any>('/api/public/prime');
   useEffect(() => { document.title = 'ONEMA SAÚDE · Sua saúde organizada sempre com você'; }, []);
   const area = !me?.user ? null
     : has('PACIENTE') ? { to: '/carteira', label: 'Minha Carteira Digital' }
@@ -232,7 +234,8 @@ export function HomePage() {
           <h2>ONEMA <span className="teal">PRIME</span></h2>
           <p className="prime-lead">Mais facilidade para organizar sua rotina e acessar vantagens em serviços elegíveis da ONEMA SAÚDE.</p>
           <p className="small">Uma assinatura opcional de relacionamento, com agenda, lembretes, ofertas e uma visão clara dos seus benefícios.</p>
-          <p className="small">Valores e condições aparecem depois do seu cadastro, antes de qualquer contratação.</p>
+          {prime && <p className="small"><strong>{prime.rule}</strong></p>}
+          {prime && <p className="prime-price"><strong>{money(prime.monthlyPriceCents)}</strong> por mês</p>}
           <p className="small">Renovação automática somente mediante contratação expressa.</p>
           <Link to="/prime" className="btn white lg">Conhecer a ONEMA PRIME <IconArrowRight size={18} /></Link>
         </div>

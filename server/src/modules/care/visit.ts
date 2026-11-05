@@ -13,7 +13,8 @@ import { AppError, conflict, forbidden, notFound, unprocessable } from '../../li
 import { rateLimit, safeEqual } from '../../lib/security.ts';
 import { nowIso, uid } from '../../lib/util.ts';
 import { notify } from '../prime/core.ts';
-import { EMPTY_EVOLUTION, EVOLUTION_MODEL, EvolutionSchema, evolutionAiEnabled, organizeDictation } from './evolution-ai.ts';
+import { EMPTY_EVOLUTION, EVOLUTION_MODEL, EvolutionSchema, FAILURE_TEXT, type OrganizeFailure, evolutionAiEnabled, organizeDictation } from './evolution-ai.ts';
+import { runInBackground } from '../../lib/background.ts';
 
 const idParam = z.object({ id: z.string().uuid() });
 
@@ -31,9 +32,17 @@ async function myEvent(eventId: string, userId: string) {
   return e;
 }
 
-const evolutionView = (v: any) => v && ({
-  id: v.id, status: v.status, dictation: v.dictation, content: JSON.parse(v.content_json), aiUsed: !!v.ai_used, signedAt: v.signed_at, updatedAt: v.updated_at,
-});
+/** Organização parada há mais de 3 minutos é tratada como tempo esgotado (a Function pode ter sido encerrada). */
+const stale = (at: string | null) => !at || Date.now() - new Date(at).getTime() > 180_000;
+const evolutionView = (v: any) => {
+  if (!v) return null;
+  const aiStatus = v.ai_status === 'PROCESSANDO' && stale(v.ai_requested_at) ? 'FALHOU' : v.ai_status ?? null;
+  const aiError = aiStatus === 'FALHOU' ? (v.ai_status === 'PROCESSANDO' ? 'TEMPO_ESGOTADO' : v.ai_error) : null;
+  return {
+    id: v.id, status: v.status, dictation: v.dictation, content: JSON.parse(v.content_json), aiUsed: !!v.ai_used, signedAt: v.signed_at, updatedAt: v.updated_at,
+    aiStatus, aiMessage: aiError ? FAILURE_TEXT[aiError as OrganizeFailure] ?? FAILURE_TEXT.INDISPONIVEL : aiStatus === 'OK' ? 'A Kary organizou o ditado. Revise cada seção, corrija o que for preciso e assine.' : null,
+  };
+};
 
 /** Código numérico de 6 dígitos para o início da visita (gerado no aceite). */
 export const newVisitCode = () => String(crypto.randomInt(100000, 1000000));
@@ -75,28 +84,49 @@ export async function visitRoutes(app: FastifyInstance) {
     const { id } = parse(idParam, req.params);
     const e = await myEvent(id, a.userId);
     const v = await one<any>('SELECT * FROM care_evolutions WHERE event_id = ?', id);
-    return { event: { id: e.id, label: e.label, itemName: e.item_name, modality: e.modality, status: e.status, startedAt: e.started_at },
+    return { event: { id: e.id, label: e.label, itemName: e.item_name, modality: e.modality, status: e.status, startedAt: e.started_at,
+        patientSignedAt: e.patient_signed_at, patientSignatureName: e.patient_signature_name, completedAt: e.completed_at },
       evolution: evolutionView(v), aiEnabled: evolutionAiEnabled() };
   });
 
-  /** Kary organiza o ditado em seções (rascunho salvo). Sem IA configurada, o rascunho fica com o ditado para preenchimento manual. */
-  app.post('/api/care/specialist/events/:id/evolution/organize', async (req) => {
+  /**
+   * Kary organiza o ditado em seções, em segundo plano: o rascunho é salvo na hora com o ditado e a tela
+   * acompanha (GET .../evolution) até a organização terminar ou informar o motivo da falha.
+   */
+  app.post('/api/care/specialist/events/:id/evolution/organize', async (req, reply) => {
     const a = await credentialedSpecialist(req);
     const { id } = parse(idParam, req.params);
     const { dictation } = parse(z.object({ dictation: z.string().trim().min(20, 'Dite ou escreva a evolução (pelo menos uma frase completa).').max(8000) }), req.body);
     const e = await myEvent(id, a.userId);
     if (e.status !== 'ACEITO') throw conflict('EVENT_NOT_ACCEPTED', 'A evolução é registrada durante o atendimento aceito por você.');
-    const cur = await one<any>('SELECT status FROM care_evolutions WHERE event_id = ?', id);
+    const cur = await one<any>('SELECT * FROM care_evolutions WHERE event_id = ?', id);
     if (cur?.status === 'ASSINADA') throw conflict('EVOLUTION_SIGNED', 'A evolução deste atendimento já foi assinada.');
+    if (cur?.ai_status === 'PROCESSANDO' && !stale(cur.ai_requested_at)) throw conflict('AI_BUSY', 'A Kary ainda está organizando o ditado anterior. Aguarde alguns segundos.');
+    if (!evolutionAiEnabled()) {
+      const v = await saveDraft(e, a.userId, dictation, cur ? JSON.parse(cur.content_json) : { ...EMPTY_EVOLUTION, observacoes: dictation }, false);
+      await run(`UPDATE care_evolutions SET ai_status = 'FALHOU', ai_error = 'NAO_CONFIGURADA' WHERE id = ?`, v.id);
+      return { evolution: evolutionView(await one<any>('SELECT * FROM care_evolutions WHERE id = ?', v.id)) };
+    }
     if (!await rateLimit(`evolution-ai:${a.userId}`, 40, 3600_000)) throw new AppError(429, 'RATE_LIMIT', 'Muitas organizações em pouco tempo. Aguarde alguns minutos.');
-    const organized = await organizeDictation(dictation, { act: e.label, modality: e.modality });
-    const content = organized ?? { ...EMPTY_EVOLUTION, observacoes: dictation };
-    const v = await saveDraft(e, a.userId, dictation, content, !!organized);
-    await audit({ actorId: a.userId, action: organized ? 'EVOLUTION_ORGANIZED_AI' : 'EVOLUTION_DRAFT_MANUAL', subjectType: 'care_event', subjectId: id, correlationId: req.correlationId });
-    return { evolution: evolutionView(v), ai: !!organized,
-      message: organized ? 'A Kary organizou o ditado. Revise cada seção, corrija o que for preciso e assine.'
-        : evolutionAiEnabled() ? 'A Kary não conseguiu organizar agora. O ditado foi guardado em "Observações": preencha as seções e assine.'
-        : 'Organização por IA não configurada. O ditado foi guardado em "Observações": preencha as seções e assine.' };
+    const v = await saveDraft(e, a.userId, dictation, cur ? JSON.parse(cur.content_json) : { ...EMPTY_EVOLUTION }, !!cur?.ai_used);
+    await run(`UPDATE care_evolutions SET ai_status = 'PROCESSANDO', ai_error = NULL, ai_requested_at = ? WHERE id = ?`, nowIso(), v.id);
+    const correlationId = req.correlationId;
+    runInBackground(async () => {
+      const r = await organizeDictation(dictation, { act: e.label, modality: e.modality });
+      if ('evolution' in r) {
+        await run(`UPDATE care_evolutions SET content_json = ?, ai_used = 1, ai_model = ?, ai_status = 'OK', ai_error = NULL, updated_at = ? WHERE id = ? AND status = 'RASCUNHO'`,
+          JSON.stringify(r.evolution), EVOLUTION_MODEL, nowIso(), v.id);
+        await audit({ actorId: a.userId, action: 'EVOLUTION_ORGANIZED_AI', subjectType: 'care_event', subjectId: id, correlationId });
+      } else {
+        // Sem perder o que foi dito: o ditado vai para "Observações" quando o rascunho ainda está vazio.
+        const empty = !JSON.parse(v.content_json).observacoes && !JSON.parse(v.content_json).relato;
+        const content = empty ? JSON.stringify({ ...JSON.parse(v.content_json), observacoes: dictation }) : v.content_json;
+        await run(`UPDATE care_evolutions SET content_json = ?, ai_status = 'FALHOU', ai_error = ?, updated_at = ? WHERE id = ? AND status = 'RASCUNHO'`, content, r.failure, nowIso(), v.id);
+        await audit({ actorId: a.userId, action: 'EVOLUTION_AI_FAILED', subjectType: 'care_event', subjectId: id, correlationId, meta: { failure: r.failure } });
+      }
+    });
+    reply.code(202);
+    return { evolution: evolutionView(await one<any>('SELECT * FROM care_evolutions WHERE id = ?', v.id)) };
   });
 
   app.put('/api/care/specialist/events/:id/evolution', async (req) => {

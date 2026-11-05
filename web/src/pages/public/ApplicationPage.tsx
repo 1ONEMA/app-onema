@@ -13,7 +13,17 @@ const STATUS: Record<string, { label: string; tone: string; text: string }> = {
   APROVADA: { label: 'Aprovada', tone: '', text: 'Documentos validados. Sua ONEMA Academy está liberada: conclua a Jornada de Integração para seguir ao credenciamento final.' },
   RECUSADA: { label: 'Não aprovada', tone: 'red', text: 'A candidatura não foi aprovada neste momento.' },
 };
-const DOCS = [['IDENTIDADE', 'Documento de identidade com foto (obrigatório)'], ['COREN', 'Carteira do COREN (obrigatório)'], ['COMPROVANTE_ENDERECO', 'Comprovante de endereço (opcional)']] as const;
+/** [tipo, título, orientação, aceita vários arquivos] */
+const DOCS = [
+  ['FOTO', 'Foto sua (obrigatório)', 'De frente, rosto visível, de preferência com fundo branco. Aparece para o paciente identificar você.', false],
+  ['IDENTIDADE', 'Identidade com CPF (obrigatório)', 'Documento aberto mostrando frente e verso na mesma imagem.', false],
+  ['COREN', 'Carteira do COREN (obrigatório)', 'Frente e verso legíveis.', false],
+  ['DIPLOMA_FRENTE', 'Diploma de graduação — frente (obrigatório)', '', false],
+  ['DIPLOMA_VERSO', 'Diploma de graduação — verso (obrigatório)', '', false],
+  ['CERTIFICADO', 'Certificados de cursos e especializações (opcional)', 'Pode enviar mais de um.', true],
+  ['COMPROVANTE_ENDERECO', 'Comprovante de endereço (opcional)', '', false],
+] as const;
+const LABEL: Record<string, string> = { FOTO: 'foto', IDENTIDADE: 'identidade com CPF', COREN: 'COREN', DIPLOMA_FRENTE: 'diploma (frente)', DIPLOMA_VERSO: 'diploma (verso)' };
 
 /** Candidatura à rede ONEMA ONE: dados, documentos e acompanhamento da análise. */
 export function ApplicationPage() {
@@ -93,16 +103,17 @@ export function ApplicationPage() {
       {a && (
         <section className="flow-card mt">
           <h2>2. Documentos</h2>
-          <p className="small muted">PDF, JPG, PNG ou WEBP, até 5 MB cada. Os arquivos ficam em armazenamento privado e só a equipe de credenciamento tem acesso.</p>
+          <p className="small muted">PDF, JPG, PNG ou WEBP, até 5 MB cada. Fotos tiradas com o celular servem, desde que legíveis. Os arquivos ficam em armazenamento privado e só a equipe de credenciamento tem acesso.</p>
           <ul className="list">
-            {DOCS.map(([kind, title]) => {
+            {DOCS.map(([kind, title, hint, multiple]) => {
               const sent = a.documents.filter((d: any) => d.kind === kind);
               return (
                 <li key={kind}>
-                  <div className="row between"><strong>{title}</strong>{sent.length ? <Badge><IconCheck size={14} /> Enviado</Badge> : <Badge tone="orange">Pendente</Badge>}</div>
+                  <div className="row between"><strong>{title}</strong>{sent.length ? <Badge><IconCheck size={14} /> {sent.length > 1 ? `${sent.length} enviados` : 'Enviado'}</Badge> : <Badge tone={title.includes('opcional') ? 'dark' : 'orange'}>{title.includes('opcional') ? 'Opcional' : 'Pendente'}</Badge>}</div>
+                  {hint && <div className="small muted">{hint}</div>}
                   {sent.map((d: any) => <div key={d.id} className="small muted row">{d.filename} · {Math.ceil(d.size_bytes / 1024)} KB · {dateTime(d.created_at)}
                     {editable && <button type="button" className="linklike small" onClick={() => removeDoc(d.id)}>Remover</button>}</div>)}
-                  {editable && <label className="btn sm secondary mt upload-btn">{uploading === kind ? 'Enviando…' : sent.length ? 'Enviar outro arquivo' : 'Escolher arquivo'}
+                  {editable && <label className="btn sm secondary mt upload-btn">{uploading === kind ? 'Enviando…' : sent.length ? (multiple ? 'Adicionar outro certificado' : 'Trocar arquivo') : 'Escolher arquivo'}
                     <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { upload(kind, e.target.files?.[0]); e.target.value = ''; }} /></label>}
                 </li>
               );
@@ -112,7 +123,7 @@ export function ApplicationPage() {
           {editable && (
             <div className="flow-actions"><Button className="green lg" busy={send.busy} disabled={a.missingDocuments.length > 0} onClick={finish}>Enviar para análise</Button></div>
           )}
-          {a.missingDocuments.length > 0 && editable && <p className="small muted right">Faltam: {a.missingDocuments.map((m: string) => (m === 'COREN' ? 'COREN' : 'identidade')).join(' e ')}.</p>}
+          {a.missingDocuments.length > 0 && editable && <p className="small muted right">Faltam: {a.missingDocuments.map((m: string) => LABEL[m] ?? m).join(', ')}.</p>}
         </section>
       )}
     </div>

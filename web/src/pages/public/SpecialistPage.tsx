@@ -83,7 +83,7 @@ function SpecialistArea() {
       <div className="stats">
         <div className="stat"><strong>{s.rating.average ?? '—'}{s.rating.average ? ' ★' : ''}</strong><span>{s.rating.count} avaliação(ões) de pacientes</span></div>
         <div className="stat"><strong>{money(sum('RESERVADO'))}</strong><span>Repasses de atendimentos aceitos</span></div>
-        <div className="stat"><strong>{money(sum('A_LIQUIDAR'))}</strong><span>Repasses a liquidar</span></div>
+        <Link to="/especialista/repasses" className="stat"><strong>{money(sum('A_LIQUIDAR') + sum('VALIDADO') + sum('PROGRAMADO') + sum('ENVIADO'))}</strong><span>Repasses em andamento · ver meus repasses e chave Pix</span></Link>
         <Link to="/academy" className="stat"><strong><IconAward /></strong><span>ONEMA Academy · notas e certificados</span></Link>
       </div>
       <p className="small muted">{s.note}</p>
@@ -117,7 +117,7 @@ function SpecialistArea() {
                   <div className="small muted">{m.item_code} · aceito em {dateTime(m.accepted_at)}{m.completed_at ? ` · concluído em ${dateTime(m.completed_at)}` : ''}</div>
                   <div className="row mt">
                     <Badge tone={m.status === 'CONCLUIDO' ? 'dark' : m.status === 'CANCELADO' ? 'red' : ''}>{m.status === 'CONCLUIDO' ? 'Concluído' : m.status === 'CANCELADO' ? 'Cancelado' : 'Agendado'}</Badge>
-                    {m.payout_status && <Badge tone="blue">Repasse {m.payout_status === 'A_LIQUIDAR' ? 'a liquidar' : m.payout_status === 'CANCELADO' ? 'cancelado' : 'reservado'}</Badge>}
+                    {m.payout_status && <Badge tone="blue">Repasse {({ A_LIQUIDAR: 'aguardando validação', VALIDADO: 'validado', PROGRAMADO: 'programado', ENVIADO: 'enviado', CONFIRMADO: 'pago', CANCELADO: 'cancelado' } as Record<string, string>)[m.payout_status] ?? 'em análise'}</Badge>}
                     {m.stars && <span className="stars" role="img" aria-label={`${m.stars} estrelas`}>{[1, 2, 3, 4, 5].map((i) => <IconStar key={i} size={16} filled={i <= m.stars} />)}</span>}
                     {m.status === 'ACEITO' && <span className="small muted">{m.started_at ? 'Iniciado' : m.modality === 'PRESENCIAL' ? 'Aguardando início' : 'Remoto'}{m.evolution_status === 'ASSINADA' ? ' · evolução assinada' : ''}</span>}
                     {m.status === 'ACEITO' && <Link className="btn sm green" to={`/especialista/atendimentos/${m.id}`}>Abrir atendimento</Link>}

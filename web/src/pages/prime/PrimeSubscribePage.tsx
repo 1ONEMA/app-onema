@@ -81,7 +81,7 @@ export function PrimeSubscribePage() {
             <li className="row between"><span>Primeira cobrança prevista</span><strong>{date(pv.firstChargeAt)}</strong></li>
             <li className="row between"><span>Referência</span><strong>{pv.cycleReference}: {date(pv.cycleStartsAt)} a {date(pv.cycleEndsAt)}</strong></li>
             <li className="row between"><span>Próxima renovação prevista</span><strong>{date(pv.nextRenewalAt)}</strong></li>
-            <li className="row between"><span>Desconto do ciclo</span><strong>{pct(o.discountBps)} em um pedido elegível, até {money(o.discountCapCents)}</strong></li>
+            <li className="row between"><span>Desconto do ciclo</span><strong>{pct(o.discountBps)}, limitado a {money(o.discountCapCents)}, em um pedido elegível por ciclo mensal (pacotes: uma vez)</strong></li>
           </ul>
           <p className="small muted">{pv.note}</p>
           <h3 className="mt">Meio de pagamento</h3>

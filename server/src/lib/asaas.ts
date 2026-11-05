@@ -23,6 +23,7 @@ let transport: Transport = httpTransport;
 export const setAsaasTransport = (t: Transport | null) => { transport = t ?? httpTransport; };
 
 export async function asaas<T = any>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: unknown): Promise<T> {
+  if (!config.asaasApiKey) throw new AppError(503, 'PAYMENT_PROVIDER_NOT_CONFIGURED', 'Provedor de pagamento não configurado.');
   let r: { status: number; json: any };
   try {
     r = await transport(method, `${asaasBaseUrl()}${path}`, {
@@ -34,6 +35,8 @@ export async function asaas<T = any>(method: 'GET' | 'POST' | 'DELETE', path: st
   if (r.status >= 200 && r.status < 300) return r.json as T;
   const detail = Array.isArray(r.json?.errors) ? r.json.errors.map((e: any) => String(e.description ?? '')).filter(Boolean).join(' ') : '';
   console.error(`[asaas] ${method} ${path.split('?')[0]} → ${r.status}`, detail.slice(0, 300));
+  if (r.status >= 500) throw new AppError(502, 'PAYMENT_PROVIDER_UNAVAILABLE', 'O serviço de pagamento está instável. Tente novamente em instantes.');
+  if (r.status === 400 && /saldo/i.test(detail)) throw new AppError(422, 'INSUFFICIENT_BALANCE', 'Saldo insuficiente na conta Asaas para esta operação.');
   if (r.status === 401) throw new AppError(502, 'PAYMENT_PROVIDER_AUTH', 'Pagamento indisponível no momento (configuração do provedor). Nada foi cobrado.');
   throw new AppError(502, 'PAYMENT_PROVIDER_ERROR', detail ? `O serviço de pagamento recusou a operação: ${detail}` : 'O serviço de pagamento recusou a operação. Nada foi cobrado.');
 }
@@ -58,16 +61,58 @@ export async function ensureCustomer(userId: string, cpf?: string | null): Promi
   return c.id;
 }
 
-export async function createPayment(p: { customer: string; valueCents: number; description: string; externalReference: string; billingType?: string }) {
+export async function createPayment(p: { customer: string; valueCents: number; description: string; externalReference: string; billingType?: string; dueDate?: string }) {
   const r = await asaas<any>('POST', '/payments', {
-    // Vencimento em 2 dias: dá tempo para boleto/Pix; cartão é cobrado na hora.
-    customer: p.customer, billingType: p.billingType ?? 'UNDEFINED', value: reais(p.valueCents), dueDate: todaySP(2),
+    customer: p.customer, billingType: p.billingType ?? 'UNDEFINED', value: reais(p.valueCents), dueDate: p.dueDate ?? todaySP(),
     description: p.description.slice(0, 500), externalReference: p.externalReference,
   });
   return { id: String(r.id), invoiceUrl: String(r.invoiceUrl ?? '') };
 }
+
+/**
+ * Vencimento (decisão ONEMA, 04/11/2026): no mesmo dia da solicitação; se o paciente agendou uma data,
+ * um dia antes do atendimento (nunca antes de hoje).
+ */
+export function dueDateFor(when: { whenPref?: string | null; whenDate?: string | null }) {
+  const today = todaySP();
+  if (when.whenPref === 'AGENDAR' && when.whenDate && /^\d{4}-\d{2}-\d{2}$/.test(when.whenDate)) {
+    const d = new Date(`${when.whenDate}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - 1);
+    const dayBefore = d.toISOString().slice(0, 10);
+    return dayBefore > today ? dayBefore : today;
+  }
+  return today;
+}
 export const cancelPayment = (id: string) => asaas('DELETE', `/payments/${encodeURIComponent(id)}`);
-export const refundPayment = (id: string, description: string) => asaas('POST', `/payments/${encodeURIComponent(id)}/refund`, { description: description.slice(0, 200) });
+/** Estorno total (sem `value`) ou parcial (com `valueCents`). */
+export const refundPayment = (id: string, description: string, valueCents?: number) =>
+  asaas('POST', `/payments/${encodeURIComponent(id)}/refund`, { ...(valueCents != null ? { value: reais(valueCents) } : {}), description: description.slice(0, 200) });
+export const getPayment = (id: string) => asaas<any>('GET', `/payments/${encodeURIComponent(id)}`);
+
+export const isSandboxKey = () => config.asaasApiKey.startsWith('$aact_hmlg_');
+/** Transferências reais só com tudo habilitado; chave de produção exige a aprovação do Portão D. */
+export const transfersMode = (): 'ASAAS' | 'MANUAL' =>
+  config.paymentProvider === 'ASAAS' && config.asaasTransfersEnabled && (isSandboxKey() || config.asaasProductionApproved) ? 'ASAAS' : 'MANUAL';
+
+/** Pix externo (POST /v3/transfers). `externalReference` liga a transferência ao repasse interno. */
+export async function createPixTransfer(p: { valueCents: number; pixKey: string; pixKeyType: string; description: string; externalReference: string }) {
+  return await asaas<any>('POST', '/transfers', {
+    value: reais(p.valueCents), operationType: 'PIX', pixAddressKey: p.pixKey, pixAddressKeyType: p.pixKeyType,
+    description: p.description.slice(0, 140), externalReference: p.externalReference,
+  });
+}
+export const getTransfer = (id: string) => asaas<any>('GET', `/transfers/${encodeURIComponent(id)}`);
+/** Procura uma transferência pelo id interno (após timeout), sem criar outra. */
+export async function findTransferByReference(ref: string, sinceDate: string) {
+  for (let offset = 0; offset < 5000; offset += 100) {
+    const r = await asaas<any>('GET', `/transfers?dateCreated%5Bge%5D=${sinceDate}&limit=100&offset=${offset}`);
+    const hit = (r?.data ?? []).find((t: any) => t.externalReference === ref || String(t.description ?? '').includes(ref));
+    if (hit) return hit;
+    if (!r?.hasMore) return null;
+  }
+  // Volume acima do esperado: sem conclusão segura (trata como "sem resposta").
+  throw new AppError(502, 'PAYMENT_PROVIDER_UNAVAILABLE', 'Consulta de transferências incompleta.');
+}
 
 /** Assinatura mensal (PRIME). Cartão: o Asaas guarda o cartão no 1º pagamento e renova sozinho; Pix/boleto: link a cada mês. */
 export async function createSubscription(p: { customer: string; valueCents: number; billingType: 'CREDIT_CARD' | 'UNDEFINED'; description: string; externalReference: string }) {

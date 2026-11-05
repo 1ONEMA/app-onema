@@ -13,7 +13,7 @@ import { conflict, notFound, unprocessable } from '../../lib/errors.ts';
 import { brl, nowIso, uid } from '../../lib/util.ts';
 import { currentParams, notify, quote, receipt, sandboxCharge } from '../prime/core.ts';
 import { offerByCode, publicOffer } from './catalog.ts';
-import { createPayment, ensureCustomer } from '../../lib/asaas.ts';
+import { createPayment, dueDateFor, ensureCustomer } from '../../lib/asaas.ts';
 
 /** Mês de referência (São Paulo) para ofertas mensais: chave de não duplicidade CAT-08/PAC-05. */
 export function billingPeriod(iso = nowIso()) {
@@ -128,7 +128,9 @@ export async function placeOrder(inp: PlaceOrderInput) {
   if (config.paymentProvider === 'ASAAS') {
     // Cobrança real: o pedido aguarda o pagamento na página do Asaas; a confirmação chega pelo webhook.
     const customer = await ensureCustomer(inp.patientId, inp.payerCpf);
-    const p = await createPayment({ customer, valueCents: q.finalPriceCents, description: `ONEMA SAÚDE · ${item.code} ${item.name}`, externalReference: `care:${orderId}` });
+    const snap = inp.request?.acceptedSnapshot ?? {};
+    const p = await createPayment({ customer, valueCents: q.finalPriceCents, description: `ONEMA SAÚDE · ${item.code} ${item.name}`, externalReference: `care:${orderId}`,
+      dueDate: dueDateFor({ whenPref: snap.whenPref, whenDate: snap.whenDate }) });
     await run('UPDATE service_orders SET provider_ref = ?, payment_url = ? WHERE id = ?', p.id, p.invoiceUrl, orderId);
     const order = await one<any>('SELECT * FROM service_orders WHERE id = ?', orderId);
     return { order, paid: false, paymentUrl: p.invoiceUrl };
@@ -215,7 +217,7 @@ export function patientOrderView(o: any) {
   return {
     id: o.id, itemCode: o.item_code, itemName: o.item_name, kind: o.item_kind, versionNo: o.version_no, status: o.status,
     basePriceCents: o.full_price_cents, discountCents: o.discount_cents, totalCents: o.final_price_cents, noDiscountReason: o.no_discount_reason,
-    actsTotal: o.acts_total, billingPeriod: o.billing_period, provider: o.provider, providerRef: o.provider_ref,
+    actsTotal: o.acts_total, billingPeriod: o.billing_period, provider: o.provider, refundedCents: o.refunded_cents ?? 0,
     createdAt: o.created_at, paidAt: o.paid_at, refundedAt: o.refunded_at, offer: snap?.item ?? null, cycleId: o.cycle_id,
     paymentUrl: o.status === 'PENDING_PAYMENT' ? o.payment_url ?? null : null,
   };

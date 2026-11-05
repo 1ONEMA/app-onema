@@ -3,7 +3,6 @@
  * com RBAC + motivo + vigência + auditoria, conciliação, estorno e autoteste da precificação.
  * Repasses e margens só aparecem aqui (perfis autorizados) — nunca em rotas públicas ou do paciente.
  */
-import { refundPayment } from '../../lib/asaas.ts';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { all, one, tx } from '../../db/db.ts';
@@ -13,8 +12,9 @@ import { parse, requireRoles } from '../../lib/context.ts';
 import { conflict, notFound, unprocessable } from '../../lib/errors.ts';
 import { brl, nowIso, uid } from '../../lib/util.ts';
 import { currentParams, discountFor } from '../prime/core.ts';
-import { components, currentVersion, insertVersion, syncItemSummary } from './catalog.ts';
-import { applyPaymentEvent, contribution } from './core.ts';
+import { PRICING_V2_DELTA_CENTS, PRICING_V2_SOURCE, components, currentVersion, insertVersion, syncItemSummary } from './catalog.ts';
+import { contribution } from './core.ts';
+import { requestRefund } from '../finance/refunds.ts';
 
 const VIEW_PRICING = ['ADMIN_PRIME', 'FINANCEIRO', 'AVALIADOR_RT', 'AUDITOR'] as const;
 const EDIT_PRICING = ['ADMIN_PRIME', 'FINANCEIRO'] as const;
@@ -186,21 +186,17 @@ export async function careAdminRoutes(app: FastifyInstance) {
     };
   });
 
-  /** Estorno total pelo Financeiro (simulado): mesmo caminho do evento do provedor (P06). */
+  /**
+   * Reembolso iniciado pelo Financeiro (em nome do paciente): mesma política e memória de cálculo do pedido do paciente.
+   * Sem atos iniciados: integral e automático; com atos realizados: fica em análise para definir o saldo.
+   */
   app.post('/api/admin/care/orders/:id/refund', async (req) => {
     const a = requireRoles(req, ['FINANCEIRO', 'ADMIN_PRIME']);
     const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
     const { reason } = parse(z.object({ reason: z.string().trim().min(5).max(300) }), req.body);
-    return await tx(async () => {
-      const o = await one<any>('SELECT status, provider, provider_ref FROM service_orders WHERE id = ?', id);
-      if (!o) throw notFound('Pedido não encontrado.');
-      if (o.status !== 'PAID') throw conflict('NOT_REFUNDABLE', 'Somente pedidos pagos podem ser estornados.');
-      // Pagamento real: devolve o valor pelo Asaas antes de registrar o estorno.
-      if (o.provider === 'ASAAS' && o.provider_ref) await refundPayment(o.provider_ref, `Estorno ONEMA: ${reason}`);
-      const r = await applyPaymentEvent({ eventId: `refund_${id}`, orderId: id, type: 'PAYMENT_REFUNDED', actorId: a.userId }, req.correlationId);
-      await audit({ actorId: a.userId, action: 'REFUND_REQUESTED', subjectType: 'service_order', subjectId: id, correlationId: req.correlationId, meta: { reason } });
-      return r;
-    });
+    const r = await requestRefund(id, a.userId, reason, { byStaff: true, correlationId: req.correlationId });
+    const o = await one<any>('SELECT status FROM service_orders WHERE id = ?', id);
+    return { ...r, status: o?.status, applied: r.refund.status === 'DEVOLVIDO' || r.refund.status === 'DEVOLUCAO_SOLICITADA' };
   });
 
   /** Autoteste ao vivo da configuração vigente (P01–P04) para conferência do RT na própria Central. */
@@ -213,7 +209,10 @@ export async function careAdminRoutes(app: FastifyInstance) {
     for (const it of items) cur.set(it.code, { item: it, v: await currentVersion(it.id) });
     const serv = items.filter((i) => i.kind === 'SERVICO').length, pac = items.filter((i) => i.kind === 'PACOTE').length;
     const canon = new Set(items.filter((i) => i.code === 'CAT-08' || i.code === 'PAC-05').map((i) => i.canonical_code));
-    const priceDiffs = PRICING_V1.filter((d) => cur.get(d.code)?.v?.price_cents !== d.price).map((d) => `${d.code}: preço vigente ${brl(cur.get(d.code)?.v?.price_cents ?? 0)} ≠ comando ${brl(d.price)} (versão nova registrada pelo painel)`);
+    // Com o ajuste de 04/11/2026 carregado, o preço esperado é o da tabela v1 + R$ 10,00 (repasses inalterados).
+    const v2 = !!(await one('SELECT 1 AS ok FROM catalog_item_versions WHERE source = ? LIMIT 1', PRICING_V2_SOURCE));
+    const delta = v2 ? PRICING_V2_DELTA_CENTS : 0;
+    const priceDiffs = PRICING_V1.filter((d) => cur.get(d.code)?.v?.price_cents !== d.price + delta).map((d) => `${d.code}: preço vigente ${brl(cur.get(d.code)?.v?.price_cents ?? 0)} ≠ comando ${brl(d.price + delta)} (versão nova registrada pelo painel)`);
     results.push({ id: 'P01', title: 'Carga dos registros (11 serviços + 8 pacotes; monitoramento canônico)', pass: serv === 11 && pac === 8 && canon.size === 1 && !priceDiffs.length,
       details: [`Serviços/continuidade: ${serv}`, `Pacotes: ${pac}`, `CAT-08/PAC-05 → identidade única: ${[...canon].join(', ')}`, ...priceDiffs] });
     const p2: string[] = [];
@@ -234,7 +233,10 @@ export async function careAdminRoutes(app: FastifyInstance) {
     }
     results.push({ id: 'P03', title: 'Composição: soma de quantidades e repasses exata', pass: !p3.length, details: p3.length ? p3 : ['19 registros conferidos.'] });
     const p4: string[] = [];
-    for (const [code, [full, disc, fin]] of Object.entries(SECTION7_REFERENCE)) {
+    for (const [code, [full0, disc0, fin0]] of Object.entries(SECTION7_REFERENCE)) {
+      const full = full0 + delta;
+      const disc = delta && disc0 > 0 ? discountFor(full, params.discount_bps, params.discount_cap_cents) : disc0;
+      const fin = delta ? full - disc : fin0;
       const v = cur.get(code)?.v;
       const d = v?.prime_eligible ? discountFor(v.price_cents, params.discount_bps, params.discount_cap_cents) : 0;
       if (!v || v.price_cents !== full || d !== disc || v.price_cents - d !== fin) p4.push(`${code}: calculado ${brl(v?.price_cents ?? 0)} − ${brl(d)} = ${brl((v?.price_cents ?? 0) - d)} ≠ referência ${brl(full)} − ${brl(disc)} = ${brl(fin)}`);

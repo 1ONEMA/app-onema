@@ -37,7 +37,7 @@ describe('Candidatura ONEMA ONE', () => {
     expect((await c.put('/api/specialist/application', { ...FORM, consent: false })).status).toBe(400);
     const saved = await c.put('/api/specialist/application', FORM);
     expect(saved.status).toBe(200);
-    expect(saved.body.application).toMatchObject({ status: 'RASCUNHO', cpfMasked: '***.982.247-**', missingDocuments: ['IDENTIDADE', 'COREN'] });
+    expect(saved.body.application).toMatchObject({ status: 'RASCUNHO', cpfMasked: '***.982.247-**', missingDocuments: ['FOTO', 'IDENTIDADE', 'COREN', 'DIPLOMA_FRENTE', 'DIPLOMA_VERSO'] });
     expect(JSON.stringify(saved.body)).not.toContain('52998224725');
     // CPF criptografado no banco (nem o número nem o formato aparecem); salvar de novo sem redigitar mantém o CPF
     const stored = await one<any>(`SELECT cpf, cpf_hash FROM specialist_applications`);
@@ -52,7 +52,9 @@ describe('Candidatura ONEMA ONE', () => {
     expect((await upload(c, 'IDENTIDADE', 'application/pdf', Buffer.from('<html><script>alert(1)</script></html>'))).body.error.code).toBe('FILE_TYPE');
     expect([400, 413]).toContain((await upload(c, 'IDENTIDADE', 'application/pdf', Buffer.alloc(5 * 1024 * 1024 + 10))).status);
     expect((await upload(c, 'IDENTIDADE')).status).toBe(200);
+    for (const k of ['FOTO', 'DIPLOMA_FRENTE', 'DIPLOMA_VERSO', 'CERTIFICADO', 'CERTIFICADO']) expect((await upload(c, k)).status).toBe(200);
     expect((await upload(c, 'COREN', 'image/png', Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]))).body.application.missingDocuments).toEqual([]);
+    expect((await c.get('/api/specialist/application')).body.application.documents.filter((d: any) => d.kind === 'CERTIFICADO')).toHaveLength(2);
     const sent = await c.post('/api/specialist/application/submit');
     expect(sent.body.application.status).toBe('ENVIADA');
     expect((await c.put('/api/specialist/application', FORM)).status).toBe(409); // bloqueada durante a análise

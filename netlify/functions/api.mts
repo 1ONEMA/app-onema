@@ -105,13 +105,15 @@ export default async (req: Request, context: Context) => {
     const headers: Record<string, string> = {};
     req.headers.forEach((v, k) => { headers[k] = v; });
     headers.host = url.host; // endereço realmente acessado (domínio próprio, www ou .netlify.app), usado na checagem de Origin
-    const res = await app.inject({
+    const { requestContext } = await import('../../server/src/lib/background.ts');
+    const payload = hasBody ? Buffer.from(await req.arrayBuffer()) : undefined;
+    const res = await requestContext.run({ waitUntil: (p) => context.waitUntil(p) }, () => app.inject({
       method: req.method as any,
       url: url.pathname + url.search,
       headers,
-      payload: hasBody ? Buffer.from(await req.arrayBuffer()) : undefined,
+      payload,
       remoteAddress: context.ip,
-    });
+    }));
     const out = new Headers();
     for (const [k, v] of Object.entries(res.headers)) {
       if (v == null || k === 'content-length' || k === 'transfer-encoding' || k === 'connection') continue;

@@ -37,10 +37,13 @@ function form(itemCode: string, extra: Record<string, unknown> = {}) {
 }
 /** Especialista inicia com o código do paciente, assina a evolução e conclui o atendimento. */
 export const EVO = { relato: 'Paciente refere melhora da dor.', sinaisVitais: 'PA 120x80 mmHg.', avaliacao: 'Ferida limpa, bordas regulares.', procedimentos: 'Realizado curativo simples.', orientacoes: 'Manter curativo seco.', plano: 'Reavaliar em 48 h.', observacoes: '', pendencias: [] };
-async function finishVisit(sp: Client, eventId: string) {
+async function finishVisit(sp: Client, eventId: string, pt: Client) {
   const ev = await one<any>('SELECT visit_code, modality FROM care_events WHERE id = ?', eventId);
   if (ev.modality === 'PRESENCIAL') expect((await sp.post(`/api/care/specialist/events/${eventId}/start`, { code: ev.visit_code })).status).toBe(200);
   expect((await sp.post(`/api/care/specialist/events/${eventId}/evolution/sign`, { content: EVO, confirm: true })).status).toBe(200);
+  // sem a assinatura do paciente/responsável a especialista não conclui (o repasse não começa)
+  expect((await sp.post(`/api/care/specialist/events/${eventId}/complete`)).body.error.code).toBe('PATIENT_SIGNATURE_REQUIRED');
+  expect((await pt.post(`/api/care/events/${eventId}/sign`, { name: 'Paciente Fictício', confirm: true })).status).toBe(200);
   expect((await sp.post(`/api/care/specialist/events/${eventId}/complete`)).status).toBe(200);
 }
 
@@ -213,14 +216,20 @@ describe('P06 — Pedido falhou / estorno', () => {
     const sp = new Client(app); await sp.login(emailOf('especialistaOne'));
     const first = (await sp.get('/api/care/specialist/offers')).body.offers[0];
     await sp.post(`/api/care/specialist/events/${first.id}/accept`);
-    await finishVisit(sp, first.id);
+    await finishVisit(sp, first.id, c);
     const fin = await loginAs(app, 'financeiro');
     const ref = await fin.post(`/api/admin/care/orders/${ok.body.order.id}/refund`, { reason: 'Teste de estorno (homologação)' });
     expect(ref.status).toBe(200);
+    // um ato já realizado: vai para análise com memória de cálculo (sem estorno automático)
+    expect(ref.body.refund).toMatchObject({ status: 'EM_ANALISE', actsTotal: 4, actsDone: 1, actsCancelled: 3, paidCents: 70990 });
+    expect(ref.body.refund.calcMemo.join(' ')).toMatch(/Saldo a devolver/);
     const twice = await fin.post(`/api/admin/care/orders/${ok.body.order.id}/refund`, { reason: 'Repetição' });
     expect(twice.status).toBe(409);
+    const dec = await fin.post(`/api/admin/finance/refunds/${ref.body.refund.id}/decide`, { approve: true, note: 'Saldo conforme memória de cálculo.' });
+    expect(dec.body.refund).toMatchObject({ status: 'DEVOLVIDO', amountCents: ref.body.refund.suggestedCents });
     const ord = await one<any>('SELECT * FROM service_orders WHERE id = ?', ok.body.order.id);
-    expect(ord.status).toBe('REFUNDED');
+    expect(ord.status).toBe('PAID'); // parcial: o pedido segue pago pelo ato realizado
+    expect(ord.refunded_cents).toBe(ref.body.refund.suggestedCents);
     const payouts = await all<any>('SELECT status FROM payout_entries WHERE order_id = ?', ord.id);
     expect(payouts.filter((p) => p.status === 'A_LIQUIDAR')).toHaveLength(1); // ato já realizado mantém o repasse
     expect(payouts.filter((p) => p.status === 'CANCELADO')).toHaveLength(3);
@@ -453,7 +462,7 @@ describe('Especialista e avaliações por estrelas', () => {
     expect((await sp.post(`/api/care/specialist/events/${ev.id}/accept`)).status).toBe(200);
     expect((await sp.post(`/api/care/specialist/events/${ev.id}/accept`)).status).toBe(409);
     expect((await c.post(`/api/care/events/${ev.id}/review`, { stars: 5 })).status).toBe(422);
-    await finishVisit(sp, ev.id);
+    await finishVisit(sp, ev.id, c);
     expect((await c.post(`/api/care/events/${ev.id}/review`, { stars: 4, comment: 'Atencioso.', nps: 10 })).status).toBe(200);
     expect((await one<any>('SELECT score FROM nps_responses')).score).toBe(10);
     expect((await c.post(`/api/care/events/${ev.id}/review`, { stars: 5 })).status).toBe(409);
@@ -473,7 +482,9 @@ describe('Kary', () => {
     const p = await karyReply('quanto custa curativo simples?');
     expect(p.kind).toBe('PRECO');
     expect(p.text).not.toMatch(/R\$|\d+,\d{2}|repasse/);
-    for (const q of ['o que é o prime?', 'monitoramento mensal', 'pacote pós-alta 7 dias', 'oi']) expect((await karyReply(q)).text).not.toMatch(/R\$/);
+    for (const q of ['monitoramento mensal', 'pacote pós-alta 7 dias', 'oi']) expect((await karyReply(q)).text).not.toMatch(/R\$/);
+    // PRIME: valores podem aparecer, sempre com a regra única
+    expect((await karyReply('o que é o prime?')).text).toContain('5% de desconto, limitado a R$ 20, em um pedido elegível por ciclo mensal. Pacotes recebem o desconto uma vez.');
     const r = await new Client(app).post('/api/kary/chat', { message: 'oi' });
     expect(r.status).toBe(200);
     expect(r.body.kind).toBe('SAUDACAO');

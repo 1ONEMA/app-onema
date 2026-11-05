@@ -77,3 +77,9 @@ Nenhuma destas pendências foi preenchida por suposição. O sistema exibe a pen
 ## Validações que dependem da ONEMA SAÚDE
 
 Validação clínica, jurídica (CDC art. 49, Decreto 7.962/2013, LGPD, Resoluções Cofen citadas), de privacidade (DPO), acessibilidade WCAG formal, testes de carga/SLO, pentest e testes em dispositivos reais iOS/Android.
+
+## Ajustes pós-testes (04/11/2026) — o que depende da ONEMA
+- **POP, LifeScore e TeleEnfermagem:** os arquivos estão em pastas do Google Drive sem acesso para o desenvolvimento. Enviar os documentos (PDF/Word) para implementar. A Carteira já tem o espaço do LifeScore aguardando a metodologia.
+- **Kary (evolução por IA):** conferir créditos e a chave da Anthropic no painel; a tela agora mostra o motivo exato quando a IA falha.
+- **Encarregado de dados (DPO):** nome e contato para a página LGPD. Prazos fiscais e de documentos de candidatura: confirmar com contador/jurídico (prontuário: 20 anos, já publicado).
+- **Asaas:** ver `ASAAS.md` › Pacote financeiro v1.0 (eventos de webhook novos, permissão de transferência no Sandbox, contador/NFS-e, Portão D).

@@ -21,7 +21,7 @@ export function CredentialingPage() {
             <div className="table-wrap" tabIndex={0}><table><thead><tr><th>Especialista</th><th>Elegível ONEMA ONE</th><th>Jornada</th><th>Conclusão</th><th>Decisão</th><th /></tr></thead>
               <tbody>{data.partners.map((p: any) => <tr key={p.id}><td>{p.name}<br /><span className="small muted">{p.email}</span></td><td>{p.academy_eligible ? 'Sim' : 'Não'}</td><td>{label(p.journey_state ?? 'NAO_INICIADA')}</td><td>{date(p.completed_at)}</td>
                 <td><Badge tone={p.credentialing_decision === 'APTO' ? '' : p.credentialing_decision === 'NAO_APTO' ? 'red' : 'orange'}>{label(p.credentialing_decision ?? 'PENDENTE')}</Badge>{p.decided_at && <div className="small muted">{dateTime(p.decided_at)}</div>}</td>
-                <td>{has('CREDENCIAMENTO') && p.journey_state && <Button className="sm secondary" onClick={() => { setSel(p); setF({ decision: p.credentialing_decision ?? 'PENDENTE', note: '', otherGatesConfirmed: false }); }}>Registrar decisão</Button>}</td></tr>)}</tbody></table></div>
+                <td>{has('CREDENCIAMENTO', 'ADMIN_ACADEMY') && p.journey_state && <Button className="sm secondary" onClick={() => { setSel(p); setF({ decision: p.credentialing_decision ?? 'PENDENTE', note: '', otherGatesConfirmed: false }); }}>Registrar decisão</Button>}</td></tr>)}</tbody></table></div>
           )}
         </section>
       )}
@@ -106,7 +106,7 @@ const APP_STATUS: Record<string, { label: string; tone: string }> = {
   ENVIADA: { label: 'Aguardando análise', tone: 'orange' }, PENDENCIA: { label: 'Pendência com a candidata', tone: 'orange' },
   APROVADA: { label: 'Aprovada · Academy liberada', tone: '' }, RECUSADA: { label: 'Recusada', tone: 'red' },
 };
-const DOC_LABEL: Record<string, string> = { IDENTIDADE: 'Identidade', COREN: 'COREN', COMPROVANTE_ENDERECO: 'Comprovante de endereço', OUTRO: 'Outro' };
+const DOC_LABEL: Record<string, string> = { FOTO: 'Foto', IDENTIDADE: 'Identidade', COREN: 'COREN', DIPLOMA_FRENTE: 'Diploma (frente)', DIPLOMA_VERSO: 'Diploma (verso)', CERTIFICADO: 'Certificado', COMPROVANTE_ENDERECO: 'Comprovante de endereço', OUTRO: 'Outro' };
 
 /** Candidaturas ONEMA ONE: conferência de identidade, COREN e documentos (decisão humana). */
 function ApplicationsSection() {
@@ -133,7 +133,7 @@ function ApplicationsSection() {
                 : <span key={d.id} className="badge dark">{DOC_LABEL[d.kind]}</span>
             ))}</div>
             {a.decisionNote && <div className="small muted">Última decisão: {a.decisionNote}</div>}
-            {has('CREDENCIAMENTO') && a.status === 'ENVIADA' && <Button className="sm secondary mt" onClick={() => { setSel(a); setF({ decision: 'APROVADA', note: '', identityAndCorenVerified: false }); }}>Analisar</Button>}
+            {has('CREDENCIAMENTO', 'ADMIN_ACADEMY') && a.status === 'ENVIADA' && <Button className="sm secondary mt" onClick={() => { setSel(a); setF({ decision: 'APROVADA', note: '', identityAndCorenVerified: false }); }}>Analisar</Button>}
           </li>
         ))}</ul>
       )}

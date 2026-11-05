@@ -6,6 +6,9 @@ import { DEMO_PASSWORD, DEMO_USERS, seedDemo } from '../src/db/seed.ts';
 import { openField, resetRateLimits, totp } from '../src/lib/security.ts';
 import { randomToken } from '../src/lib/util.ts';
 
+// Homologação da tabela v1 (P01–P15): o reajuste de nov/2026 é testado à parte em pricing-v2.test.ts.
+process.env.PRICING_V2_DISABLED ??= '1';
+
 let migrated = false;
 /** Um banco PGlite em memória por arquivo de teste; cada teste começa com dados limpos + seed de demonstração. */
 export async function setup() {

@@ -40,11 +40,23 @@ Regras obrigatórias:
 
 let client: Anthropic | null = null;
 
-/** Organiza o ditado. Devolve null quando a IA não está configurada, recusa ou não responde a tempo. */
-export async function organizeDictation(dictation: string, context: { act: string; modality: string }): Promise<Evolution | null> {
-  if (!evolutionAiEnabled()) return null;
-  // Uma chamada por requisição, dentro do limite de tempo da Function; sem novas tentativas automáticas.
-  client ??= new Anthropic({ timeout: 8_500, maxRetries: 0 });
+/** Motivo de falha mostrado à enfermeira e à equipe (sem detalhes técnicos sensíveis). */
+export type OrganizeFailure = 'NAO_CONFIGURADA' | 'SEM_CREDITO' | 'CHAVE_INVALIDA' | 'TEMPO_ESGOTADO' | 'RECUSA' | 'LIMITE' | 'INDISPONIVEL';
+export const FAILURE_TEXT: Record<OrganizeFailure, string> = {
+  NAO_CONFIGURADA: 'Organização por IA ainda não configurada (falta a chave ANTHROPIC_API_KEY no servidor).',
+  SEM_CREDITO: 'A conta da IA (Anthropic) está sem créditos. Adicione créditos em console.anthropic.com → Billing.',
+  CHAVE_INVALIDA: 'A chave da IA (ANTHROPIC_API_KEY) é inválida ou foi revogada. Gere uma nova em console.anthropic.com.',
+  TEMPO_ESGOTADO: 'A IA demorou mais que o permitido para responder. Tente de novo; se repetir, preencha manualmente.',
+  RECUSA: 'A IA não organizou este ditado. Preencha as seções manualmente.',
+  LIMITE: 'Limite de uso da IA atingido no momento. Tente de novo em alguns minutos.',
+  INDISPONIVEL: 'O serviço de IA está indisponível agora. Tente de novo em alguns minutos.',
+};
+
+/** Organiza o ditado em seções. Devolve a evolução ou o motivo da falha. */
+export async function organizeDictation(dictation: string, context: { act: string; modality: string }): Promise<{ evolution: Evolution } | { failure: OrganizeFailure }> {
+  if (!evolutionAiEnabled()) return { failure: 'NAO_CONFIGURADA' };
+  // Executado em segundo plano (a tela acompanha), então cabe um tempo maior que o de uma requisição comum.
+  client ??= new Anthropic({ timeout: 25_000, maxRetries: 1 });
   try {
     const res = await client.beta.messages.parse({
       model: EVOLUTION_MODEL,
@@ -55,11 +67,17 @@ export async function organizeDictation(dictation: string, context: { act: strin
       system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: `Atendimento: ${context.act} (${context.modality.toLowerCase()}).\n\nDitado da enfermeira:\n"""\n${dictation}\n"""` }],
     });
-    if (res.stop_reason === 'refusal' || !res.parsed_output) return null;
-    return res.parsed_output;
+    if (res.stop_reason === 'refusal') return { failure: 'RECUSA' };
+    if (!res.parsed_output) return { failure: 'INDISPONIVEL' };
+    return { evolution: res.parsed_output };
   } catch (e: any) {
-    if (e instanceof Anthropic.APIError) console.error('Kary evolução: erro do provedor de IA', e.status, e.message);
-    else console.error('Kary evolução: falha', e?.name ?? '', e?.message ?? '');
-    return null;
+    const failure: OrganizeFailure =
+      e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError ? 'CHAVE_INVALIDA'
+      : e instanceof Anthropic.APIConnectionTimeoutError ? 'TEMPO_ESGOTADO'
+      : e instanceof Anthropic.RateLimitError ? 'LIMITE'
+      : e instanceof Anthropic.BadRequestError && /credit balance/i.test(String(e.message)) ? 'SEM_CREDITO'
+      : 'INDISPONIVEL';
+    console.error('Kary evolução: falha', failure, e instanceof Anthropic.APIError ? e.status : '', String(e?.message ?? '').slice(0, 300));
+    return { failure };
   }
 }
