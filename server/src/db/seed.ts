@@ -5,7 +5,8 @@
  *  - seedDemo(): dados FICTÍCIOS para homologação local. Bloqueado em produção.
  */
 import { seedPricingV1, seedPricingV2 } from '../modules/care/catalog.ts';
-import { seedCafeLibrary } from '../modules/cafe/routes.ts';
+import { importCafeBatches, seedCafeLibrary } from '../modules/cafe/routes.ts';
+import { loadPops } from '../modules/pops/routes.ts';
 import { config } from '../config.ts';
 import { audit } from '../lib/audit.ts';
 import { hashPassword } from '../lib/security.ts';
@@ -109,6 +110,10 @@ export async function seedOfficial() {
     for (const d of v2.divergences) console.warn(`[precificação v2] ${d}`);
     const cafe = await seedCafeLibrary();
     if (cafe) created.push(`CAFE(${cafe})`);
+    const pops = await loadPops();
+    if (pops.inserted) created.push(`POPS(${pops.inserted})`);
+    const lote = await importCafeBatches();
+    if (lote) created.push(`CAFE_LOTE(${lote})`);
     return created;
   });
 }

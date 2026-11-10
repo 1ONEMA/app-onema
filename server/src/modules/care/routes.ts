@@ -18,6 +18,7 @@ import { PAYMENT_METHOD_KEYS, SANDBOX_METHODS, notify, quote } from '../prime/co
 import { cancelPayment } from '../../lib/asaas.ts';
 import { newVisitCode } from './visit.ts';
 import { primeActive } from './report-share.ts';
+import { patientPops } from '../pops/routes.ts';
 import { notifyRole } from '../finance/payouts.ts';
 import { careTimeline } from './timeline.ts';
 import { cpfSchema } from '../../lib/cpf.ts';
@@ -275,6 +276,8 @@ export async function careRoutes(app: FastifyInstance) {
     const receipts = await all<any>('SELECT id, kind, protocol, text, created_at FROM prime_receipts WHERE patient_id = ? ORDER BY created_at DESC LIMIT 50', a.userId);
     return {
       primeActive: await primeActive(a.userId),
+      // POPs que a especialista vinculou aos atendimentos (referência institucional; não substitui evolução).
+      pops: await patientPops(a.userId),
       upcoming: events.filter((e) => e.status === 'ACEITO' || e.status === 'DISPONIVEL'),
       done: events.filter((e) => e.status === 'CONCLUIDO'),
       pendingRequests: open.map((r) => ({ id: r.id, protocol: r.protocol, status: r.status, itemName: JSON.parse(r.quote_json).offer.name, createdAt: r.created_at })),

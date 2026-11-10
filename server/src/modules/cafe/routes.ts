@@ -2,7 +2,7 @@
  * Café com a ONEMA — devocional diário (conteúdo opcional).
  * Cada dia mostra 1 versículo com referência e 1 parágrafo autoral de reflexão.
  * Ordem de escolha: publicação da equipe para a data (publish_date) → biblioteca anual (day_key MM-DD).
- * A data é a do aparelho (virada do dia local), sem depender de atualização do aplicativo.
+ * A data é a de America/Sao_Paulo (lotes mensais entregues pela ONEMA); a tela troca na virada do dia e ao voltar ao app.
  */
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
@@ -12,13 +12,41 @@ import { parse, requireRoles } from '../../lib/context.ts';
 import { notFound } from '../../lib/errors.ts';
 import { nowIso, uid } from '../../lib/util.ts';
 import { CAFE_LIBRARY } from './library.ts';
+import CAFE_BATCH_2026_11 from '../../db/content/cafe-2026-11-07_2026-12-06.json';
+
+/** Lotes mensais entregues pela ONEMA (data editorial em America/Sao_Paulo; 2 parágrafos cada). */
+export const CAFE_BATCHES: { name: string; items: unknown[] }[] = [{ name: '2026-11-07_2026-12-06', items: CAFE_BATCH_2026_11 }];
+const batchItem = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), verse: z.string().trim().min(1), reference: z.string().trim().min(1),
+  paragraphs: z.array(z.string().trim().min(100).max(1800)).length(2), scriptureEdition: z.string().trim().min(1), sourceUrl: z.string().url(),
+}).strict();
+
+/**
+ * Importa os lotes: insere só as datas que ainda não existem (nunca sobrescreve uma data já publicada).
+ * Os parágrafos ficam separados por linha em branco no campo `reflection`.
+ */
+export async function importCafeBatches() {
+  let inserted = 0;
+  for (const b of CAFE_BATCHES) {
+    const items = z.array(batchItem).parse(b.items);
+    for (const m of items) {
+      const now = nowIso();
+      const r = await run(`INSERT INTO devotionals (id, publish_date, ref, verse, reflection, scripture_edition, source_url, batch, created_at, updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT (publish_date) DO NOTHING`, uid(), m.date, m.reference, m.verse, m.paragraphs.join('\n\n'), m.scriptureEdition, m.sourceUrl, b.name, now, now);
+      inserted += r.changes;
+    }
+  }
+  return inserted;
+}
+export const CAFE_LAST_BATCH_DATE = '2026-12-06';
+
 
 const EDITORS = ['GESTOR_CONTEUDO', 'ADMIN_PRIME', 'ADMIN_ACADEMY'] as const;
 const dateSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, 'Data inválida (AAAA-MM-DD).');
 const bodySchema = z.object({
   ref: z.string().trim().min(3, 'Informe a referência bíblica.').max(60),
   verse: z.string().trim().min(5, 'Informe o versículo.').max(400),
-  reflection: z.string().trim().min(80, 'Escreva um parágrafo de reflexão (mínimo de 80 caracteres).').max(1600),
+  reflection: z.string().trim().min(80, 'Escreva a reflexão (mínimo de 80 caracteres).').max(3800, 'Até 3.800 caracteres (dois parágrafos separados por uma linha em branco).'),
 });
 
 /** Carga idempotente da biblioteca anual (366 dias). Só insere os dias que ainda não existem. */
@@ -36,7 +64,8 @@ async function forDate(date: string) {
   const own = await one<any>('SELECT * FROM devotionals WHERE publish_date = ?', date);
   const row = own ?? await one<any>('SELECT * FROM devotionals WHERE day_key = ?', date.slice(5));
   if (!row) return null;
-  return { date, ref: row.ref, verse: row.verse, reflection: row.reflection, source: own ? 'PUBLICACAO' : 'BIBLIOTECA' };
+  const paragraphs = String(row.reflection).split(/\n\s*\n/).map((x: string) => x.trim()).filter(Boolean);
+  return { date, ref: row.ref, verse: row.verse, reflection: row.reflection, paragraphs, scriptureEdition: row.scripture_edition ?? null, source: own ? 'PUBLICACAO' : 'BIBLIOTECA' };
 }
 
 export async function cafeRoutes(app: FastifyInstance) {

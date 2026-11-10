@@ -783,3 +783,8 @@ h3 { font-weight: 600; letter-spacing: -0.01em; }
 .sign-card { display: grid; gap: 8px; margin: 10px 0; padding: 14px; border-radius: 14px; border: 1px solid var(--deep); background: #F6F9FF; }
 .sign-card .field { display: grid; gap: 4px; }
 .sp-photo { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid var(--line); margin: 6px 0; }
+
+/* POPs: sugestões em botões compactos */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.chip { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 8px 12px; font-size: 13px; min-height: 40px; text-align: left; cursor: pointer; }
+.chip.active { background: var(--deep); color: #fff; border-color: var(--deep); }

@@ -85,6 +85,7 @@ function SpecialistArea() {
         <div className="stat"><strong>{money(sum('RESERVADO'))}</strong><span>Repasses de atendimentos aceitos</span></div>
         <Link to="/especialista/repasses" className="stat"><strong>{money(sum('A_LIQUIDAR') + sum('VALIDADO') + sum('PROGRAMADO') + sum('ENVIADO'))}</strong><span>Repasses em andamento · ver meus repasses e chave Pix</span></Link>
         <Link to="/academy" className="stat"><strong><IconAward /></strong><span>ONEMA Academy · notas e certificados</span></Link>
+        {s.eligible && <Link to="/pops" className="stat"><strong><IconBook /></strong><span>Biblioteca de POPs ONEMA</span></Link>}
       </div>
       <p className="small muted">{s.note}</p>
       {!s.eligible ? (

@@ -1087,4 +1087,70 @@ ALTER TABLE bank_destinations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE care_refunds ENABLE ROW LEVEL SECURITY;
 ALTER TABLE financial_occurrences ENABLE ROW LEVEL SECURITY;
 ` },
+  { name: '019_cafe_lote_pops_lifescore', sql: `
+-- 019a: Café com a ONEMA — lotes mensais por data (2 parágrafos), com fonte e edição bíblica.
+ALTER TABLE devotionals ADD COLUMN scripture_edition TEXT;
+ALTER TABLE devotionals ADD COLUMN source_url TEXT;
+ALTER TABLE devotionals ADD COLUMN batch TEXT;
+
+-- 019b: Biblioteca institucional de POPs (v1.0, 65 documentos). Conteúdo e hash imutáveis por versão;
+-- publicação negada por padrão até a liberação do RT após homologação.
+CREATE TABLE pop_documents (
+  id TEXT PRIMARY KEY,
+  code TEXT NOT NULL,
+  version TEXT NOT NULL,
+  title TEXT NOT NULL,
+  sha256 TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  content BYTEA NOT NULL,
+  review_status TEXT NOT NULL,
+  publication_status TEXT NOT NULL CHECK (publication_status IN ('BLOQUEADO','PUBLICADO','SUSPENSO')),
+  effective_from TEXT,
+  status_note TEXT,
+  status_by TEXT REFERENCES users(id),
+  status_at TEXT,
+  created_at TEXT NOT NULL,
+  UNIQUE (code, version)
+);
+CREATE TABLE pop_catalog_candidates (
+  item_code TEXT NOT NULL,
+  pop_code TEXT NOT NULL,
+  package_key TEXT NOT NULL,
+  mapping_status TEXT NOT NULL,
+  PRIMARY KEY (item_code, pop_code)
+);
+-- Vínculo do POP ao atendimento (registro na Carteira): versão exata usada, autora, horário e justificativa.
+CREATE TABLE care_event_pops (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL REFERENCES care_events(id),
+  order_id TEXT NOT NULL REFERENCES service_orders(id),
+  patient_id TEXT NOT NULL REFERENCES users(id),
+  specialist_id TEXT NOT NULL REFERENCES users(id),
+  pop_document_id TEXT NOT NULL REFERENCES pop_documents(id),
+  pop_code TEXT NOT NULL,
+  pop_version TEXT NOT NULL,
+  pop_sha256 TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  execution_status TEXT NOT NULL DEFAULT 'SELECIONADO_NAO_EXECUTADO',
+  created_at TEXT NOT NULL,
+  UNIQUE (event_id, pop_document_id)
+);
+CREATE INDEX ix_care_event_pops_patient ON care_event_pops(patient_id, created_at);
+CREATE FUNCTION onema_pop_immutable() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $f$
+BEGIN
+  IF TG_OP = 'DELETE' THEN RAISE EXCEPTION 'pop document immutable'; END IF;
+  IF NEW.content IS DISTINCT FROM OLD.content OR NEW.sha256 IS DISTINCT FROM OLD.sha256 OR NEW.code IS DISTINCT FROM OLD.code
+     OR NEW.version IS DISTINCT FROM OLD.version OR NEW.title IS DISTINCT FROM OLD.title THEN
+    RAISE EXCEPTION 'pop document immutable';
+  END IF;
+  RETURN NEW;
+END $f$;
+CREATE TRIGGER trg_pop_immutable BEFORE UPDATE OR DELETE ON pop_documents FOR EACH ROW EXECUTE FUNCTION onema_pop_immutable();
+CREATE FUNCTION onema_append_only() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $f$
+BEGIN RAISE EXCEPTION 'append-only record'; END $f$;
+CREATE TRIGGER trg_care_event_pops_append BEFORE UPDATE OR DELETE ON care_event_pops FOR EACH ROW EXECUTE FUNCTION onema_append_only();
+ALTER TABLE pop_documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pop_catalog_candidates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE care_event_pops ENABLE ROW LEVEL SECURITY;
+` },
 ];

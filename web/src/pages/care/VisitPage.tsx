@@ -5,6 +5,7 @@ import { useApi, useSubmit } from '../../lib/hooks';
 import { Alert, Badge, Button, ErrorState, Field, Loading, PageHeader, fieldError } from '../../ui/ui';
 import { IconCheck, IconShield } from '../../ui/icons';
 import { EVO_SECTIONS } from './WalletPage';
+import { PopPanel } from '../pops/PopsPages';
 
 type Evo = { relato: string; sinaisVitais: string; avaliacao: string; procedimentos: string; orientacoes: string; plano: string; observacoes: string; pendencias: string[] };
 const EMPTY: Evo = { relato: '', sinaisVitais: '', avaliacao: '', procedimentos: '', orientacoes: '', plano: '', observacoes: '', pendencias: [] };
@@ -177,6 +178,7 @@ export function VisitPage() {
           </>
         )}
       </section>
+      <PopPanel eventId={id!} active={['ACEITO', 'CONCLUIDO'].includes(e.status)} />
       <p className="small"><Link to="/especialista#ofertas">Voltar aos meus atendimentos</Link></p>
     </div>
   );

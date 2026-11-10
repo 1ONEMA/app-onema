@@ -79,6 +79,15 @@ export function WalletPage() {
           ))}</ul>
         )}
       </section>
+      {data.pops?.length > 0 && (
+        <section className="surface">
+          <h2><IconDoc /> Protocolos usados no seu cuidado</h2>
+          <p className="small muted">POPs da ONEMA que a especialista usou como referência. Não substituem a evolução nem prescrições.</p>
+          <ul className="list">{data.pops.map((p: any, i: number) => (
+            <li key={i}><strong>{p.code}</strong> {p.title} <span className="small muted">· versão {p.version} · {p.label} · {p.specialist} · {dateTime(p.created_at)}</span></li>
+          ))}</ul>
+        </section>
+      )}
       <section className="surface lifescore">
         <h2><IconHeart /> LifeScore ONEMA</h2>
         <p className="mb0 muted">Em breve: um indicador do seu cuidado ao longo do tempo, calculado a partir dos atendimentos registrados. Ele aparecerá aqui assim que a metodologia for validada pela equipe clínica ONEMA.</p>

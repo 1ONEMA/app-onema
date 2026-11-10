@@ -8,6 +8,8 @@ import { randomToken } from '../src/lib/util.ts';
 
 // Homologação da tabela v1 (P01–P15): o reajuste de nov/2026 é testado à parte em pricing-v2.test.ts.
 process.env.PRICING_V2_DISABLED ??= '1';
+// Biblioteca de POPs (3 MB de PDFs) carregada só no teste próprio.
+process.env.POPS_DISABLED ??= '1';
 
 let migrated = false;
 /** Um banco PGlite em memória por arquivo de teste; cada teste começa com dados limpos + seed de demonstração. */
