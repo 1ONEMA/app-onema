@@ -1152,5 +1152,118 @@ CREATE TRIGGER trg_care_event_pops_append BEFORE UPDATE OR DELETE ON care_event_
 ALTER TABLE pop_documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pop_catalog_candidates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE care_event_pops ENABLE ROW LEVEL SECURITY;
+
+-- 019c: ONEMA Life Score v1.6 (índice descritivo de 24 itens confirmados pela enfermeira).
+CREATE TABLE lifescore_assessments (
+  id TEXT PRIMARY KEY,
+  patient_id TEXT NOT NULL REFERENCES users(id),
+  event_id TEXT NOT NULL REFERENCES care_events(id),
+  order_id TEXT NOT NULL REFERENCES service_orders(id),
+  specialist_id TEXT NOT NULL REFERENCES users(id),
+  model_id TEXT NOT NULL,
+  model_hash TEXT NOT NULL,
+  app_build TEXT NOT NULL,
+  episode_id TEXT NOT NULL,
+  task_set_id TEXT NOT NULL,
+  measurement_context_id TEXT NOT NULL,
+  environment TEXT NOT NULL CHECK (environment IN ('HOMOLOGATION','PRODUCTION')),
+  synthetic INTEGER NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('RASCUNHO','PUBLICADA','RETIFICADA','ENCERRADA_SEM_SCORE')),
+  responses_json TEXT NOT NULL DEFAULT '{}',
+  result_json TEXT,
+  calculation_status TEXT,
+  score_raw DOUBLE PRECISION,
+  score_display TEXT,
+  safety_level TEXT,
+  interpretation TEXT,
+  patient_summary TEXT,
+  plan_kind TEXT CHECK (plan_kind IN ('RETORNO','SEM_RETORNO','DEFINIR_DEPOIS')),
+  plan_date TEXT,
+  plan_justification TEXT,
+  plan_status TEXT CHECK (plan_status IN ('VIGENTE','AGENDADO','RECUSADO','SUBSTITUIDO','ENCERRADO_SEM_RESPOSTA','CANCELADO')),
+  plan_status_at TEXT,
+  reminders_opt_out INTEGER NOT NULL DEFAULT 0,
+  supersedes_id TEXT REFERENCES lifescore_assessments(id),
+  superseded_by TEXT,
+  rectification_reason TEXT,
+  close_reason TEXT,
+  revision INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  published_at TEXT
+);
+CREATE INDEX ix_lifescore_patient ON lifescore_assessments(patient_id, published_at);
+CREATE UNIQUE INDEX uq_lifescore_draft_event ON lifescore_assessments(event_id) WHERE status = 'RASCUNHO';
+-- Publicada é imutável: só o encadeamento de retificação e a situação do plano podem mudar.
+CREATE FUNCTION onema_lifescore_published() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $f$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    IF OLD.status <> 'RASCUNHO' THEN RAISE EXCEPTION 'lifescore assessment immutable'; END IF;
+    RETURN OLD;
+  END IF;
+  IF OLD.status IN ('PUBLICADA','RETIFICADA','ENCERRADA_SEM_SCORE') AND (
+     NEW.responses_json IS DISTINCT FROM OLD.responses_json OR NEW.result_json IS DISTINCT FROM OLD.result_json
+     OR NEW.score_raw IS DISTINCT FROM OLD.score_raw OR NEW.score_display IS DISTINCT FROM OLD.score_display
+     OR NEW.interpretation IS DISTINCT FROM OLD.interpretation OR NEW.patient_summary IS DISTINCT FROM OLD.patient_summary
+     OR NEW.plan_kind IS DISTINCT FROM OLD.plan_kind OR NEW.plan_date IS DISTINCT FROM OLD.plan_date
+     OR NEW.published_at IS DISTINCT FROM OLD.published_at OR NEW.specialist_id IS DISTINCT FROM OLD.specialist_id
+     OR (OLD.status <> NEW.status AND NOT (OLD.status = 'PUBLICADA' AND NEW.status = 'RETIFICADA'))) THEN
+    RAISE EXCEPTION 'lifescore assessment immutable';
+  END IF;
+  RETURN NEW;
+END $f$;
+CREATE TRIGGER trg_lifescore_published BEFORE UPDATE OR DELETE ON lifescore_assessments FOR EACH ROW EXECUTE FUNCTION onema_lifescore_published();
+
+-- Preocupação de segurança registrada pela enfermeira: persiste independentemente do score.
+CREATE TABLE lifescore_safety_events (
+  id TEXT PRIMARY KEY,
+  patient_id TEXT NOT NULL REFERENCES users(id),
+  event_id TEXT NOT NULL REFERENCES care_events(id),
+  specialist_id TEXT NOT NULL REFERENCES users(id),
+  level TEXT NOT NULL CHECK (level IN ('IMMEDIATE','PRIORITY')),
+  reason TEXT NOT NULL,
+  occurred_at TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  handled_by TEXT REFERENCES users(id),
+  handled_at TEXT,
+  handled_note TEXT
+);
+CREATE INDEX ix_lifescore_safety_open ON lifescore_safety_events(handled_at, created_at);
+
+-- Lembretes PRIME do plano humano (até 3 contatos: D-7, D, D+7 às 9h de São Paulo).
+CREATE TABLE lifescore_reminders (
+  id TEXT PRIMARY KEY,
+  assessment_id TEXT NOT NULL REFERENCES lifescore_assessments(id),
+  patient_id TEXT NOT NULL REFERENCES users(id),
+  plan_date TEXT NOT NULL,
+  wave INTEGER NOT NULL,
+  scheduled_at TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('PROGRAMADO','EM_PROCESSAMENTO','ENVIADO','FALHOU','CANCELADO','PULADO','ENCERRADO')),
+  status_reason TEXT,
+  app_sent_at TEXT,
+  email_status TEXT,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at TEXT,
+  last_error TEXT,
+  updated_at TEXT NOT NULL,
+  UNIQUE (assessment_id, wave)
+);
+CREATE INDEX ix_lifescore_reminders_due ON lifescore_reminders(status, scheduled_at);
+
+-- Liberação operacional (homologação + aprovação do RT) assinada no servidor; revogável.
+CREATE TABLE lifescore_releases (
+  id TEXT PRIMARY KEY,
+  payload TEXT NOT NULL,
+  signature TEXT NOT NULL,
+  created_by TEXT NOT NULL REFERENCES users(id),
+  created_at TEXT NOT NULL,
+  revoked_at TEXT,
+  revoked_by TEXT REFERENCES users(id),
+  revoke_reason TEXT
+);
+ALTER TABLE lifescore_assessments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lifescore_safety_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lifescore_reminders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lifescore_releases ENABLE ROW LEVEL SECURITY;
 ` },
 ];

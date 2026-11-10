@@ -7,6 +7,7 @@ import { dateTime } from '../../lib/format';
 import { Alert, Badge, Empty, ErrorState, Loading } from '../../ui/ui';
 import { IconCalendar, IconCheck, IconDoc, IconHeart, IconStar } from '../../ui/icons';
 import { REQ_STATUS } from './OrdersPages';
+import { MyFollowupCard } from '../lifescore/LifeScorePages';
 
 const WHEN: Record<string, string> = { AGORA: 'Agora', HOJE: 'Hoje', PROXIMOS_DIAS: 'Nos próximos dias', AGENDAR: 'Data agendada' };
 
@@ -88,10 +89,7 @@ export function WalletPage() {
           ))}</ul>
         </section>
       )}
-      <section className="surface lifescore">
-        <h2><IconHeart /> LifeScore ONEMA</h2>
-        <p className="mb0 muted">Em breve: um indicador do seu cuidado ao longo do tempo, calculado a partir dos atendimentos registrados. Ele aparecerá aqui assim que a metodologia for validada pela equipe clínica ONEMA.</p>
-      </section>
+      <MyFollowupCard />
       <Referral />
       <section className="surface">
         <h2><IconDoc /> Comprovantes</h2>

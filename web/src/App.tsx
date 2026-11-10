@@ -39,6 +39,7 @@ import { ReportSharesPage, WalletPage } from './pages/care/WalletPage';
 import { ReportPage } from './pages/public/ReportPage';
 import { MyPayoutsPage } from './pages/care/MyPayoutsPage';
 import { PopsLibraryPage } from './pages/pops/PopsPages';
+import { MyFollowupPage, SpecialistLifeScorePage } from './pages/lifescore/LifeScorePages';
 
 function RequireAuth({ children, roles }: { children: ReactNode; roles?: Role[] }) {
   const { me, loading, error, has } = useAuth();
@@ -84,6 +85,8 @@ export default function App() {
       <Route path="/plataforma" element={<Layout><PlatformPage /></Layout>} />
       <Route path="/especialista" element={<Layout><SpecialistPage /></Layout>} />
       <Route path="/especialista/atendimentos/:id" element={<RequireAuth roles={['ESPECIALISTA']}><VisitPage /></RequireAuth>} />
+      <Route path="/especialista/atendimentos/:id/lifescore" element={<RequireAuth roles={['ESPECIALISTA']}><SpecialistLifeScorePage /></RequireAuth>} />
+      <Route path="/acompanhamento" element={<RequireAuth roles={['PACIENTE']}><MyFollowupPage /></RequireAuth>} />
       <Route path="/pops" element={<RequireAuth roles={['ESPECIALISTA', 'AVALIADOR_RT']}><PopsLibraryPage /></RequireAuth>} />
       <Route path="/especialista/repasses" element={<RequireAuth roles={['ESPECIALISTA']}><MyPayoutsPage /></RequireAuth>} />
       <Route path="/especialista/candidatura" element={<RequireAuth><ApplicationPage /></RequireAuth>} />
