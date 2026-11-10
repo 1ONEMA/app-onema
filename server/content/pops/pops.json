@@ -1,0 +1,713 @@
+{
+ "library": "ONEMA POPs",
+ "version": "1.0",
+ "effectiveFrom": "2026-11-09",
+ "reviewStatus": "RT_APROVACAO_DECLARADA_EM_CONVERSA",
+ "pops": [
+  {
+   "code": "ONEMA-POP-001",
+   "title": "Identificação Precoce e Manejo de Suspeita de Sepse no Atendimento Digital",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "6a82106c759caf7ebc893956118950ceaf19c81a8aefb95a0a00c28371416d4a",
+   "bytes": 49139
+  },
+  {
+   "code": "ONEMA-POP-002",
+   "title": "Raciocínio Clínico no Manejo da Elevação Importante da Pressão Arterial via Telenfermagem",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "52aebd8db75c280b4c3f7a3744bb3b4d940f2e24246543460566012220a656da",
+   "bytes": 49038
+  },
+  {
+   "code": "ONEMA-POP-003",
+   "title": "Conduta de Enfermagem diante de Dor Torácica Aguda — Suspeita de Síndrome Coronariana Aguda",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "285b67ec89e5de6545f045a914f69616b0742c4ba6b8ba137af25ea4b59b8916",
+   "bytes": 48973
+  },
+  {
+   "code": "ONEMA-POP-004",
+   "title": "Avaliação de Suspeita de AVC no Atendimento Digital",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "566a93f1af8d221a0ad25a4112ab45a4a10fef8847a240e53b3edafe1f02b583",
+   "bytes": 49712
+  },
+  {
+   "code": "ONEMA-POP-005",
+   "title": "Manejo de Crise Asmática e Insuficiência Respiratória Aguda",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "6748fe8c2447f1e17208851365ad67e599b7d232d2ef14f15d520b4216ab5985",
+   "bytes": 49796
+  },
+  {
+   "code": "ONEMA-POP-006",
+   "title": "Acolhimento de Crise de Ansiedade e Ataque de Pânico — Segurança e Diagnóstico Diferencial",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "acbc5d5535e73b0bc5d238553fb649899d20d0fac62d785415c5a2af5b0a1f4d",
+   "bytes": 49568
+  },
+  {
+   "code": "ONEMA-POP-007",
+   "title": "Manejo Seguro de Suspeita de Obstrução de Sonda Nasoenteral ou Gastrostomia",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "5648631f97aa2bf37c6c98847cbda5e5ccae0267a363473220a6e7aee11325c2",
+   "bytes": 51703
+  },
+  {
+   "code": "ONEMA-POP-008",
+   "title": "Conduta diante de Tração ou Deslocamento Acidental de Sonda Vesical de Demora",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "ecc3b23e2683465cac2e310e859d325a6778e8d97f4bd0b5d067e9c563c73b8b",
+   "bytes": 49760
+  },
+  {
+   "code": "ONEMA-POP-009",
+   "title": "Triagem de Complicações Infecciosas e Mecânicas em Cateter Venoso Central — PICC e Port-a-Cath",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "2e627991dd9b9954351ccaff239b68ece54784704c672952ee5992d4b06502c0",
+   "bytes": 49660
+  },
+  {
+   "code": "ONEMA-POP-010",
+   "title": "Manejo de Vazamentos e Lesões Periestomais em Colostomia/Ileostomia",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "8082f58f773b7ef631ab384b331b2de4123124921c39b5735727849a2dbe8721",
+   "bytes": 49273
+  },
+  {
+   "code": "ONEMA-POP-011",
+   "title": "Monitoramento e Segurança de Cistostomia no Domicílio",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "aa0d2540ea1b037d22b429e24a3104edbd76d20d9723a215ba2e352390c7b562",
+   "bytes": 49231
+  },
+  {
+   "code": "ONEMA-POP-012",
+   "title": "Uso Seguro de Insulina no Domicílio e Triagem de Hipo/Hiperglicemia",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "52ec4699d2b8a6125d7efa7de8fcd6a15ed8694d95f4046c25f7306076a69e00",
+   "bytes": 49479
+  },
+  {
+   "code": "ONEMA-POP-013",
+   "title": "Monitoramento e Segurança em Pacientes em Uso de Anticoagulantes",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "050f221feffc303e2d515e2b62f016d0ef6b1c4ffab045caa892aea9a9197146",
+   "bytes": 49306
+  },
+  {
+   "code": "ONEMA-POP-014",
+   "title": "Triagem de Suspeita de Reação Adversa a Medicamentos e Alergia",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "4fd10eb2b7adbfce1d4ca5ca3a0de037d84ff24267fea318aaa7b0d8bb12e759",
+   "bytes": 48821
+  },
+  {
+   "code": "ONEMA-POP-015",
+   "title": "Conciliação Medicamentosa e Prevenção de Discrepâncias no Atendimento ONEMA",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "044aa1d1e9ffb231a006936f7c768e8d0945ba45343790718deffde862d913bd",
+   "bytes": 48584
+  },
+  {
+   "code": "ONEMA-POP-016",
+   "title": "Educação para o Uso Seguro de Antimicrobianos e Prevenção de Falhas Terapêuticas",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "2d483ddb885239f4f640052ff4f93f09e7f30a494dfab03ec5a21cacadd05360",
+   "bytes": 48664
+  },
+  {
+   "code": "ONEMA-POP-017",
+   "title": "Avaliação e Classificação de Lesão por Pressão",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "8cc92c9f8d7f5ff19eaef4c31e998cc96605a31ce51e8700f1440185be7556ac",
+   "bytes": 48808
+  },
+  {
+   "code": "ONEMA-POP-018",
+   "title": "Seleção Segura de Coberturas para Feridas em Granulação ou Epitelização",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "a87ab16d0ee508d587e4993cfb258cfdcab48f528e532608af0ad416ef6196b0",
+   "bytes": 48483
+  },
+  {
+   "code": "ONEMA-POP-019",
+   "title": "Manejo de Tecidos Inviáveis (Esfacelo e Necrose) e Segurança na Indicação de Desbridamento",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "55e4c94e8389920c8bb56c6274b418125858016d13e01ca9a326d7c02faa6b93",
+   "bytes": 48839
+  },
+  {
+   "code": "ONEMA-POP-020",
+   "title": "Suspeita de Infecção em Feridas e Uso Seguro de Estratégias Antimicrobianas",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "20955066eb727dd69926ef9303014fc43c1db3cc7788d1a6fb08c3fa0be6f5b8",
+   "bytes": 48803
+  },
+  {
+   "code": "ONEMA-POP-021",
+   "title": "Prevenção e Manejo da Dermatite Associada à Incontinência",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "d1e3016cbd4274d91ea5d6c1442e6fdfa5454ecf58d4aaf53557c6c95e36afc6",
+   "bytes": 48541
+  },
+  {
+   "code": "ONEMA-POP-022",
+   "title": "Triagem de Sinais de Alerta para Pré-Eclâmpsia e Complicações Hipertensivas da Gestação",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "5df38eaf8d5fdfc429c6aee29a99abcaa2d3bac2ca25b57473d0616ee638fd0f",
+   "bytes": 48951
+  },
+  {
+   "code": "ONEMA-POP-023",
+   "title": "Apoio ao Aleitamento — Fissuras Mamilares e Ingurgitamento",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "0c7a5ac2e5c5f59a6801996ba4c8870738944715f267af90c93e87ae4f43fc06",
+   "bytes": 48474
+  },
+  {
+   "code": "ONEMA-POP-024",
+   "title": "Cuidados Gerais com o Recém-Nascido — Coto Umbilical e Triagem de Icterícia",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "c7e534bbb1a951140b32eea652c3b68cd26112ea78ea14c711a6aa7da382d5c3",
+   "bytes": 48970
+  },
+  {
+   "code": "ONEMA-POP-025",
+   "title": "Acolhimento e Estabilização Inicial em Crise Aguda de Ansiedade/Pânico",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "2e67c2a56e3fbfab928ac322770882712c8d5ead9fcb78d4f8cf92003e010a01",
+   "bytes": 48556
+  },
+  {
+   "code": "ONEMA-POP-026",
+   "title": "Acolhimento de Sintomas Depressivos e Rastreamento de Gravidade",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "f0fb2f74b5d7a3281f7aa51637b00a2fe4a28d8f67521f515b5ca2a333f63f2c",
+   "bytes": 48454
+  },
+  {
+   "code": "ONEMA-POP-027",
+   "title": "Segurança na Avaliação de Risco de Suicídio e Plano de Segurança em Telenfermagem",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "d7a734e60621a18d7d5c4192dbb2621b69a0b2c60a4a598798e6f4dfb713c5e2",
+   "bytes": 48715
+  },
+  {
+   "code": "ONEMA-POP-028",
+   "title": "Monitoramento do Idoso com Diabetes e Rastreamento do Pé em Risco",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "b478c9c01ddd9a32fc071c791c61e7f470975ad5923006a51578afb8fff4e921",
+   "bytes": 48526
+  },
+  {
+   "code": "ONEMA-POP-029",
+   "title": "Monitoramento da Hipertensão Arterial Crônica e Reconhecimento de Descompensação",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "4b26f2b7f7c440c147e9a90235ed4931209ac55e4d5edd41caa46cbb6158dbae",
+   "bytes": 48641
+  },
+  {
+   "code": "ONEMA-POP-030",
+   "title": "Monitoramento de Pessoa com DPOC e Triagem de Exacerbação Aguda",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "62b99719902543a98cfd53c9b5a3c1edef93e1e54f68b5b2bf744b257d926f26",
+   "bytes": 48479
+  },
+  {
+   "code": "ONEMA-POP-031",
+   "title": "Monitoramento da Insuficiência Cardíaca Crônica e Reconhecimento de Congestão/Deterioração",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "e1e7674228daca6706edb8803ac30c1e09307872cddcef3bc73f1bf885b1adac",
+   "bytes": 49455
+  },
+  {
+   "code": "ONEMA-POP-032",
+   "title": "Educação e Monitoramento na Doença Renal Crônica em Tratamento Conservador",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "81c8712859aecd5090d0a1c040e29f805e69c0700953b296f60d49bf348fd973",
+   "bytes": 49264
+  },
+  {
+   "code": "ONEMA-POP-033",
+   "title": "Avaliação da Dor e Integração ao Processo de Enfermagem",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "87e68ed3df2843c87a8b388d9f2a2f11a5c0907f8a1a492ee7b7a3716e4dbbac",
+   "bytes": 49135
+  },
+  {
+   "code": "ONEMA-POP-034",
+   "title": "Manejo de Náuseas e Vômitos Refratários em Cuidados Paliativos",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "786cf57bacc167fc177107da26d5a1eabb9962d0f46f6132109317805fec159b",
+   "bytes": 49279
+  },
+  {
+   "code": "ONEMA-POP-035",
+   "title": "Abordagem da Dispneia e Conforto Respiratório no Fim da Vida",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "94e31ad1045827acfcf34e2976891667143b7e8015dce5c3a584c09c5e9b2c2a",
+   "bytes": 49354
+  },
+  {
+   "code": "ONEMA-POP-036",
+   "title": "Manejo do Estertor Respiratório no Processo de Morte e Apoio à Família",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "e7585644d4e66b2c9aa800eae3a10657ad3f1a4500921e2df1428857168189ec",
+   "bytes": 49190
+  },
+  {
+   "code": "ONEMA-POP-037",
+   "title": "Reconhecimento do Processo Ativo de Morte, Conforto e Fluxo Seguro no Óbito Domiciliar",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "3710a3d3a93e36911ba29adaeb444d0761613ba00822fabb97b417e517139d4c",
+   "bytes": 49371
+  },
+  {
+   "code": "ONEMA-POP-038",
+   "title": "Registro da Consulta de Enfermagem no Prontuário Eletrônico ONEMA",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "0490d58c81bb90d4fbb5ccfa4d96126d0e2d21119827da020dc78f32635519a1",
+   "bytes": 49069
+  },
+  {
+   "code": "ONEMA-POP-039",
+   "title": "Privacidade, Sigilo e Proteção de Dados na Saúde Digital ONEMA",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "69c0a7e3fcf49e09123747ea8c0498f6e9fb1e6b1a9132ea5ceaa8ed1990101f",
+   "bytes": 49184
+  },
+  {
+   "code": "ONEMA-POP-040",
+   "title": "Notificação de Agravos, Violências e Eventos de Interesse em Saúde Pública",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "06add6e168e23ce2ef860b3a6e3c4d81e9acc03aaf6ecbc2ea47be95a55b35d6",
+   "bytes": 49426
+  },
+  {
+   "code": "ONEMA-POP-041",
+   "title": "Gerenciamento Ético de Recusa, Desacato, Assédio e Ruptura da Relação Assistencial",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "76d6cc054eeb571e1c0b8bcefdd20d8c1f5d3156444be9c3398f2cc82bee6401",
+   "bytes": 48611
+  },
+  {
+   "code": "ONEMA-POP-042",
+   "title": "Registro de Intercorrências Técnicas e Falhas de Conectividade",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "8f66a9f27679a070cd516996e704c764a4aecaf4655ee5bc428b14f2ac980f15",
+   "bytes": 48674
+  },
+  {
+   "code": "ONEMA-POP-043",
+   "title": "Classificação de Risco Digital ONEMA — Protocolo Institucional em Desenvolvimento",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "ff5267611811808c3bc8180f0da3b3251c590483ad777e5b610edfb8e4fd7f61",
+   "bytes": 48759
+  },
+  {
+   "code": "ONEMA-POP-044",
+   "title": "Triagem Remota de Cefaleia Aguda e Sinais de Alarme",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "422126d24906c2801059e86b61c178d154c3ef287c94b1d60857e66c9d41075e",
+   "bytes": 48584
+  },
+  {
+   "code": "ONEMA-POP-045",
+   "title": "Contingência para Intercorrência Técnica Crítica Durante Triagem",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "22edbc7a457b2481a40a1e53626e2ea0c026f11d22890479b2fd36e223c666ad",
+   "bytes": 48665
+  },
+  {
+   "code": "ONEMA-POP-046",
+   "title": "Acolhimento e Segurança diante de Suspeita de Surto Psicótico Agudo",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "cec23949e7861c84126e926f3b5f55a2f6a6a8d21998ec66d6e862409ca21d50",
+   "bytes": 48656
+  },
+  {
+   "code": "ONEMA-POP-047",
+   "title": "Triagem de Suspeita de Intoxicação Exógena por Medicamentos ou Substâncias",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "0a707394b855c60ed62610ec005fb8166bb91b1aaa08548fbbc421323f45b500",
+   "bytes": 48514
+  },
+  {
+   "code": "ONEMA-POP-048",
+   "title": "Reconhecimento e Escalonamento da Síndrome de Abstinência Alcoólica",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "7786a9e7e56d2db95bb2ff886f4c702d10f7a1ca749d78b347aebf42c6b75a0e",
+   "bytes": 48583
+  },
+  {
+   "code": "ONEMA-POP-049",
+   "title": "Suspeita de Oclusão de Cateter Venoso Central — PICC/Hickman",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "fe45fafb091acf6826a316c92befd4fe46ca5eee274ca43b3aca491e5574ee15",
+   "bytes": 48554
+  },
+  {
+   "code": "ONEMA-POP-050",
+   "title": "Segurança diante de Rompimento ou Danificação Externa de Cateter Venoso Central (PICC/Hickman)",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "ce536d45da49db820939e36307d0301c5fc349e50b298e3d6e2b661d5b8e45a2",
+   "bytes": 48574
+  },
+  {
+   "code": "ONEMA-POP-051",
+   "title": "Suspeita de Migração ou Mau Posicionamento de Cateter Central — PICC/Port-a-Cath",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "4cc7cbaed553b6ceb157dd729bd32b4a30756ebe4510d452bc6e8b0c6c3691cf",
+   "bytes": 48509
+  },
+  {
+   "code": "ONEMA-POP-052",
+   "title": "Manutenção Segura de Port-a-Cath e Reconhecimento de Possível Síndrome de Pinch-Off",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "a47a9b39c92855012790fbd9e383b0fb57a36104927a42e3bb2264d98426babc",
+   "bytes": 48425
+  },
+  {
+   "code": "ONEMA-POP-053",
+   "title": "Triagem de Suspeita de Infiltração, Extravasamento e Infecção de Loja em Port-a-Cath",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "9fb17c0776c0dd2e219609db93344ffc4209e27f54994b84ea81ffd8e7d5e380",
+   "bytes": 48414
+  },
+  {
+   "code": "ONEMA-POP-054",
+   "title": "Triagem de Obstrução de Vias Aéreas e Episódios Compatíveis com Laringoespasmo",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "eedf49ab01e25bd59f6abce61dd2cd6aae9f38fb5ef03233252fb326fe9443f6",
+   "bytes": 48465
+  },
+  {
+   "code": "ONEMA-POP-055",
+   "title": "Triagem Remota Segura de Dor Abdominal Aguda e Sinais de Alarme",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "a48057d8c0a75c94c668dd43d6c804fb0d9ae3302f3e2cad4be081355706f915",
+   "bytes": 48455
+  },
+  {
+   "code": "ONEMA-POP-056",
+   "title": "Acolhimento e Primeiros Socorros em Crise Convulsiva Presenciada por Chamada",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "f282429fea128eaed5b34cccab37d8e1a0663e7a8c5cfd274a1710c319182fe0",
+   "bytes": 48424
+  },
+  {
+   "code": "ONEMA-POP-057",
+   "title": "Manejo do Delirium Hiperativo e Agitação no Fim da Vida",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "7bb778518d04bea449a1d44a1021f3a9e322a7c2a65873f480b962953cd85054",
+   "bytes": 48353
+  },
+  {
+   "code": "ONEMA-POP-058",
+   "title": "Segurança no Uso de Hipodermóclise em Domicílio",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "4c775e56f2a4bd4acf5938f5edfd6b911d91dd46ca8d567cff3bb40d05eacd88",
+   "bytes": 48472
+  },
+  {
+   "code": "ONEMA-POP-059",
+   "title": "Suspeita de Neurotoxicidade por Opioides e Mioclonias em Cuidados Paliativos",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "e5089d0d13fe807ad40d3a7d154d3ea63c626f4c559c39f2cec24b93e137d240",
+   "bytes": 48368
+  },
+  {
+   "code": "ONEMA-POP-060",
+   "title": "Cuidado de Enfermagem em Feridas Neoplásicas Malignas — Odor, Exsudato, Sangramento e Conforto",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "d0c97fba51d49a06ab767fd78338a21af3ad85f3a373376bc2102ff616c1316d",
+   "bytes": 48402
+  },
+  {
+   "code": "ONEMA-POP-061",
+   "title": "Avaliação de Ferida Crônica de Difícil Cicatrização e Suspeita de Biofilme",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "70063a655f38f5b53da5f88d4eca22f2fd177302a7537b58a7473f6d8b637691",
+   "bytes": 48463
+  },
+  {
+   "code": "ONEMA-POP-062",
+   "title": "Triagem de Suspeita de Infecção de Pele e Partes Moles em Membros Inferiores",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "5b2e395668678fdb9bb9dca80a90ac6a76599846fdaeb9b8746913b7b1cc0c3e",
+   "bytes": 48418
+  },
+  {
+   "code": "ONEMA-POP-063",
+   "title": "Monitoramento da Dislipidemia e Segurança no Uso de Hipolipemiantes",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "01c6bdb51fc0df0c98e9dd9a5fd7bea114eb32e9fc17b8fbfa4f9a54a8a0821e",
+   "bytes": 48373
+  },
+  {
+   "code": "ONEMA-POP-064",
+   "title": "Monitoramento de Osteoartrite/Artrose e Segurança no Uso de Analgésicos/Anti-inflamatórios",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "ca961360f2a7165059a6c6bf294e65731e82acc40884ba42709bf4b396786a48",
+   "bytes": 48389
+  },
+  {
+   "code": "ONEMA-POP-065",
+   "title": "Manejo e Orientação Domiciliar na Doença do Refluxo Gastroesofágico e Prevenção de Broncoaspiração",
+   "version": "1.0",
+   "sourceVersion": "MINUTA_CONSOLIDADA_2026-11-09",
+   "sha256": "0e847a186e99d49cad4b333cafcc05654bdbb52a3d126ffa02d23cc1229210ce",
+   "bytes": 48581
+  }
+ ],
+ "candidateRules": [
+  {
+   "packageKey": "avaliacao_enfermagem",
+   "packageLabel": "Avaliação de Enfermagem",
+   "itemCodes": [
+    "CAT-01",
+    "CONT-02"
+   ],
+   "popCodes": [
+    "ONEMA-POP-001",
+    "ONEMA-POP-002",
+    "ONEMA-POP-003",
+    "ONEMA-POP-004",
+    "ONEMA-POP-005",
+    "ONEMA-POP-006",
+    "ONEMA-POP-021",
+    "ONEMA-POP-022",
+    "ONEMA-POP-024",
+    "ONEMA-POP-025",
+    "ONEMA-POP-026",
+    "ONEMA-POP-027",
+    "ONEMA-POP-028",
+    "ONEMA-POP-029",
+    "ONEMA-POP-030",
+    "ONEMA-POP-031",
+    "ONEMA-POP-032",
+    "ONEMA-POP-033",
+    "ONEMA-POP-038",
+    "ONEMA-POP-043",
+    "ONEMA-POP-044",
+    "ONEMA-POP-045",
+    "ONEMA-POP-046",
+    "ONEMA-POP-047",
+    "ONEMA-POP-048",
+    "ONEMA-POP-055",
+    "ONEMA-POP-056"
+   ]
+  },
+  {
+   "packageKey": "curativo_simples",
+   "packageLabel": "Curativo simples",
+   "itemCodes": [
+    "CAT-02A",
+    "PAC-04"
+   ],
+   "popCodes": [
+    "ONEMA-POP-017",
+    "ONEMA-POP-018",
+    "ONEMA-POP-020",
+    "ONEMA-POP-021",
+    "ONEMA-POP-038"
+   ]
+  },
+  {
+   "packageKey": "curativo_complexo",
+   "packageLabel": "Curativo complexo",
+   "itemCodes": [
+    "CAT-02B"
+   ],
+   "popCodes": [
+    "ONEMA-POP-017",
+    "ONEMA-POP-018",
+    "ONEMA-POP-019",
+    "ONEMA-POP-020",
+    "ONEMA-POP-021",
+    "ONEMA-POP-028",
+    "ONEMA-POP-038",
+    "ONEMA-POP-060",
+    "ONEMA-POP-061",
+    "ONEMA-POP-062"
+   ]
+  },
+  {
+   "packageKey": "avaliacao_dispositivos",
+   "packageLabel": "Avaliação + dispositivos",
+   "itemCodes": [
+    "CAT-04"
+   ],
+   "popCodes": [
+    "ONEMA-POP-007",
+    "ONEMA-POP-008",
+    "ONEMA-POP-009",
+    "ONEMA-POP-010",
+    "ONEMA-POP-011",
+    "ONEMA-POP-049",
+    "ONEMA-POP-050",
+    "ONEMA-POP-051",
+    "ONEMA-POP-052",
+    "ONEMA-POP-053",
+    "ONEMA-POP-058"
+   ]
+  },
+  {
+   "packageKey": "avaliacao_testes",
+   "packageLabel": "Avaliação + testes",
+   "itemCodes": [
+    "CAT-07"
+   ],
+   "popCodes": [
+    "ONEMA-POP-002",
+    "ONEMA-POP-012",
+    "ONEMA-POP-013",
+    "ONEMA-POP-028",
+    "ONEMA-POP-029",
+    "ONEMA-POP-031",
+    "ONEMA-POP-032",
+    "ONEMA-POP-038"
+   ]
+  },
+  {
+   "packageKey": "monitoramento",
+   "packageLabel": "Monitoramento",
+   "itemCodes": [
+    "CAT-08",
+    "PAC-05",
+    "CONT-01"
+   ],
+   "popCodes": [
+    "ONEMA-POP-012",
+    "ONEMA-POP-013",
+    "ONEMA-POP-015",
+    "ONEMA-POP-016",
+    "ONEMA-POP-028",
+    "ONEMA-POP-029",
+    "ONEMA-POP-030",
+    "ONEMA-POP-031",
+    "ONEMA-POP-032",
+    "ONEMA-POP-033",
+    "ONEMA-POP-038",
+    "ONEMA-POP-039",
+    "ONEMA-POP-040",
+    "ONEMA-POP-063",
+    "ONEMA-POP-064",
+    "ONEMA-POP-065"
+   ]
+  },
+  {
+   "packageKey": "programas",
+   "packageLabel": "Programas de acompanhamento",
+   "itemCodes": [
+    "CAT-05",
+    "CAT-06",
+    "PAC-01",
+    "PAC-02",
+    "PAC-03",
+    "PAC-06",
+    "PAC-07",
+    "PAC-08"
+   ],
+   "popCodes": [
+    "ONEMA-POP-012",
+    "ONEMA-POP-013",
+    "ONEMA-POP-015",
+    "ONEMA-POP-016",
+    "ONEMA-POP-017",
+    "ONEMA-POP-018",
+    "ONEMA-POP-020",
+    "ONEMA-POP-021",
+    "ONEMA-POP-028",
+    "ONEMA-POP-029",
+    "ONEMA-POP-030",
+    "ONEMA-POP-031",
+    "ONEMA-POP-032",
+    "ONEMA-POP-033",
+    "ONEMA-POP-038",
+    "ONEMA-POP-063",
+    "ONEMA-POP-064",
+    "ONEMA-POP-065"
+   ]
+  },
+  {
+   "packageKey": "cuidados_respiratorios",
+   "packageLabel": "Cuidados respiratórios + avaliação",
+   "itemCodes": [],
+   "popCodes": [
+    "ONEMA-POP-005",
+    "ONEMA-POP-030",
+    "ONEMA-POP-035",
+    "ONEMA-POP-036",
+    "ONEMA-POP-054",
+    "ONEMA-POP-065"
+   ]
+  }
+ ],
+ "mappingStatus": "PROPOSTA_ONEMA_A_CONFIRMAR_PELO_RT"
+}

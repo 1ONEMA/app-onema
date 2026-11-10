@@ -14,6 +14,9 @@ export default async () => {
   // Conciliação financeira (cobranças pendentes, transferências) e alertas de prazo dos repasses.
   const { runFinanceJobs } = await import('../../server/src/modules/finance/jobs.ts');
   try { console.log('Conciliação financeira:', JSON.stringify(await runFinanceJobs())); } catch (e: any) { console.error('[financeiro] falha na conciliação:', e?.code ?? '', e?.message); }
+  // Lembretes PRIME do Life Score (planos de retorno definidos pela enfermeira).
+  const { runLifescoreReminders } = await import('../../server/src/modules/lifescore/service.ts');
+  try { console.log('Lembretes Life Score:', JSON.stringify(await runLifescoreReminders())); } catch (e: any) { console.error('[lifescore] falha nos lembretes:', e?.message); }
 };
 
 export const config: Config = { schedule: '@hourly' };

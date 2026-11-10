@@ -3,7 +3,7 @@ import { useAuth } from '../../lib/auth';
 import { useApi, useSubmit } from '../../lib/hooks';
 import { Alert, Badge, Button, Dialog, ErrorState, Field, Loading, PageHeader, fieldError } from '../../ui/ui';
 
-const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 const br = (iso: string) => iso.split('-').reverse().join('/');
 
 /** Café com a ONEMA: próximos 14 dias e publicação de um devocional próprio para qualquer data. */
@@ -57,8 +57,8 @@ export function CafeAdminPage() {
           <form onSubmit={submit} noValidate>
             <Field label="Referência bíblica" error={fieldError(save.error, 'ref')}><input type="text" value={edit.ref} onChange={(e) => setEdit({ ...edit, ref: e.target.value })} placeholder="Ex.: Salmos 23:1" /></Field>
             <Field label="Versículo" error={fieldError(save.error, 'verse')}><textarea value={edit.verse} maxLength={400} onChange={(e) => setEdit({ ...edit, verse: e.target.value })} /></Field>
-            <Field label="Reflexão (1 parágrafo autoral)" hint="Texto próprio da ONEMA. Não copie trechos de livros devocionais." error={fieldError(save.error, 'reflection')}>
-              <textarea rows={8} value={edit.reflection} maxLength={1600} onChange={(e) => setEdit({ ...edit, reflection: e.target.value })} /></Field>
+            <Field label="Reflexão (até 2 parágrafos autorais)" hint="Texto próprio da ONEMA. Separe os parágrafos com uma linha em branco. Não copie trechos de livros devocionais." error={fieldError(save.error, 'reflection')}>
+              <textarea rows={10} value={edit.reflection} maxLength={3800} onChange={(e) => setEdit({ ...edit, reflection: e.target.value })} /></Field>
             <Alert error={save.error && !Array.isArray(save.error.details) ? save.error : null} />
             <div className="row"><Button className="deep" busy={save.busy}>Publicar</Button><Button type="button" className="ghost" onClick={() => setEdit(null)}>Cancelar</Button></div>
           </form>

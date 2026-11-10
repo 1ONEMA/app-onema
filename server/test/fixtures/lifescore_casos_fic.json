@@ -1,0 +1,1012 @@
+[
+  {
+    "case_id": "FIC01",
+    "description": "FIC01 – Paciente fictícia, 54 anos – 7º dia após cirurgia eletiva de hérnia abdominal, necessidades atendidas",
+    "payload": {
+      "environment": "HOMOLOGATION",
+      "synthetic": true,
+      "patient_id": "FIC01-PATIENT",
+      "episode_id": "FIC01-EPISODE",
+      "encounter_id": "FIC01-VISIT",
+      "professional_id": "SYNTHETIC-REVIEWER",
+      "assessment_id": "FIC01-ASSESSMENT",
+      "assessed_at": "2026-11-09T12:00:00-03:00",
+      "task_set_id": "FIC01-TASKS-v1",
+      "measurement_context_id": "FIC01-METHOD-v1",
+      "model_id": "OLS-DESC-ITEM24-1.0",
+      "model_hash": "c14a255e85cd390598153af5c14381b7011ce524913572eff9913f9698d4fa90",
+      "responses": {
+        "D01-I01": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D01-I01"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Sem sintomas atuais, avaliado"
+        },
+        "D01-I02": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D01-I02"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Parâmetros conferidos e compatíveis com referências individualizadas"
+        },
+        "D01-I03": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D01-I03"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Dor 0/10 por escala compreendida"
+        },
+        "D01-I04": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D01-I04"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Cuidado tolerado sem limitação adicional"
+        },
+        "D02-I01": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D02-I01"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Caminha em casa sem ajuda, observado"
+        },
+        "D02-I02": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D02-I02"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Levanta e senta sem ajuda"
+        },
+        "D02-I03": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D02-I03"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Higiene e vestir-se sem ajuda"
+        },
+        "D02-I04": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D02-I04"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Participa da rotina de cuidado da incisão sem ajuda"
+        },
+        "D03-I01": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D03-I01"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Incisão avaliada; proteção prescrita verificada como adequada"
+        },
+        "D03-I02": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D03-I02"
+          ],
+          "response_code": "NA",
+          "quality": "ELIGIBLE",
+          "rationale": "N/A: sem dispositivo ativo pertinente, confirmado pelo enfermeiro",
+          "na_reason": "N/A: sem dispositivo ativo pertinente, confirmado pelo enfermeiro"
+        },
+        "D03-I03": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D03-I03"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Lista conciliada; sem divergência"
+        },
+        "D03-I04": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D03-I04"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Sem queda; necessidades ambientais avaliadas e atendidas"
+        },
+        "D04-I01": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D04-I01"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Explica e demonstra cuidados essenciais"
+        },
+        "D04-I02": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D04-I02"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Executa o orientado"
+        },
+        "D04-I03": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D04-I03"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Descreve corretamente o regime documentado"
+        },
+        "D04-I04": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D04-I04"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Explica sinais de alerta e como buscar ajuda"
+        },
+        "D06-I01": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D06-I01"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Compreende as explicações"
+        },
+        "D06-I02": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D06-I02"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Comunica sintomas e necessidades"
+        },
+        "D06-I03": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D06-I03"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Participa das decisões; preferências consideradas"
+        },
+        "D06-I04": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D06-I04"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Necessidade adicional avaliada e ausente"
+        },
+        "D07-I01": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D07-I01"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Não precisa de cuidador; contato de apoio confirmado"
+        },
+        "D07-I02": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D07-I02"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Recursos conferidos"
+        },
+        "D07-I03": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D07-I03"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Necessidades de acesso verificadas"
+        },
+        "D07-I04": {
+          "patient_id": "FIC01-PATIENT",
+          "encounter_id": "FIC01-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC01:D07-I04"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Retorno no 10º dia com data, horário, responsável e transporte confirmados (L3 plausível se o aceite da paciente não estiver documentado)"
+        }
+      }
+    },
+    "expected_score": 100
+  },
+  {
+    "case_id": "FIC02",
+    "description": "FIC02 – Paciente fictício, 81 anos – sequela motora estável de AVC, HAS e DM2; dependência funcional e lacunas de continuidade",
+    "payload": {
+      "environment": "HOMOLOGATION",
+      "synthetic": true,
+      "patient_id": "FIC02-PATIENT",
+      "episode_id": "FIC02-EPISODE",
+      "encounter_id": "FIC02-VISIT",
+      "professional_id": "SYNTHETIC-REVIEWER",
+      "assessment_id": "FIC02-ASSESSMENT",
+      "assessed_at": "2026-11-09T12:00:00-03:00",
+      "task_set_id": "FIC02-TASKS-v1",
+      "measurement_context_id": "FIC02-METHOD-v1",
+      "model_id": "OLS-DESC-ITEM24-1.0",
+      "model_hash": "c14a255e85cd390598153af5c14381b7011ce524913572eff9913f9698d4fa90",
+      "responses": {
+        "D01-I01": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D01-I01"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Sem dor ou desconforto; sem mudança aguda (sequela motora estável não é sintoma atual)"
+        },
+        "D01-I02": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D01-I02"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "PA 146/78 considerada compatível com a meta individual do plano (conferir a meta)"
+        },
+        "D01-I03": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D01-I03"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Dor 0/10 por método compreendido"
+        },
+        "D01-I04": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D01-I04"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Cuidado tolerado sem limitação clínica adicional"
+        },
+        "D02-I01": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D02-I01"
+          ],
+          "response_code": "L1",
+          "quality": "ELIGIBLE",
+          "rationale": "Reposicionar-se no leito: pequena parte, assistência física contínua"
+        },
+        "D02-I02": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D02-I02"
+          ],
+          "response_code": "L1",
+          "quality": "ELIGIBLE",
+          "rationale": "Transferência cama-cadeira: pequena parte, assistência contínua"
+        },
+        "D02-I03": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D02-I03"
+          ],
+          "response_code": "L1",
+          "quality": "ELIGIBLE",
+          "rationale": "Banho e vestuário: pequena parte, assistência contínua"
+        },
+        "D02-I04": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D02-I04"
+          ],
+          "response_code": "L1",
+          "quality": "ELIGIBLE",
+          "rationale": "Posicionamento diário: pequena parte, assistência contínua"
+        },
+        "D03-I01": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D03-I01"
+          ],
+          "response_code": "L2",
+          "quality": "ELIGIBLE",
+          "rationale": "Pele íntegra; prevenção parcialmente implantada; medidas relevantes pendentes"
+        },
+        "D03-I02": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D03-I02"
+          ],
+          "response_code": "NA",
+          "quality": "ELIGIBLE",
+          "rationale": "N/A: sem dispositivo ativo pertinente",
+          "na_reason": "N/A: sem dispositivo ativo pertinente"
+        },
+        "D03-I03": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D03-I03"
+          ],
+          "response_code": "L2",
+          "quality": "ELIGIBLE",
+          "rationale": "Organização parcial; revisão necessária, sem prioridade imediata (por isso L2, não L1)"
+        },
+        "D03-I04": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D03-I04"
+          ],
+          "response_code": "L2",
+          "quality": "ELIGIBLE",
+          "rationale": "Medidas ambientais parcialmente implantadas"
+        },
+        "D04-I01": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D04-I01"
+          ],
+          "response_code": "L2",
+          "quality": "ELIGIBLE",
+          "rationale": "Parte relevante; lacunas essenciais"
+        },
+        "D04-I02": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D04-I02"
+          ],
+          "response_code": "L2",
+          "quality": "ELIGIBLE",
+          "rationale": "Parte relevante executada; omissões de componentes essenciais"
+        },
+        "D04-I03": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D04-I03"
+          ],
+          "response_code": "L2",
+          "quality": "ELIGIBLE",
+          "rationale": "Manejo parcial; dificuldades essenciais"
+        },
+        "D04-I04": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D04-I04"
+          ],
+          "response_code": "L2",
+          "quality": "ELIGIBLE",
+          "rationale": "Reconhece parte dos sinais; sem domínio das ações essenciais"
+        },
+        "D06-I01": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D06-I01"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Compreende com aparelho auditivo e ritmo adequado"
+        },
+        "D06-I02": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D06-I02"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Comunica necessidades"
+        },
+        "D06-I03": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D06-I03"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Participa das decisões possíveis"
+        },
+        "D06-I04": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D06-I04"
+          ],
+          "response_code": "L4",
+          "quality": "ELIGIBLE",
+          "rationale": "Apoios verificados como efetivos"
+        },
+        "D07-I01": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D07-I01"
+          ],
+          "response_code": "L2",
+          "quality": "ELIGIBLE",
+          "rationale": "Parte do suporte; faltam períodos do dia"
+        },
+        "D07-I02": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D07-I02"
+          ],
+          "response_code": "L2",
+          "quality": "ELIGIBLE",
+          "rationale": "Parte dos recursos; itens essenciais faltantes"
+        },
+        "D07-I03": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D07-I03"
+          ],
+          "response_code": "L2",
+          "quality": "ELIGIBLE",
+          "rationale": "Parte do acesso; barreiras essenciais de transporte"
+        },
+        "D07-I04": {
+          "patient_id": "FIC02-PATIENT",
+          "encounter_id": "FIC02-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC02:D07-I04"
+          ],
+          "response_code": "L2",
+          "quality": "ELIGIBLE",
+          "rationale": "Ação e responsável definidos; prazo não definido"
+        }
+      }
+    },
+    "expected_score": 63.75
+  },
+  {
+    "case_id": "FIC03",
+    "description": "FIC03 – Paciente fictício, 59 anos – 10º dia de pós-operatório ortopédico; dor torácica intensa, dispneia e sudorese durante a visita",
+    "payload": {
+      "environment": "HOMOLOGATION",
+      "synthetic": true,
+      "patient_id": "FIC03-PATIENT",
+      "episode_id": "FIC03-EPISODE",
+      "encounter_id": "FIC03-VISIT",
+      "professional_id": "SYNTHETIC-REVIEWER",
+      "assessment_id": "FIC03-ASSESSMENT",
+      "assessed_at": "2026-11-09T12:00:00-03:00",
+      "task_set_id": "FIC03-TASKS-v1",
+      "measurement_context_id": "FIC03-METHOD-v1",
+      "model_id": "OLS-DESC-ITEM24-1.0",
+      "model_hash": "c14a255e85cd390598153af5c14381b7011ce524913572eff9913f9698d4fa90",
+      "responses": {
+        "D01-I01": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D01-I01"
+          ],
+          "response_code": "L0",
+          "quality": "ELIGIBLE",
+          "rationale": "Comprometimento clínico reconhecido pelo enfermeiro, com ação imediata"
+        },
+        "D01-I02": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D01-I02"
+          ],
+          "response_code": "QI",
+          "quality": "INELIGIBLE",
+          "rationale": "SpO2 92% com sinal irregular, não validada; avaliação incompleta: não pontuar e não usar o valor"
+        },
+        "D01-I03": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D01-I03"
+          ],
+          "response_code": "L0",
+          "quality": "ELIGIBLE",
+          "rationale": "Dor torácica intensa interrompe atividade e exige ação imediata"
+        },
+        "D01-I04": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D01-I04"
+          ],
+          "response_code": "L0",
+          "quality": "ELIGIBLE",
+          "rationale": "Cuidado interrompido por comprometimento clínico com ação imediata"
+        },
+        "D02-I01": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D02-I01"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D02-I02": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D02-I02"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D02-I03": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D02-I03"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D02-I04": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D02-I04"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D03-I01": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D03-I01"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D03-I02": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D03-I02"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D03-I03": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D03-I03"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D03-I04": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D03-I04"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D04-I01": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D04-I01"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D04-I02": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D04-I02"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D04-I03": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D04-I03"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D04-I04": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D04-I04"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D06-I01": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D06-I01"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D06-I02": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D06-I02"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D06-I03": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D06-I03"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D06-I04": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D06-I04"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D07-I01": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D07-I01"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D07-I02": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D07-I02"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D07-I03": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D07-I03"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        },
+        "D07-I04": {
+          "patient_id": "FIC03-PATIENT",
+          "encounter_id": "FIC03-VISIT",
+          "professional_id": "SYNTHETIC-REVIEWER",
+          "assessed_at": "2026-11-09T12:00:00-03:00",
+          "verified": true,
+          "source_refs": [
+            "FIC03:D07-I04"
+          ],
+          "response_code": "ND",
+          "quality": "NOT_ASSESSED",
+          "rationale": "Não avaliado: assistência priorizada; não completar com dados de visita anterior"
+        }
+      },
+      "professional_safety_event": {
+        "patient_id": "FIC03-PATIENT",
+        "encounter_id": "FIC03-VISIT",
+        "professional_id": "SYNTHETIC-REVIEWER",
+        "occurred_at": "2026-11-09T12:00:00-03:00",
+        "verified": true,
+        "level": "IMMEDIATE",
+        "reason": "Evento fictício: sintomas agudos reconhecidos profissionalmente; assistência priorizada."
+      }
+    },
+    "expected_score": null
+  }
+]

@@ -7,7 +7,8 @@ import { all, one, run, tx } from './db/db.ts';
 import { migrate, pendingMigrations } from './db/migrate.ts';
 import { seedAcademyDemoRest, seedDemo, seedOfficial } from './db/seed.ts';
 import { PRICING_V2_SOURCE, seedPricingV1, seedPricingV2 } from './modules/care/catalog.ts';
-import { seedCafeLibrary } from './modules/cafe/routes.ts';
+import { POP_LIBRARY_VERSION, loadPops } from './modules/pops/routes.ts';
+import { CAFE_LAST_BATCH_DATE, importCafeBatches, seedCafeLibrary } from './modules/cafe/routes.ts';
 import { MIGRATIONS } from './db/migrations.ts';
 import { ROLES, type Role } from './lib/roles.ts';
 import { hashPassword } from './lib/security.ts';
@@ -85,6 +86,13 @@ async function runInit(opts: ReadyOptions): Promise<string[]> {
     }
     // Café com a ONEMA: biblioteca anual em bancos inicializados antes do devocional diário.
     if (!(await one("SELECT 1 AS ok FROM devotionals WHERE day_key = '12-31'"))) log(`Café com a ONEMA: ${await seedCafeLibrary()} devocionais carregados`);
+    // Biblioteca de POPs: carga no build (onde os PDFs estão); na Function só confere.
+    if (Number((await one<any>('SELECT COUNT(*) AS n FROM pop_documents WHERE version = ?', POP_LIBRARY_VERSION))!.n) < 65) {
+      const r = await loadPops();
+      log(`POPs: ${r.inserted} documentos carregados${r.skipped ? ` (${r.skipped})` : ''}`);
+    }
+    // Lotes mensais do Café: uma consulta quando o último lote já está carregado.
+    if (!(await one('SELECT 1 AS ok FROM devotionals WHERE publish_date = ?', CAFE_LAST_BATCH_DATE))) log(`Café com a ONEMA: ${await importCafeBatches()} mensagens do lote importadas`);
     await loadSecrets(settings);
     await bootstrapAdmin();
     log('caminho rápido concluído');

@@ -55,7 +55,10 @@ export function SupportViewPage() {
           {!view.data.available ? <p className="caution">{view.data.reason}</p> : view.data.scope === 'AGENDA' ? (
             <><h2>Linha do tempo dos atendimentos</h2><CareTimeline items={view.data.timeline} /></>
           ) : view.data.scope === 'DOCUMENTOS' ? (
-            <><h2>Evoluções de enfermagem</h2>
+            <>{view.data.followup && <><h2>Acompanhamento</h2><p><strong>{Number(view.data.followup.score).toFixed(2).replace('.', ',')}</strong> <span className="small muted">· avaliação de {dateTime(view.data.followup.publishedAt)} · {view.data.followup.specialist}</span></p>
+              {view.data.followup.summary && <p>{view.data.followup.summary}</p>}{view.data.followup.plan?.kind === 'RETORNO' && <p className="small">Retorno previsto: {String(view.data.followup.plan.date).split('-').reverse().join('/')}</p>}
+              <p className="small muted">{view.data.followupDisclaimer}</p></>}
+            <h2>Evoluções de enfermagem</h2>
               {!view.data.documents.length ? <p className="muted">Nenhuma evolução registrada ainda.</p> : (
                 <ul className="list">{view.data.documents.map((d: any, i: number) => (
                   <li key={i}><details className="evo"><summary><strong>{d.label}</strong> <span className="small muted">· {dateTime(d.signedAt)}</span></summary>

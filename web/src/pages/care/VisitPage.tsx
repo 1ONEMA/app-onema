@@ -5,6 +5,7 @@ import { useApi, useSubmit } from '../../lib/hooks';
 import { Alert, Badge, Button, ErrorState, Field, Loading, PageHeader, fieldError } from '../../ui/ui';
 import { IconCheck, IconShield } from '../../ui/icons';
 import { EVO_SECTIONS } from './WalletPage';
+import { PopPanel } from '../pops/PopsPages';
 
 type Evo = { relato: string; sinaisVitais: string; avaliacao: string; procedimentos: string; orientacoes: string; plano: string; observacoes: string; pendencias: string[] };
 const EMPTY: Evo = { relato: '', sinaisVitais: '', avaliacao: '', procedimentos: '', orientacoes: '', plano: '', observacoes: '', pendencias: [] };
@@ -177,6 +178,12 @@ export function VisitPage() {
           </>
         )}
       </section>
+      <section className="flow-card mt">
+        <h2>Life Score <span className="small muted">(opcional)</span></h2>
+        <p className="small muted">Índice descritivo a partir dos 24 itens que você confirma. Não é necessário para concluir o atendimento.</p>
+        <Link className="btn sm deep" to={`/especialista/atendimentos/${id}/lifescore`}>Abrir Life Score</Link>
+      </section>
+      <PopPanel eventId={id!} active={['ACEITO', 'CONCLUIDO'].includes(e.status)} />
       <p className="small"><Link to="/especialista#ofertas">Voltar aos meus atendimentos</Link></p>
     </div>
   );

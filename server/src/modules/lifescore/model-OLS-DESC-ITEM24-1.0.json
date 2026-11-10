@@ -1,0 +1,979 @@
+{
+  "model_id": "OLS-DESC-ITEM24-1.0",
+  "document_package_version": "1.6",
+  "status": "ORIGINAL_DESCRIPTIVE_INDEX_NOT_CLINICALLY_VALIDATED",
+  "intended_population": "Adults in professional home nursing encounters; proposed scope for review",
+  "construct_status": "CONTENT_AND_MEASUREMENT_PROPERTIES_NOT_ESTABLISHED",
+  "source_model": "Six-domain experimental ONEMA model, weights retained",
+  "global_weights": {
+    "D01": "0.30",
+    "D02": "0.15",
+    "D03": "0.20",
+    "D04": "0.15",
+    "D06": "0.05",
+    "D07": "0.15"
+  },
+  "domain_min_applicable": {
+    "D01": 4,
+    "D02": 4,
+    "D03": 2,
+    "D04": 3,
+    "D06": 4,
+    "D07": 4
+  },
+  "points_range": [
+    0,
+    100
+  ],
+  "clinical_use_authorized": false,
+  "ordinal_numeric_assumption": "Equidistant 25-point encoding and arithmetic aggregation are research hypotheses, not demonstrated clinical intervals",
+  "items": [
+    {
+      "item_id": "D01-I01",
+      "domain": "D01",
+      "name": "Sintomas atuais",
+      "question": "Qual o impacto atual dos sintomas avaliados neste atendimento?",
+      "canonical_inputs": [
+        "D01-C01",
+        "D01-C08",
+        "D01-C09",
+        "D01-C10",
+        "D01-C11"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Comprometimento clínico atual reconhecido pelo enfermeiro, com necessidade de ação imediata."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Sintomas com repercussão importante e necessidade de avaliação profissional prioritária."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Sintomas com repercussão moderada, com necessidade de revisão clínica registrada."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Sintomas leves presentes, com repercussão pequena e plano de manejo registrado."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Sintomas pertinentes avaliados e ausentes, ou sem repercussão clínica atual conforme avaliação documentada."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D01-I01-RULE-0.1"
+    },
+    {
+      "item_id": "D01-I02",
+      "domain": "D01",
+      "name": "Parâmetros fisiológicos contextualizados",
+      "question": "Como os parâmetros pertinentes se relacionam com o plano clínico individual?",
+      "canonical_inputs": [
+        "D01-C02",
+        "D01-C03",
+        "D01-C04",
+        "D01-C05",
+        "D01-C06"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Enfermeiro identifica comprometimento fisiológico atual que requer ação imediata."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Enfermeiro identifica desvio importante de parâmetros e indica avaliação prioritária."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Desvio atual requer revisão do plano, sem classificação profissional de prioridade imediata."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Desvio pequeno documentado, sem repercussão importante, com acompanhamento profissional definido."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Parâmetros pertinentes conferidos e compatíveis com referências individualizadas documentadas."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D01-I02-RULE-0.1"
+    },
+    {
+      "item_id": "D01-I03",
+      "domain": "D01",
+      "name": "Dor no estado atual",
+      "question": "Qual a repercussão da dor avaliada com método identificado?",
+      "canonical_inputs": [
+        "D01-C07"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Dor impede a avaliação ou atividade essencial e exige ação imediata segundo o enfermeiro."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Dor impede a maior parte da atividade-alvo, exigindo revisão prioritária."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Dor limita parcialmente a atividade-alvo e requer revisão registrada."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Dor permite a atividade-alvo, com pequena limitação e plano registrado."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Dor avaliada ausente ou dentro da meta individual, permitindo a atividade-alvo."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D01-I03-RULE-0.1"
+    },
+    {
+      "item_id": "D01-I04",
+      "domain": "D01",
+      "name": "Tolerância ao cuidado atual",
+      "question": "Como a pessoa tolera as atividades e o cuidado pertinentes à visita?",
+      "canonical_inputs": [
+        "D01-C01",
+        "D02-C06",
+        "D05-C03"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Atividade ou cuidado pertinente interrompido por comprometimento clínico que exige ação imediata."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Tolerância muito limitada; cuidado só parcialmente executável com avaliação prioritária indicada."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Tolerância parcial; parte do cuidado exige adaptação e revisão clínica."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Cuidado executável com pausas ou adaptação de pequena repercussão atual."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Cuidado pertinente tolerado conforme plano individual, sem limitação clínica adicional observada."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D01-I04-RULE-0.1"
+    },
+    {
+      "item_id": "D02-I01",
+      "domain": "D02",
+      "name": "Mobilidade pertinente",
+      "question": "Qual a capacidade atual na tarefa de mobilidade relevante ao plano?",
+      "canonical_inputs": [
+        "D02-C01",
+        "D02-C02",
+        "D02-C07"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Não executa a tarefa pertinente, mesmo com assistência apropriada disponível."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Executa parte pequena da tarefa com assistência física contínua."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Executa parte relevante da tarefa com assistência física frequente."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Executa a tarefa com supervisão ou assistência física pontual."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Executa a tarefa sem ajuda de outra pessoa, com recurso habitual quando necessário."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D02-I01-RULE-0.1"
+    },
+    {
+      "item_id": "D02-I02",
+      "domain": "D02",
+      "name": "Transferências e posicionamento",
+      "question": "Qual a capacidade atual nas transferências ou no posicionamento pertinentes?",
+      "canonical_inputs": [
+        "D02-C03",
+        "D02-C05"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Não participa da tarefa pertinente, mesmo com assistência apropriada."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Participa de pequena parte; depende de assistência física contínua."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Participa de parte relevante; depende de assistência física frequente."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Executa com supervisão ou assistência física pontual."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Executa sem ajuda de outra pessoa, com recursos habituais necessários."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D02-I02-RULE-0.1"
+    },
+    {
+      "item_id": "D02-I03",
+      "domain": "D02",
+      "name": "Autocuidado básico pertinente",
+      "question": "Como executa as atividades básicas relevantes selecionadas para este episódio?",
+      "canonical_inputs": [
+        "D02-C04",
+        "D02-C05"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Não participa das atividades selecionadas, mesmo com assistência apropriada."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Participa de pequena parte e depende de assistência física contínua."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Executa parte relevante com assistência física frequente."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Executa as atividades com supervisão ou assistência pontual."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Executa as atividades sem ajuda de outra pessoa, com recursos habituais necessários."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D02-I03-RULE-0.1"
+    },
+    {
+      "item_id": "D02-I04",
+      "domain": "D02",
+      "name": "Execução funcional do plano",
+      "question": "Qual a participação funcional na tarefa assistencial diária definida para o episódio?",
+      "canonical_inputs": [
+        "D02-C04",
+        "D02-C05",
+        "D04-C04"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Não consegue participar da tarefa definida, mesmo com apoio apropriado."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Participa de pequena parte; outra pessoa executa quase toda a tarefa."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Participa de parte relevante, compartilhando a execução com outra pessoa."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Executa a tarefa com supervisão ou ajuda pontual."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Executa a tarefa sem ajuda de outra pessoa, com adaptações habituais necessárias."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D02-I04-RULE-0.1"
+    },
+    {
+      "item_id": "D03-I01",
+      "domain": "D03",
+      "name": "Pele e feridas",
+      "question": "Como está atendida a necessidade de segurança da pele ou ferida avaliada?",
+      "canonical_inputs": [
+        "D03-C03",
+        "D03-C04",
+        "D03-C10"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Comprometimento relevante com necessidade imediata de cuidado não atendida, identificado pelo enfermeiro."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Comprometimento importante com medidas de proteção insuficientes e revisão prioritária indicada."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Necessidade parcialmente atendida; permanecem medidas relevantes de proteção a organizar."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Proteção principal presente; há ajuste menor pendente, sem preocupação imediata reconhecida."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Integridade ou cuidado da lesão avaliados, com medidas necessárias verificadas como adequadas."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D03-I01-RULE-0.1"
+    },
+    {
+      "item_id": "D03-I02",
+      "domain": "D03",
+      "name": "Segurança do dispositivo",
+      "question": "Como está a segurança do dispositivo que determina este item?",
+      "canonical_inputs": [
+        "D03-C05",
+        "D03-C06",
+        "D03-C10"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Complicação atual com necessidade de ação imediata, reconhecida pelo enfermeiro."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Condição importante de insegurança sem mitigação adequada, exigindo revisão prioritária."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Parte das medidas de segurança está ausente ou insuficiente."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Medidas essenciais verificadas; ajuste menor permanece documentado."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Dispositivo avaliado e medidas de segurança pertinentes verificadas como adequadas."
+        }
+      },
+      "allow_na": true,
+      "na_condition": "Nenhum dispositivo ativo pertinente, confirmado pelo enfermeiro no atendimento atual.",
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D03-I02-RULE-0.1"
+    },
+    {
+      "item_id": "D03-I03",
+      "domain": "D03",
+      "name": "Segurança medicamentosa",
+      "question": "Como estão as necessidades verificadas de segurança no uso de medicamentos?",
+      "canonical_inputs": [
+        "D03-C07",
+        "D03-C10",
+        "D04-C03"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Problema atual de segurança com necessidade de ação imediata reconhecida pelo enfermeiro."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Divergência ou condição importante de insegurança sem resolução, com revisão prioritária indicada."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Necessidade de segurança parcialmente atendida; requer revisão documentada."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Medidas essenciais verificadas; pequena pendência de segurança permanece registrada."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Informações e medidas pertinentes conferidas, sem pendência de segurança identificada neste item."
+        }
+      },
+      "allow_na": true,
+      "na_condition": "Ausência de regime medicamentoso pertinente, confirmada profissionalmente; não usar N/A por falta de informação.",
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D03-I03-RULE-0.1"
+    },
+    {
+      "item_id": "D03-I04",
+      "domain": "D03",
+      "name": "Segurança funcional e ambiental",
+      "question": "Como estão atendidas as necessidades identificadas de prevenção de quedas e acidentes?",
+      "canonical_inputs": [
+        "D03-C01",
+        "D03-C02",
+        "D03-C09",
+        "D03-C10"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Situação atual com necessidade imediata de proteção não atendida."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Exposição importante sem mitigação adequada, com revisão prioritária indicada."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Medidas de prevenção parcialmente implantadas para as necessidades identificadas."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Medidas essenciais verificadas; ajuste menor de prevenção permanece pendente."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Necessidades avaliadas e medidas pertinentes verificadas como adequadas."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D03-I04-RULE-0.1"
+    },
+    {
+      "item_id": "D04-I01",
+      "domain": "D04",
+      "name": "Compreensão demonstrada",
+      "question": "Como paciente ou cuidador demonstra compreensão do plano nas condições de comunicação adequadas?",
+      "canonical_inputs": [
+        "D04-C01",
+        "D04-C02",
+        "D04-C07"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Não demonstra compreensão dos elementos essenciais após apoio e esclarecimento pertinentes."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Demonstra pequena parte; não consegue explicar a maior parte dos elementos essenciais."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Demonstra parte relevante; persistem lacunas essenciais a esclarecer."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Demonstra elementos essenciais; há detalhe menor ainda a reforçar."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Demonstra os elementos essenciais pertinentes por explicação ou demonstração compatível."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D04-I01-RULE-0.1"
+    },
+    {
+      "item_id": "D04-I02",
+      "domain": "D04",
+      "name": "Execução das ações de cuidado",
+      "question": "Como ocorre a execução das ações essenciais do plano, com o apoio previsto?",
+      "canonical_inputs": [
+        "D04-C04",
+        "D04-C05",
+        "D04-C06",
+        "D04-C09"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Ações essenciais não são executadas e não há alternativa efetiva verificada."
+        },
+        "L1": {
+          "points": 25,
+          "description": "A maior parte não é executada; a alternativa disponível é insuficiente."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Parte relevante é executada, com lacunas essenciais ainda presentes."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Ações essenciais executadas; pequena dificuldade permanece com manejo definido."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Ações essenciais executadas conforme o plano, com apoio adequado quando necessário."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D04-I02-RULE-0.1"
+    },
+    {
+      "item_id": "D04-I03",
+      "domain": "D04",
+      "name": "Manejo do regime medicamentoso",
+      "question": "Como paciente ou cuidador executa o regime documentado, com o apoio previsto?",
+      "canonical_inputs": [
+        "D04-C03",
+        "D04-C05",
+        "D04-C06",
+        "D04-C07"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Não consegue executar o regime pertinente e não há suporte efetivo verificado."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Executa pequena parte; a maior parte depende de suporte ainda insuficiente."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Executa parte relevante; persistem dificuldades essenciais."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Executa aspectos essenciais com pequena dificuldade e suporte definido."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Executa aspectos essenciais do regime conferido, com suporte adequado quando necessário."
+        }
+      },
+      "allow_na": true,
+      "na_condition": "Ausência de regime medicamentoso pertinente confirmada pelo enfermeiro; regime desconhecido impede pontuação.",
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D04-I03-RULE-0.1"
+    },
+    {
+      "item_id": "D04-I04",
+      "domain": "D04",
+      "name": "Reconhecimento e resposta orientada",
+      "question": "Como paciente ou cuidador demonstra saber o que fazer diante dos sinais de alerta do plano?",
+      "canonical_inputs": [
+        "D04-C08",
+        "D06-C05"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Não identifica os sinais essenciais nem a ação orientada após apoio pertinente."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Identifica pequena parte; não demonstra saber como obter ajuda apropriada."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Identifica parte relevante; persistem lacunas essenciais sobre a ação orientada."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Identifica sinais e ações essenciais, com detalhe menor a reforçar."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Demonstra reconhecer sinais pertinentes e como buscar a ajuda orientada."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D04-I04-RULE-0.1"
+    },
+    {
+      "item_id": "D06-I01",
+      "domain": "D06",
+      "name": "Compreensão aplicada",
+      "question": "Como compreende as informações necessárias à participação no cuidado, após adaptações pertinentes?",
+      "canonical_inputs": [
+        "D06-C01",
+        "D06-C04",
+        "D06-C06"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Não foi possível estabelecer compreensão funcional das informações essenciais apesar de apoio apropriado."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Compreende pequena parte, com limitações importantes ainda não compensadas."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Compreende parte relevante, com limitações essenciais ainda não compensadas."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Compreende informações essenciais, com pequena limitação residual."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Compreende informações essenciais com o meio ou apoio efetivo necessário."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D06-I01-RULE-0.1"
+    },
+    {
+      "item_id": "D06-I02",
+      "domain": "D06",
+      "name": "Comunicação de necessidades",
+      "question": "Como comunica sintomas, necessidades ou desconforto pelo meio efetivo disponível?",
+      "canonical_inputs": [
+        "D06-C04",
+        "D06-C05",
+        "D06-C06"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Não há meio efetivo estabelecido para comunicar necessidades essenciais."
+        },
+        "L1": {
+          "points": 25,
+          "description": "O meio disponível permite comunicar pequena parte das necessidades essenciais."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Comunica parte relevante; persistem necessidades essenciais sem meio efetivo."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Comunica necessidades essenciais, com pequena limitação residual."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Comunica necessidades essenciais por meio verbal, não verbal ou apoio efetivo."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D06-I02-RULE-0.1"
+    },
+    {
+      "item_id": "D06-I03",
+      "domain": "D06",
+      "name": "Participação possível e preferências",
+      "question": "Como são viabilizadas as escolhas e a participação possíveis no cuidado?",
+      "canonical_inputs": [
+        "D06-C08",
+        "D06-C09",
+        "D06-C10"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Participação possível não está viabilizada e não há apoio ou representação pertinente estabelecidos."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Apoio atual viabiliza pequena parte da participação possível."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Apoio viabiliza parte relevante; persistem barreiras essenciais à participação possível."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Participação possível viabilizada nos aspectos essenciais, com ajuste menor pendente."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Participação possível, preferências e apoio ou representação pertinentes estão viabilizados."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D06-I03-RULE-0.1"
+    },
+    {
+      "item_id": "D06-I04",
+      "domain": "D06",
+      "name": "Apoio à comunicação e compreensão",
+      "question": "Como está atendida a necessidade identificada de adaptação ou apoio para comunicação?",
+      "canonical_inputs": [
+        "D06-C04",
+        "D06-C06",
+        "D06-C07",
+        "D06-C09"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Apoio essencial necessário está ausente ou foi verificado como inefetivo."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Pequena parte do apoio essencial está disponível e efetiva."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Parte relevante está disponível; faltam componentes essenciais."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Apoio essencial efetivo, com limitação menor ainda a ajustar."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Necessidade avaliada e atendida; ou ausência de necessidade adicional confirmada."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D06-I04-RULE-0.1"
+    },
+    {
+      "item_id": "D07-I01",
+      "domain": "D07",
+      "name": "Cobertura de suporte humano",
+      "question": "Como está coberta a necessidade verificada de suporte humano para o cuidado?",
+      "canonical_inputs": [
+        "D07-C01",
+        "D07-C02",
+        "D07-C03",
+        "D07-C04",
+        "D07-C15"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Suporte essencial necessário não está disponível e não há mitigação efetiva."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Pequena parte do suporte essencial está disponível e adequada."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Parte relevante está disponível; faltam componentes essenciais de cobertura."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Cobertura essencial adequada, com fragilidade menor documentada e medida de manejo."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Necessidade avaliada e coberta adequadamente; ou suporte adicional não necessário confirmado."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D07-I01-RULE-0.1"
+    },
+    {
+      "item_id": "D07-I02",
+      "domain": "D07",
+      "name": "Recursos e insumos necessários",
+      "question": "Como está coberta a necessidade verificada de recursos e insumos do plano?",
+      "canonical_inputs": [
+        "D07-C05",
+        "D07-C06",
+        "D07-C15"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Recursos essenciais necessários estão indisponíveis e não há alternativa efetiva."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Pequena parte dos recursos essenciais está disponível e adequada."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Parte relevante está disponível; faltam recursos essenciais."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Recursos essenciais adequados; pequena fragilidade permanece com manejo documentado."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Recursos necessários verificados como adequados; ou ausência de necessidade adicional confirmada."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D07-I02-RULE-0.1"
+    },
+    {
+      "item_id": "D07-I03",
+      "domain": "D07",
+      "name": "Acesso ao cuidado indicado",
+      "question": "Como está viabilizado o acesso ao cuidado indicado e pertinente ao episódio?",
+      "canonical_inputs": [
+        "D07-C07",
+        "D07-C08",
+        "D07-C12",
+        "D07-C15"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Cuidado essencial indicado está sem acesso viabilizado e sem alternativa efetiva."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Pequena parte do acesso essencial está viabilizada."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Parte relevante está viabilizada; persistem barreiras essenciais."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Acesso essencial viabilizado; pequena barreira permanece com manejo definido."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Acesso pertinente viabilizado; ou ausência de necessidade adicional confirmada profissionalmente."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D07-I03-RULE-0.1"
+    },
+    {
+      "item_id": "D07-I04",
+      "domain": "D07",
+      "name": "Próximo passo e continuidade",
+      "question": "Como está definido o próximo passo necessário do cuidado?",
+      "canonical_inputs": [
+        "D07-C09",
+        "D07-C10",
+        "D07-C11",
+        "D07-C12",
+        "D07-C13"
+      ],
+      "response_anchors": {
+        "L0": {
+          "points": 0,
+          "description": "Próximo passo necessário não está definido, nem responsável ou prazo pertinente."
+        },
+        "L1": {
+          "points": 25,
+          "description": "Ação é conhecida, mas faltam responsável e prazo pertinentes."
+        },
+        "L2": {
+          "points": 50,
+          "description": "Ação e responsável definidos; falta prazo ou condição verificável para revisão."
+        },
+        "L3": {
+          "points": 75,
+          "description": "Ação, responsável e prazo definidos; falta confirmação de viabilidade ou aceite pertinente."
+        },
+        "L4": {
+          "points": 100,
+          "description": "Próximo passo necessário, responsável, prazo e viabilidade confirmados; ou encerramento profissional documentado."
+        }
+      },
+      "allow_na": false,
+      "na_condition": null,
+      "local_weight": "1",
+      "evidence_type": "CURRENT_PROFESSIONAL_STRUCTURED_ASSESSMENT",
+      "clinical_points_evidence": "AUTHOR_PROPOSED_NOT_VALIDATED",
+      "rule_id": "D07-I04-RULE-0.1"
+    }
+  ],
+  "source_model_id": "OLS-CAND-ITEM24-0.1",
+  "intended_use": "DESCRIPTIVE_PROFESSIONAL_RECORD_ONLY",
+  "diagnostic_or_treatment_use_authorized": false
+}

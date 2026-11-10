@@ -1,3 +1,4 @@
+import { DISCLAIMER, historyFor } from '../lifescore/service.ts';
 import { careTimeline } from '../care/timeline.ts';
 import { cancelSubscription } from '../../lib/asaas.ts';
 import { cpfSchema } from '../../lib/cpf.ts';
@@ -570,7 +571,10 @@ export async function primeRoutes(app: FastifyInstance) {
     if (scope === 'DOCUMENTOS') {
       const docs = await all<any>(`SELECT v.signed_at, v.content_json, e.label, u.name AS specialist FROM care_evolutions v JOIN care_events e ON e.id = v.event_id JOIN users u ON u.id = v.specialist_id
         WHERE v.patient_id = ? AND v.status = 'ASSINADA' ORDER BY v.signed_at DESC LIMIT 100`, g.patient_id);
-      return { patientName, scope, available: true, documents: docs.map((d) => ({ signedAt: d.signed_at, label: d.label, specialist: d.specialist, content: JSON.parse(d.content_json) })) };
+      // Acompanhamento (Life Score) publicado: o responsável autorizado vê o mesmo que o paciente.
+      const ls = (await historyFor(g.patient_id))[0] ?? null;
+      return { patientName, scope, available: true, documents: docs.map((d) => ({ signedAt: d.signed_at, label: d.label, specialist: d.specialist, content: JSON.parse(d.content_json) })),
+        followup: ls ? { score: ls.score, publishedAt: ls.publishedAt, specialist: ls.specialist, summary: ls.summary, plan: ls.plan } : null, followupDisclaimer: DISCLAIMER };
     }
     return {
       patientName, scope, available: false,

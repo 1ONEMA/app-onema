@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { Client, loginAs, one, setup } from './helpers.ts';
+import { run } from '../src/db/db.ts';
 import { CAFE_LIBRARY } from '../src/modules/cafe/library.ts';
 import { seedCafeLibrary } from '../src/modules/cafe/routes.ts';
 
@@ -17,7 +18,7 @@ describe('Café com a ONEMA', () => {
       expect(words, d.ref).toBeGreaterThanOrEqual(80);
       expect(d.reflection.includes('\n'), d.ref).toBe(false); // 1 parágrafo
     }
-    expect((await one<any>('SELECT COUNT(*) AS n FROM devotionals')).n).toBe(366);
+    expect((await one<any>('SELECT COUNT(*) AS n FROM devotionals WHERE day_key IS NOT NULL')).n).toBe(366);
     expect(await seedCafeLibrary()).toBe(0); // idempotente
   });
 
@@ -42,5 +43,19 @@ describe('Café com a ONEMA', () => {
     await g.req('DELETE', '/api/admin/cafe/2026-10-27');
     expect((await anon.get('/api/public/cafe?date=2026-10-27')).body.ref).toBe(a.ref);
     expect((await one<any>(`SELECT COUNT(*) AS n FROM audit_events WHERE action IN ('CAFE_PUBLICADO','CAFE_REMOVIDO')`)).n).toBe(2);
+  });
+
+  it('lote 07/11–06/12: 30 datas com 2 parágrafos, sem sobrescrever data já publicada; importação idempotente', async () => {
+    const { importCafeBatches } = await import('../src/modules/cafe/routes.ts');
+    const anon = new Client(app);
+    const d = (await anon.get('/api/public/cafe?date=2026-11-07')).body;
+    expect(d).toMatchObject({ ref: 'Salmos 92:2', scriptureEdition: 'Almeida 1911 (ortografia atualizada)' });
+    expect(d.paragraphs).toHaveLength(2);
+    expect((await anon.get('/api/public/cafe?date=2026-12-06')).body.paragraphs).toHaveLength(2);
+    expect((await one<any>(`SELECT COUNT(*) AS n FROM devotionals WHERE batch = '2026-11-07_2026-12-06'`)).n).toBe(30);
+    // data já publicada pela equipe é preservada
+    await run(`UPDATE devotionals SET ref = 'Equipe 1:1' WHERE publish_date = '2026-11-08'`);
+    expect(await importCafeBatches()).toBe(0);
+    expect((await anon.get('/api/public/cafe?date=2026-11-08')).body.ref).toBe('Equipe 1:1');
   });
 });
