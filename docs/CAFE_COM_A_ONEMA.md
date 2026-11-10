@@ -20,3 +20,10 @@ Gestão → **Café com a ONEMA** (perfis GESTOR_CONTEUDO, ADMIN_PRIME, ADMIN_AC
 ## API
 - `GET /api/public/cafe?date=AAAA-MM-DD` — devocional da data (público).
 - `GET /api/admin/cafe?from=AAAA-MM-DD`, `PUT|DELETE /api/admin/cafe/:date` — gestão.
+
+
+## Lote mensal (nov/2026)
+- Importado o lote **07/11/2026 a 06/12/2026** (30 mensagens, Almeida 1911, dois parágrafos cada) de `server/src/db/content/cafe-2026-11-07_2026-12-06.json`.
+- Importação só insere datas ausentes (nunca sobrescreve uma data já publicada pela equipe) e roda uma vez em cada banco.
+- A data agora é a de **America/Sao_Paulo** (não o fuso do aparelho). O card troca à meia-noite de São Paulo e ao voltar ao app; os parágrafos são exibidos como texto.
+- Próximos lotes: adicionar o JSON em `server/src/db/content/` e incluí-lo em `CAFE_BATCHES` (`server/src/modules/cafe/routes.ts`), atualizando `CAFE_LAST_BATCH_DATE`.
