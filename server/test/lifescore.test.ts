@@ -112,6 +112,8 @@ describe('Life Score — integração no app', () => {
     expect(me.latest).toMatchObject({ score: '100.00', summary: expect.any(String), plan: { kind: 'RETORNO', status: 'VIGENTE' } });
     expect(me.disclaimer).toMatch(/Não representa percentual de saúde/);
     expect(JSON.stringify(me)).not.toContain('Avaliado no atendimento');
+    expect(JSON.stringify(me)).not.toContain('Avaliação sem alterações relevantes'); // interpretação profissional é interna
+    await expect(run(`UPDATE lifescore_assessments SET patient_id = ? WHERE id = ?`, await idOf('responsavel'), pub.body.id)).rejects.toThrow(/immutable/);
     const intruso = new Client(app); await intruso.login(emailOf('responsavel'));
     expect((await intruso.get('/api/lifescore/me')).body.latest).toBeNull();
     expect((await intruso.post(`/api/lifescore/me/${pub.body.id}/plan`, { action: 'RECUSAR_LEMBRETES' })).status).toBe(404);

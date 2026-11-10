@@ -9,7 +9,8 @@ import { z } from 'zod';
 import { all, one, run, tx } from '../../db/db.ts';
 import { audit } from '../../lib/audit.ts';
 import { hasRole, parse, requireRoles } from '../../lib/context.ts';
-import { conflict, forbidden, notFound, unprocessable } from '../../lib/errors.ts';
+import { AppError, conflict, forbidden, notFound, unprocessable } from '../../lib/errors.ts';
+import { rateLimit } from '../../lib/security.ts';
 import { nowIso, uid } from '../../lib/util.ts';
 import { notify } from '../prime/core.ts';
 import { notifyRole } from '../finance/payouts.ts';
@@ -38,7 +39,9 @@ export async function lifescoreRoutes(app: FastifyInstance) {
     const a = requireRoles(req, ['ESPECIALISTA']);
     const t = await one<any>('SELECT credentialing_decision FROM partner_training_status WHERE partner_id = ?', a.userId);
     if (t?.credentialing_decision !== 'APTO') throw forbidden('Disponível para especialistas credenciadas.', 'NOT_CREDENTIALED');
-    const e = await one<any>(`SELECT e.id, e.status, e.modality, e.order_id, o.patient_id FROM care_events e JOIN service_orders o ON o.id = e.order_id WHERE e.id = ? AND e.specialist_id = ?`, id, a.userId);
+    // Só atendimentos vigentes da própria profissional (cancelado/estornado não dá acesso ao histórico do paciente).
+    const e = await one<any>(`SELECT e.id, e.status, e.modality, e.order_id, o.patient_id FROM care_events e JOIN service_orders o ON o.id = e.order_id
+      WHERE e.id = ? AND e.specialist_id = ? AND e.status IN ('ACEITO','CONCLUIDO')`, id, a.userId);
     if (!e) throw notFound('Atendimento não encontrado.');
     return { a, e };
   }
@@ -61,7 +64,7 @@ export async function lifescoreRoutes(app: FastifyInstance) {
     return {
       eventStatus: e.status, draft: draft ? { id: draft.id, revision: draft.revision, responses: JSON.parse(draft.responses_json), interpretation: draft.interpretation,
         patientSummary: draft.patient_summary, plan: { kind: draft.plan_kind, date: draft.plan_date, justification: draft.plan_justification }, supersedesId: draft.supersedes_id } : null,
-      published: publishedHere, safetyEvents: safety, history: await historyFor(e.patient_id),
+      published: publishedHere, safetyEvents: safety, history: await historyFor(e.patient_id, { audience: 'PROFISSIONAL' }),
       evolution: evo ? { status: evo.status, content: JSON.parse(evo.content_json) } : null,
       calcSuspended: st.calcSuspended, environment: synthetic ? 'HOMOLOGACAO' : 'PRODUCAO', releaseActive: !!release, disclaimer: DISCLAIMER,
     };
@@ -102,6 +105,7 @@ export async function lifescoreRoutes(app: FastifyInstance) {
     const { id } = parse(idParam, req.params);
     const b = parse(z.object({ level: z.enum(['IMMEDIATE', 'PRIORITY']), reason: z.string().trim().min(5, 'Descreva a preocupação.').max(1000) }), req.body);
     const { a, e } = await ownEvent(req, id);
+    if (!await rateLimit(`ls-safety:${a.userId}`, 10, 3600_000)) throw new AppError(429, 'RATE_LIMIT', 'Muitos registros em pouco tempo. Se for urgente, ligue para a Central ONEMA.');
     const sid = uid(); const now = nowIso();
     await run('INSERT INTO lifescore_safety_events (id, patient_id, event_id, specialist_id, level, reason, occurred_at, created_at) VALUES (?,?,?,?,?,?,?,?)',
       sid, e.patient_id, id, a.userId, b.level, b.reason, now, now);
@@ -180,6 +184,8 @@ export async function lifescoreRoutes(app: FastifyInstance) {
     return await tx(async () => {
       const o = await one<any>(`SELECT * FROM lifescore_assessments WHERE id = ? AND status = 'PUBLICADA'`, id);
       if (!o) throw notFound('Avaliação publicada não encontrada.');
+      const latest = await one<any>(`SELECT id FROM lifescore_assessments WHERE patient_id = ? AND status = 'PUBLICADA' ORDER BY published_at DESC LIMIT 1`, o.patient_id);
+      if (latest?.id !== o.id) throw conflict('NOT_LATEST', 'Só a avaliação publicada mais recente pode ser retificada. Para corrigir outra, registre uma nova avaliação.');
       if (o.specialist_id !== a.userId && !hasRole(a, 'AVALIADOR_RT')) throw notFound('Avaliação publicada não encontrada.');
       if (o.specialist_id !== a.userId) throw forbidden('A retificação é feita pela autora; o RT registra a solicitação.', 'AUTHOR_ONLY');
       if (await one(`SELECT 1 AS ok FROM lifescore_assessments WHERE event_id = ? AND status = 'RASCUNHO'`, o.event_id)) throw conflict('DRAFT_EXISTS', 'Já existe um rascunho neste atendimento.');
@@ -235,10 +241,12 @@ export async function lifescoreRoutes(app: FastifyInstance) {
         a.supersedes_id, p.name AS patient, s.name AS specialist
       FROM lifescore_assessments a JOIN users p ON p.id = a.patient_id JOIN users s ON s.id = a.specialist_id
       ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY a.updated_at DESC LIMIT 300`, ...args);
-    const safety = await all<any>(`SELECT x.id, x.level, x.occurred_at, x.handled_at, x.handled_note, ${clinical ? 'x.reason,' : ''} p.name AS patient, s.name AS specialist
-      FROM lifescore_safety_events x JOIN users p ON p.id = x.patient_id JOIN users s ON s.id = x.specialist_id ORDER BY (x.handled_at IS NULL) DESC, x.occurred_at DESC LIMIT 100`);
-    const reminders = await all<any>(`SELECT r.id, r.wave, r.plan_date, r.scheduled_at, r.status, r.status_reason, r.attempts, r.last_error, p.name AS patient
-      FROM lifescore_reminders r JOIN users p ON p.id = r.patient_id ORDER BY (r.status = 'FALHOU') DESC, r.scheduled_at DESC LIMIT 200`);
+    const first = (n: string) => (clinical ? n : String(n).split(' ')[0]);
+    const safety = (await all<any>(`SELECT x.id, x.level, x.occurred_at, x.handled_at, ${clinical ? 'x.handled_note, x.reason,' : ''} p.name AS patient, s.name AS specialist
+      FROM lifescore_safety_events x JOIN users p ON p.id = x.patient_id JOIN users s ON s.id = x.specialist_id ORDER BY (x.handled_at IS NULL) DESC, x.occurred_at DESC LIMIT 100`))
+      .map((x) => ({ ...x, patient: first(x.patient) }));
+    const reminders = (await all<any>(`SELECT r.id, r.wave, r.plan_date, r.scheduled_at, r.status, r.status_reason, r.attempts, r.last_error, p.name AS patient
+      FROM lifescore_reminders r JOIN users p ON p.id = r.patient_id ORDER BY (r.status = 'FALHOU') DESC, r.scheduled_at DESC LIMIT 200`)).map((r) => ({ ...r, patient: first(r.patient) }));
     const st = await settingsState();
     const release = await currentRelease();
     return {

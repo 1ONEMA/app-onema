@@ -1196,19 +1196,19 @@ CREATE INDEX ix_lifescore_patient ON lifescore_assessments(patient_id, published
 CREATE UNIQUE INDEX uq_lifescore_draft_event ON lifescore_assessments(event_id) WHERE status = 'RASCUNHO';
 -- Publicada é imutável: só o encadeamento de retificação e a situação do plano podem mudar.
 CREATE FUNCTION onema_lifescore_published() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $f$
+DECLARE mutable text[] := ARRAY['plan_status','plan_status_at','reminders_opt_out','updated_at','status','superseded_by'];
 BEGIN
   IF TG_OP = 'DELETE' THEN
     IF OLD.status <> 'RASCUNHO' THEN RAISE EXCEPTION 'lifescore assessment immutable'; END IF;
     RETURN OLD;
   END IF;
-  IF OLD.status IN ('PUBLICADA','RETIFICADA','ENCERRADA_SEM_SCORE') AND (
-     NEW.responses_json IS DISTINCT FROM OLD.responses_json OR NEW.result_json IS DISTINCT FROM OLD.result_json
-     OR NEW.score_raw IS DISTINCT FROM OLD.score_raw OR NEW.score_display IS DISTINCT FROM OLD.score_display
-     OR NEW.interpretation IS DISTINCT FROM OLD.interpretation OR NEW.patient_summary IS DISTINCT FROM OLD.patient_summary
-     OR NEW.plan_kind IS DISTINCT FROM OLD.plan_kind OR NEW.plan_date IS DISTINCT FROM OLD.plan_date
-     OR NEW.published_at IS DISTINCT FROM OLD.published_at OR NEW.specialist_id IS DISTINCT FROM OLD.specialist_id
-     OR (OLD.status <> NEW.status AND NOT (OLD.status = 'PUBLICADA' AND NEW.status = 'RETIFICADA'))) THEN
-    RAISE EXCEPTION 'lifescore assessment immutable';
+  IF OLD.status <> 'RASCUNHO' THEN
+    -- Depois de publicada/encerrada, só a situação do plano, a recusa de lembretes e o encadeamento da retificação mudam.
+    IF (to_jsonb(NEW) - mutable) IS DISTINCT FROM (to_jsonb(OLD) - mutable) THEN RAISE EXCEPTION 'lifescore assessment immutable'; END IF;
+    IF NEW.status IS DISTINCT FROM OLD.status AND NOT (OLD.status = 'PUBLICADA' AND NEW.status = 'RETIFICADA' AND NEW.superseded_by IS NOT NULL) THEN
+      RAISE EXCEPTION 'lifescore assessment immutable';
+    END IF;
+    IF OLD.superseded_by IS NOT NULL AND NEW.superseded_by IS DISTINCT FROM OLD.superseded_by THEN RAISE EXCEPTION 'lifescore assessment immutable'; END IF;
   END IF;
   RETURN NEW;
 END $f$;

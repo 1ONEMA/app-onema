@@ -161,10 +161,11 @@ export async function setPlanStatus(a: any, status: string, reason: string) {
   await cancelReminders(a.id, reason);
 }
 
-/** Agendamento: um pedido pago depois da publicação encerra o convite (e os lembretes) daquele plano. */
+/** Agendamento: um atendimento de enfermagem (solicitação de cuidado) pago depois da publicação encerra o convite e os lembretes daquele plano. */
 export async function syncScheduling(patientId: string) {
   const plans = await all<any>(`SELECT a.* FROM lifescore_assessments a WHERE a.patient_id = ? AND a.status = 'PUBLICADA' AND a.plan_status = 'VIGENTE' AND a.plan_kind = 'RETORNO'
-    AND EXISTS (SELECT 1 FROM service_orders o WHERE o.patient_id = a.patient_id AND o.status = 'PAID' AND o.paid_at > a.published_at)`, patientId);
+    AND EXISTS (SELECT 1 FROM service_orders o JOIN care_requests r ON r.id = o.request_id
+      WHERE o.patient_id = a.patient_id AND o.status = 'PAID' AND o.paid_at > a.published_at)`, patientId);
   for (const p of plans) await setPlanStatus(p, 'AGENDADO', 'Atendimento solicitado e pago após o plano.');
   return plans.length;
 }
@@ -175,6 +176,8 @@ const REMINDER_TEXT = 'Está chegando a data prevista para o seu acompanhamento 
 export async function runLifescoreReminders(now = new Date()) {
   const out = { sent: 0, skipped: 0, cancelled: 0, failed: 0 };
   if ((await settingsState()).remindersSuspended) return out;
+  // Contato preso em processamento (queda da função) volta à fila após 30 min; o app_sent_at evita notificação duplicada.
+  await run(`UPDATE lifescore_reminders SET status = 'PROGRAMADO', updated_at = ? WHERE status = 'EM_PROCESSAMENTO' AND updated_at < ?`, nowIso(), new Date(now.getTime() - 30 * 60_000).toISOString());
   const due = await all<any>(`SELECT id FROM lifescore_reminders WHERE (status = 'PROGRAMADO' AND scheduled_at <= ?) OR (status = 'FALHOU' AND next_attempt_at <= ? AND attempts < 3) ORDER BY scheduled_at LIMIT 100`,
     now.toISOString(), now.toISOString());
   for (const { id } of due) {
@@ -223,15 +226,18 @@ export async function runLifescoreReminders(now = new Date()) {
 }
 
 // ---------------- Visões ----------------
-export async function historyFor(patientId: string, opts: { includeRetified?: boolean } = {}) {
+export async function historyFor(patientId: string, opts: { includeRetified?: boolean; audience?: 'PACIENTE' | 'PROFISSIONAL' } = {}) {
+  const pro = opts.audience === 'PROFISSIONAL';
   const rows = await all<any>(`SELECT a.*, u.name AS specialist_name FROM lifescore_assessments a JOIN users u ON u.id = a.specialist_id
     WHERE a.patient_id = ? AND a.status IN ('PUBLICADA'${opts.includeRetified ? ",'RETIFICADA'" : ''}) ORDER BY a.published_at DESC LIMIT 100`, patientId);
   const items = rows.map((a) => {
     const r = JSON.parse(a.result_json);
     return { id: a.id, status: a.status, publishedAt: a.published_at, specialist: a.specialist_name, score: a.score_display, result: r,
-      domains: resultView(r).domains, summary: a.patient_summary, interpretation: a.interpretation,
+      domains: resultView(r).domains, summary: a.patient_summary,
+      // Interpretação profissional e motivo de retificação são registros internos (não vão ao paciente/responsável).
+      ...(pro ? { interpretation: a.interpretation, rectificationReason: a.rectification_reason } : {}),
       plan: { kind: a.plan_kind, date: a.plan_date, justification: a.plan_justification, status: a.plan_status, remindersOptOut: !!a.reminders_opt_out },
-      rectificationReason: a.rectification_reason, supersedesId: a.supersedes_id };
+      supersedesId: a.supersedes_id };
   });
   // Comparação só entre avaliações publicadas consecutivas e equivalentes (mesmo modelo, contexto e composição).
   const pub = items.filter((i) => i.status === 'PUBLICADA');
