@@ -14,7 +14,7 @@ import { CAFE_LAST_BATCH_DATE, importCafeBatches, seedCafeLibrary } from './modu
 import { MIGRATIONS } from './db/migrations.ts';
 import { ROLES, type Role } from './lib/roles.ts';
 import { hashPassword } from './lib/security.ts';
-import { nowIso, randomToken, sha256, uid } from './lib/util.ts';
+import { nowIso, randomToken, uid } from './lib/util.ts';
 import { passwordSchema } from './modules/auth/routes.ts';
 
 let ready: Promise<string[]> | null = null;
@@ -104,7 +104,6 @@ async function runInit(opts: ReadyOptions): Promise<string[]> {
     if (!(await one('SELECT 1 AS ok FROM devotionals WHERE publish_date = ?', CAFE_LAST_BATCH_DATE))) log(`Café com a ONEMA: ${await importCafeBatches()} mensagens do lote importadas`);
     await loadSecrets(settings);
     await bootstrapAdmin();
-    await emergencyPasswordReset();
     log('caminho rápido concluído');
     return [];
   }
@@ -171,32 +170,6 @@ async function bootstrapAdmin() {
     await run(`INSERT INTO audit_events (id, actor_id, action, subject_type, subject_id, occurred_at, meta_json) VALUES (?,?,?,?,?,?,?)`,
       uid(), null, 'BOOTSTRAP_ADMIN_CREATED', 'user', id, now, JSON.stringify({ roles }));
   });
-}
-
-/**
- * Redefinição de senha de emergência (enquanto o e-mail transacional não está configurado):
- * ADMIN_RESET_EMAIL + ADMIN_RESET_PASSWORD no painel da hospedagem, seguidos de um deploy.
- * Aplica UMA vez por par e-mail/senha (marcador com hash), encerra as sessões abertas e audita.
- * Depois de entrar, apague as duas variáveis.
- */
-async function emergencyPasswordReset() {
-  const email = process.env.ADMIN_RESET_EMAIL?.trim().toLowerCase();
-  const password = process.env.ADMIN_RESET_PASSWORD;
-  if (!email || !password) return;
-  if (!passwordSchema.safeParse(password).success) { console.error('ADMIN_RESET_PASSWORD não atende à política de senha (10+ caracteres, letras e números); senha não alterada.'); return; }
-  const marker = `admin_reset:${sha256(`${email}:${password}`)}`;
-  if (await one('SELECT 1 AS ok FROM system_settings WHERE key = ?', marker)) return;
-  const u = await one<any>('SELECT id FROM users WHERE email = ?', email);
-  if (!u) { console.error('ADMIN_RESET_EMAIL não encontrado; nada alterado.'); return; }
-  await tx(async () => {
-    const now = nowIso();
-    await run('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', hashPassword(password), now, u.id);
-    await run('UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL', now, u.id);
-    await run('INSERT INTO system_settings (key, value, created_at) VALUES (?,?,?) ON CONFLICT (key) DO NOTHING', marker, now, now);
-    await run(`INSERT INTO audit_events (id, actor_id, action, subject_type, subject_id, occurred_at, meta_json) VALUES (?,?,?,?,?,?,?)`,
-      uid(), null, 'EMERGENCY_PASSWORD_RESET', 'user', u.id, now, JSON.stringify({ via: 'ADMIN_RESET_EMAIL' }));
-  });
-  console.log('Senha redefinida pela variável ADMIN_RESET_EMAIL. Apague ADMIN_RESET_EMAIL e ADMIN_RESET_PASSWORD.');
 }
 
 /** APP_SECRET / PAYMENT_WEBHOOK_SECRET: variável de ambiente ou valor aleatório persistido no banco (gerado uma única vez). */
