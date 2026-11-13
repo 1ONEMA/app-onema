@@ -8,6 +8,7 @@ import { migrate, pendingMigrations } from './db/migrate.ts';
 import { seedAcademyDemoRest, seedDemo, seedOfficial } from './db/seed.ts';
 import { PRICING_V2_SOURCE, seedPricingV1, seedPricingV2 } from './modules/care/catalog.ts';
 import { POP_LIBRARY_VERSION, loadPops } from './modules/pops/routes.ts';
+import { loadLegalTexts } from './modules/legal.ts';
 import { CAFE_LAST_BATCH_DATE, importCafeBatches, seedCafeLibrary } from './modules/cafe/routes.ts';
 import { MIGRATIONS } from './db/migrations.ts';
 import { ROLES, type Role } from './lib/roles.ts';
@@ -91,6 +92,8 @@ async function runInit(opts: ReadyOptions): Promise<string[]> {
       const r = await loadPops();
       log(`POPs: ${r.inserted} documentos carregados${r.skipped ? ` (${r.skipped})` : ''}`);
     }
+    // Documentos institucionais (nov/2026).
+    if (!(await one(`SELECT 1 AS ok FROM legal_texts WHERE code = 'PRIV' LIMIT 1`))) log(`Documentos legais: ${await loadLegalTexts()} publicados`);
     // Lotes mensais do Café: uma consulta quando o último lote já está carregado.
     if (!(await one('SELECT 1 AS ok FROM devotionals WHERE publish_date = ?', CAFE_LAST_BATCH_DATE))) log(`Café com a ONEMA: ${await importCafeBatches()} mensagens do lote importadas`);
     await loadSecrets(settings);

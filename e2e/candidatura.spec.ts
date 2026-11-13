@@ -30,7 +30,12 @@ test('candidatura de especialista', async ({ page }, info) => {
   await page.getByLabel('Telefone (WhatsApp)').fill('(11) 98888-0000');
   await page.getByLabel('Regiões e bairros em que pode atender').fill('Zona Sul');
   await page.locator('.checks-grid input[type=checkbox]').first().check();
-  await page.getByText(/Declaro que as informações são verdadeiras/).click();
+  await page.getByText(/Declaro que as informações e os documentos apresentados são verdadeiros/).click();
+  // o Termo abre em janela flutuante sem sair da tela
+  await page.getByRole('button', { name: 'Termo de Proteção de Dados, Sigilo e Responsabilidades' }).click();
+  await expect(page.getByRole('dialog')).toContainText('OBJETO E ABRANGÊNCIA');
+  await page.getByRole('button', { name: 'Fechar' }).click();
+  await page.locator('label', { hasText: 'Proteção de dados e sigilo.' }).locator('input').check();
   await page.getByRole('button', { name: 'Salvar dados' }).click();
   await expect(page.getByText('Rascunho')).toBeVisible();
 

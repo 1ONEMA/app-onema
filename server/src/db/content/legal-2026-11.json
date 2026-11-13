@@ -1,0 +1,934 @@
+{
+ "source": "Pacotes ONEMA 04–05/11/2026 (Política de Privacidade v1.1, Termo LGPD Especialista v1.0, Termos de Uso v1.2)",
+ "texts": [
+  {
+   "code": "PRIV",
+   "version": "1.1",
+   "title": "POLÍTICA DE PRIVACIDADE E PROTEÇÃO DE DADOS DA ONEMA SAÚDE",
+   "sections": [
+    {
+     "heading": null,
+     "paragraphs": [
+      "Código ONEMA-PRIV-001 | Versão 1.1 | Atualização 05 de novembro de 2026",
+      "Status da entrega: versão para integração e revisão pré-publicação. Vigência pública: a definir após validação."
+     ]
+    },
+    {
+     "heading": "1. QUEM SOMOS E COMO ENTRAR EM CONTATO",
+     "paragraphs": [
+      "1.1. A ONEMA SAÚDE é uma plataforma de coordenação de cuidados de enfermagem domiciliar e de recursos digitais associados ao cuidado e à educação continuada. A responsável pelas operações descritas nesta política é [razão social: a preencher pela ONEMA], CNPJ 18.834.917/0001-57, com sede em [endereço da sede: a preencher pela ONEMA], doravante ONEMA.",
+      "1.2. Nosso site institucional é https://onemasaude.com.br. O canal institucional de atendimento e privacidade é atendimento@onemasaude.com.br. Você também pode encaminhar solicitações sobre seus dados pela área de privacidade do App, conforme disponibilizada. Se a função estiver indisponível ou você não conseguir acessar a conta, utilize o e-mail.",
+      "1.3. A ONEMA atua como controladora nas operações em que decide as finalidades e os elementos essenciais do tratamento. Profissionais, instituições e prestadores podem ter responsabilidades próprias, conforme sua atuação efetiva. Esta política não atribui automaticamente a todos os parceiros a mesma posição jurídica.",
+      "1.4. O canal institucional encaminha os pedidos à equipe responsável. A identificação e o contato do encarregado, quando aplicáveis, devem constar das informações institucionais de privacidade, após a correspondente designação. A condição de fundador ou Responsável Técnico não representa, por si só, nomeação como encarregado."
+     ]
+    },
+    {
+     "heading": "2. A QUEM ESTA POLÍTICA SE APLICA",
+     "paragraphs": [
+      "2.1. A política abrange pacientes, responsáveis e representantes, especialistas ONEMA ONE, alunos da ONEMA Academy, assinantes ONEMA PRIME, visitantes e demais pessoas que interajam com nossos serviços, conforme os recursos que utilizem.",
+      "2.2. Explica o tratamento de dados no site e PWA/App, no cadastro e credenciamento, na solicitação, contratação e execução de atendimentos, na Carteira Digital, nos recursos de monitoramento e Telenfermagem, nas comunicações, nos pagamentos, no suporte e na Academy.",
+      "2.3. Um recurso mencionado pode depender de implantação e validação. A existência desta política não significa que todas as funcionalidades estejam ativas. A tela correspondente deve informar as condições do serviço efetivamente disponibilizado."
+     ]
+    },
+    {
+     "heading": "3. QUAIS DADOS PODEM SER TRATADOS",
+     "paragraphs": [
+      "3.1. Cadastro e contato: nome, CPF e outros identificadores necessários, data de nascimento, e-mail, telefone, endereço de atendimento, dados de conta e informações indispensáveis à identificação e comunicação.",
+      "3.2. Representação e pessoas de apoio: identidade, relação com o paciente, contatos, poderes ou autorização e informações necessárias para verificar legitimidade e limites de acesso.",
+      "3.3. Saúde e assistência: informações fornecidas pelo paciente ou representante, histórico pertinente, alergias, medicamentos, prescrições, avaliações, diagnósticos de enfermagem, medidas, evolução, plano assistencial, orientações, ocorrências e imagens de lesões quando obtidas pelo fluxo aplicável. Dados de saúde recebem proteção específica por serem dados pessoais sensíveis.",
+      "3.4. Especialistas: identificação, CPF, COREN, formação pertinente, documentos, selfie com documento quando exigida no credenciamento, verificação de contatos, evidências de consulta profissional, dados bancários, recibos, ofertas, atendimentos e informações de qualidade e suporte pertinentes à parceria.",
+      "3.5. Pagamentos: identificação do pagador, valor, meio de pagamento, situação da transação, comprovantes, informações fiscais e dados necessários à conciliação, repasses e prevenção de fraude. Dados de cartão poderão ser processados pelo prestador financeiro; o fluxo efetivo deve limitar o acesso da ONEMA ao necessário, sem presumir armazenamento de dados completos do cartão.",
+      "3.6. Academy e PRIME: inscrições, cursos, progresso, avaliações, certificados, assinaturas, cobranças, benefícios utilizados e solicitações relacionadas.",
+      "3.7. Acesso e segurança: registros técnicos pertinentes, como data, hora, IP, sessão, dispositivo, ações de acesso e versões dos termos e decisões. Senhas e códigos devem ser protegidos e não serão solicitados por mensagem para atendimento de pedido de privacidade.",
+      "3.8. Localização e check-in: quando a funcionalidade estiver implementada e informada, poderão ser tratados dados de localização necessários à confirmação de chegada e saída e eventos de código ou QR vinculados ao atendimento. Esta política não autoriza rastreamento permanente fora da finalidade informada.",
+      "3.9. Comunicações e preferências: mensagens de suporte, solicitações de direitos, respostas, preferências de contato e escolhas sobre comunicações promocionais e tecnologias opcionais."
+     ]
+    },
+    {
+     "heading": "4. DE ONDE OS DADOS VÊM",
+     "paragraphs": [
+      "4.1. Os dados podem ser fornecidos pela própria pessoa, representante legitimado ou profissional envolvido no cuidado, ou constar de documentos enviados, consultas profissionais públicas legítimas e integrações necessárias ao serviço, como pagamentos e comunicação.",
+      "4.2. Informação publicamente acessível não é autorização para uso irrestrito. A ONEMA deve observar contexto, finalidade e necessidade e evitar coletar dados excessivos ou sem relação com o serviço.",
+      "4.3. Quem envia dados de outra pessoa deve ter legitimidade para fazê-lo e informar apenas o necessário. A ONEMA verificará representação e acesso quando cabível, sem transferir integralmente ao usuário seus próprios deveres de proteção."
+     ]
+    },
+    {
+     "heading": "5. PARA QUE TRATAMOS OS DADOS E COM QUAL FUNDAMENTO",
+     "paragraphs": [
+      "5.1. Cadastro, solicitações e contratação: dados comuns necessários podem ser tratados para procedimentos preliminares solicitados e execução contratual. Verificação profissional, emissão fiscal e guarda podem envolver obrigações legais e regulatórias e exercício regular de direitos.",
+      "5.2. Assistência e continuidade: dados sensíveis serão tratados nas hipóteses legais pertinentes, como tutela da saúde em procedimento realizado por profissional ou serviço de saúde, obrigação legal ou regulatória, proteção da vida ou exercício regular de direitos, conforme a operação e sua necessidade.",
+      "5.3. Operação financeira: dados necessários à cobrança, ao pagamento, à conciliação e aos repasses serão tratados conforme execução contratual, obrigações legais e demais hipóteses adequadas à transação. Não se autoriza uso incompatível de informações clínicas para finalidade financeira.",
+      "5.4. Segurança e autenticação: prevenção de fraude e proteção de contas dependem de base legal e medidas proporcionais. Biometria, se adotada, exige avaliação específica; uma selfie não significa necessariamente reconhecimento biométrico automatizado. Os detalhes devem ser informados antes da coleta ou operação correspondente.",
+      "5.5. Qualidade e gestão: indicadores e registros pertinentes poderão apoiar organização, segurança e melhoria do serviço. O uso de legítimo interesse para dados comuns exige avaliação de finalidade, necessidade e direitos dos titulares; essa hipótese não serve como base autônoma para dados sensíveis.",
+      "5.6. Consentimento: quando for a hipótese apropriada, a decisão será específica, informada, destacada e demonstrável, com possibilidade de recusa e revogação gratuitas. O aceite de termos gerais ou a leitura desta política não autoriza todos os tratamentos possíveis.",
+      "5.7. Informações obrigatórias, respectivas finalidades e consequências de não fornecê-las serão apresentadas nos fluxos pertinentes. Uma nova finalidade incompatível com a informada exige nova avaliação e, quando necessário, nova decisão do titular."
+     ]
+    },
+    {
+     "heading": "6. CARTEIRA DIGITAL E REGISTROS ASSISTENCIAIS",
+     "paragraphs": [
+      "6.1. A Carteira Digital é o prontuário longitudinal para os cuidados registrados na ONEMA. Informações devem ser documentadas com identificação e autoria, integridade e rastreabilidade, conforme as regras legais e profissionais.",
+      "6.2. O acesso assistencial deve limitar-se às pessoas envolvidas e às necessidades de cuidado. Equipes administrativas não devem receber acesso irrestrito a conteúdo clínico por mera conveniência.",
+      "6.3. O titular ou representante legitimado pode solicitar acesso e cópia. A correção de informação clínica observará a preservação do histórico e da autoria, sem apagar indevidamente o registro original.",
+      "6.4. Encerrar a conta ou cancelar um plano não elimina direitos legais de acesso aos registros e não determina apagamento automático do prontuário."
+     ]
+    },
+    {
+     "heading": "7. FOTOGRAFIAS RELATÓRIOS E ACESSO DE FAMILIARES",
+     "paragraphs": [
+      "7.1. Fotografias de lesões para acompanhamento seguem informação e autorização específicas no fluxo aplicável, com exposição mínima, finalidade assistencial e guarda protegida. O consentimento para o curativo e a autorização para fotografar são decisões distintas.",
+      "7.2. O envio de relatório por iniciativa do paciente ou representante deve permitir verificar destinatário, canal e conteúdo antes da confirmação. E-mail e WhatsApp envolvem riscos de endereço incorreto, encaminhamento e cópias externas; os cuidados e o método efetivamente utilizados devem ser informados na operação.",
+      "7.3. Acesso contínuo de familiar ou cuidador é diferente de envio pontual de relatório. Deve observar identidade, poderes, permissões e revogação. Parentesco ou pagamento pelo atendimento não concede, por si só, acesso integral aos dados do paciente.",
+      "7.4. A autorização assistencial de imagem não permite automaticamente publicidade, pesquisa, ensino ou divulgação pública. Essas finalidades exigem avaliação e fundamento próprios e demais requisitos cabíveis."
+     ]
+    },
+    {
+     "heading": "8. TELENFERMAGEM E COMUNICAÇÕES",
+     "paragraphs": [
+      "8.1. Interações remotas de enfermagem devem observar consentimento para a modalidade, identificação, privacidade e registro, conforme as normas aplicáveis. Este documento não substitui o consentimento de Telenfermagem.",
+      "8.2. O atendimento remoto pode envolver prestador de tecnologia. Dados e metadados necessários devem ser limitados à finalidade, conforme a arquitetura e os contratos aprovados. A gravação de áudio ou vídeo pela ONEMA não é autorizada pela simples leitura desta política; deve ter finalidade, fundamento e informação próprios antes de ocorrer.",
+      "8.3. Mensagens de agenda, segurança, execução e suporte são distintas de publicidade. Preferências promocionais deverão ser separadas quando pertinente e poderão ser alteradas nos canais informados. A recusa de marketing não deve impedir acesso ao cuidado ou aos dados legalmente disponíveis.",
+      "8.4. O aplicativo e as mensagens não substituem atendimento de urgência nem significam monitoramento permanente. Horários e prazos de acompanhamento serão informados no serviço contratado."
+     ]
+    },
+    {
+     "heading": "9. COM QUEM OS DADOS PODEM SER COMPARTILHADOS",
+     "paragraphs": [
+      "9.1. Profissionais e equipes envolvidos no cuidado recebem os dados necessários às suas funções. Após atribuição do especialista, o paciente poderá conhecer sua identificação profissional e as informações pertinentes à segurança do atendimento, sem exposição indevida de seus documentos ou dados bancários.",
+      "9.2. Prestadores de infraestrutura, hospedagem, armazenamento, autenticação, comunicações, pagamento, vídeo e suporte poderão tratar dados necessários às respectivas funções, observados contratos, segurança e finalidades legítimas. A existência de fornecedor em avaliação não significa integração ativa.",
+      "9.3. A ONEMA deve manter informações atualizadas sobre categorias e identidade dos destinatários quando exigíveis e atender pedidos de informação sobre compartilhamentos. Os fluxos efetivos, países e garantias aplicáveis devem ser conferidos antes da publicação e atualizados quando mudarem.",
+      "9.4. Poderá haver comunicação a autoridades e conselhos quando houver fundamento legal ou requisição legítima, limitada ao necessário. Solicitações de acesso não serão atendidas indiscriminadamente sem verificar legitimidade.",
+      "9.5. Não se autoriza comercialização ilícita de dados de saúde, venda de prontuários ou comunicação incompatível com os direitos dos titulares. Obrigações próprias dos agentes não são afastadas por contratação de fornecedor."
+     ]
+    },
+    {
+     "heading": "10. TRANSFERÊNCIAS INTERNACIONAIS",
+     "paragraphs": [
+      "10.1. Infraestrutura e prestadores podem envolver tratamento fora do Brasil. Não se presume armazenamento exclusivamente nacional. Quando ocorrer transferência internacional, devem ser observados os requisitos da LGPD e a regulamentação da ANPD, com mecanismo jurídico adequado e informações pertinentes ao titular.",
+      "10.2. A ONEMA deverá disponibilizar, na política ou aviso complementar acessível, identificação e contatos pertinentes, forma, finalidade e duração da transferência, país de destino e responsabilidades dos agentes, conforme o mecanismo e as exigências aplicáveis. A configuração definitiva precisa ser validada antes de ativar o respectivo fluxo.",
+      "10.3. Esta política não constitui consentimento específico para transferências internacionais indeterminadas. Autorizações e cláusulas contratuais devem corresponder às operações reais."
+     ]
+    },
+    {
+     "heading": "11. POR QUANTO TEMPO OS DADOS SÃO GUARDADOS",
+     "paragraphs": [
+      "11.1. A retenção depende da categoria, finalidade, obrigação legal ou regulatória e necessidade de exercício regular de direitos, com acesso limitado. Não adotamos, por esta política, guarda ilimitada de documentos, selfies, localização e registros técnicos.",
+      "11.2. Prontuários têm disciplina própria. A Lei nº 13.787/2018 prevê a possibilidade de eliminação nas condições legais após prazo mínimo de vinte anos contado do último registro para os suportes abrangidos, sem determinar destruição automática. A gestão documental deve considerar normas profissionais e situações que exijam conservação adicional.",
+      "11.3. Os registros de acesso à aplicação, quando sujeitos ao art. 15 do Marco Civil da Internet, observarão o prazo de seis meses e as demais hipóteses legais pertinentes. Esse prazo não se aplica indistintamente a todos os logs, documentos e dados do serviço.",
+      "11.4. Documentos fiscais, comprovantes, registros de contrato, credenciamento, cursos e evidências de aceites obedecerão às finalidades e aos prazos próprios definidos na gestão de retenção, com fundamentação e revisão periódica. A ONEMA fornecerá informações sobre duração ou critérios aplicáveis à categoria solicitada.",
+      "11.5. Ao fim da necessidade e ausente hipótese legítima de conservação, os dados serão eliminados ou anonimizados adequadamente. Backups e cópias deverão seguir ciclos documentados e restrições de acesso, sem uso incompatível. Revogar consentimento não invalida tratamento anterior regular nem elimina obrigação legal de guardar."
+     ]
+    },
+    {
+     "heading": "12. SEGURANÇA E INCIDENTES",
+     "paragraphs": [
+      "12.1. A ONEMA deve adotar medidas técnicas e administrativas proporcionais aos riscos, como controles de acesso, autenticação, proteção de transmissão e armazenamento, registros de auditoria, gestão de fornecedores e procedimentos de continuidade e resposta. A descrição de recurso específico não deve prometer capacidade inexistente.",
+      "12.2. Não há segurança absoluta, mas essa limitação não exclui deveres legais de prevenção e responsabilização. Usuários devem proteger credenciais e comunicar suspeitas, sem assumir integralmente riscos da atividade da ONEMA.",
+      "12.3. Incidentes serão avaliados e tratados, com medidas de contenção e comunicações à ANPD e aos titulares quando exigidas, conforme critérios e prazos legais e regulamentares. Situações suspeitas podem ser relatadas pelo App ou por atendimento@onemasaude.com.br, identificando o assunto como incidente de dados, sem enviar senhas ou cópias clínicas desnecessárias."
+     ]
+    },
+    {
+     "heading": "13. CRIANÇAS ADOLESCENTES E REPRESENTANTES",
+     "paragraphs": [
+      "13.1. O tratamento de dados de crianças e adolescentes observará seu melhor interesse, bases legais e exigências aplicáveis, informação acessível e verificação de representação quando necessária. Não será exigido dado excessivo para uso do serviço.",
+      "13.2. A pessoa assistida participará das decisões conforme sua capacidade e direitos. Família, responsável financeiro e cuidador não são automaticamente representantes com acesso integral. Conflitos e dúvidas de legitimidade serão avaliados antes de expor dados protegidos."
+     ]
+    },
+    {
+     "heading": "14. KARY GUARDIAN LIFE SCORE E AUTOMAÇÃO",
+     "paragraphs": [
+      "14.1. Assistentes, indicadores e pontuações devem ter suas funções, dados relevantes e limitações explicados nas telas correspondentes. Este documento não comprova desempenho clínico nem autoriza substituir julgamento profissional por automação.",
+      "14.2. Se decisões forem tomadas exclusivamente de forma automatizada e afetarem interesses do titular, a ONEMA deverá disponibilizar os direitos de revisão e informações pertinentes sobre critérios e procedimentos, observados os segredos comercial e industrial e as exigências da LGPD.",
+      "14.3. Dados de saúde identificáveis ou reidentificáveis não deverão ser inseridos em ferramenta pública de inteligência artificial ou usados para treinamento de modelos por decorrência desta política. Uma nova operação exige análise própria de base legal, finalidade, fornecedores, segurança e requisitos éticos e profissionais."
+     ]
+    },
+    {
+     "heading": "15. COOKIES E TECNOLOGIAS SEMELHANTES",
+     "paragraphs": [
+      "15.1. Site e PWA podem utilizar armazenamento local, cookies e identificadores para sessão, autenticação, segurança e preferências, conforme os recursos implementados. Tecnologias opcionais de métricas ou publicidade exigem avaliação e informação próprias.",
+      "15.2. O aviso ou central de preferências deverá apresentar as tecnologias efetivas, finalidades, fornecedores e duração. Quando a base for consentimento, recursos opcionais devem aguardar escolha válida e permitir recusa e alteração posterior, sem caixas previamente marcadas.",
+      "15.3. Esta política não autoriza rastreadores a receber conteúdo clínico, informações de formulários ou dados de páginas autenticadas de modo incompatível com a finalidade e a lei."
+     ]
+    },
+    {
+     "heading": "16. SEUS DIREITOS",
+     "paragraphs": [
+      "16.1. Conforme condições legais, você pode solicitar confirmação do tratamento e acesso; correção de dados incompletos, inexatos ou desatualizados; informação das entidades com quem houve compartilhamento; anonimização, bloqueio ou eliminação de dados desnecessários, excessivos ou irregulares; e portabilidade conforme regulamentação e segredos legalmente protegidos.",
+      "16.2. Pode solicitar eliminação de dados tratados com consentimento, ressalvadas as hipóteses legais de conservação; saber se pode não consentir e quais as consequências; e revogar consentimento de forma gratuita e facilitada. Pode opor-se a tratamento sem consentimento quando houver descumprimento da LGPD e solicitar revisão das decisões automatizadas abrangidas pela lei.",
+      "16.3. O exercício regular de direitos não gera punição. Alguns pedidos podem ter limites por dever de guarda, proteção de terceiros ou outra razão legal, que deverá ser explicada. Você mantém o direito de peticionar à ANPD e aos demais órgãos competentes e de recorrer ao Poder Judiciário."
+     ]
+    },
+    {
+     "heading": "17. COMO EXERCER SEUS DIREITOS",
+     "paragraphs": [
+      "17.1. Utilize “Privacidade e meus dados” no App, quando disponível, ou atendimento@onemasaude.com.br, com o assunto “Privacidade”. Informe o pedido de forma objetiva. Representantes deverão demonstrar legitimidade quando necessário.",
+      "17.2. A ONEMA poderá verificar identidade de modo proporcional e protegido e fornecerá confirmação ou protocolo pelo fluxo de atendimento. Não solicitará sua senha. Se não conseguir usar o App ou a conta estiver encerrada, o canal de e-mail permanece disponível.",
+      "17.3. Os pedidos são gratuitos e seguem os prazos legais pertinentes. Como regra geral da LGPD, confirmação e acesso podem ser prestados em formato simplificado imediatamente ou por declaração completa em até quinze dias, ressalvada disciplina específica aplicável. Outros direitos não recebem automaticamente esse mesmo prazo.",
+      "17.4. Havendo impossibilidade de providência imediata, a resposta indicará razões e encaminhamentos pertinentes. Pedidos de acesso não deverão revelar indiscriminadamente dados de terceiros. Quando exigível, correções e outras providências serão comunicadas aos agentes com quem os dados tenham sido compartilhados, observadas as exceções legais."
+     ]
+    },
+    {
+     "heading": "18. CONTA ENCERRADA E ESCOLHAS REVOGADAS",
+     "paragraphs": [
+      "18.1. Você pode solicitar encerramento da conta e alterar escolhas pelos meios disponíveis ou canal institucional. A ONEMA explicará os efeitos sobre serviços em curso, benefícios e acesso, sem restringir direitos legais sobre registros.",
+      "18.2. Encerramento, exclusão e revogação têm efeitos diferentes: a retirada de consentimento impede usos futuros que dele dependam, mas não apaga necessariamente prontuários, documentos ou evidências legitimamente conservados. Dados que permanecerem guardados deverão continuar protegidos e limitados à finalidade permitida."
+     ]
+    },
+    {
+     "heading": "19. ATUALIZAÇÕES E INFORMAÇÃO CONTÍNUA",
+     "paragraphs": [
+      "19.1. Esta versão é datada para permitir acompanhamento. Mudanças relevantes serão informadas com destaque e data de vigência; quando houver necessidade de nova decisão específica, ela será solicitada no fluxo correspondente.",
+      "19.2. Novas finalidades e operações não se legitimam apenas por alteração silenciosa da política. As informações devem refletir a operação efetiva, permanecer acessíveis e ser complementadas pelos avisos necessários, inclusive sobre tecnologias e transferências."
+     ]
+    },
+    {
+     "heading": "20. LEITURA DA POLÍTICA E DECISÕES ESPECÍFICAS",
+     "paragraphs": [
+      "20.1. Esta política é um documento de transparência. A consulta ou ciência não equivale a consentimento genérico, aceitação de procedimento clínico, contratação de plano ou renúncia de direitos.",
+      "20.2. Termos de uso, compromissos profissionais e autorizações específicas possuem finalidades distintas. Quando houver escolha opcional, ela deve permanecer separada, identificada e inicialmente desmarcada. As obrigações da ONEMA e de seus parceiros continuam sujeitas à legislação brasileira e às normas pertinentes.",
+      "CONTATO DE PRIVACIDADE",
+      "Solicitação pelo App ONEMA SAÚDE, na área de privacidade, ou atendimento@onemasaude.com.br.",
+      "Site institucional: https://onemasaude.com.br."
+     ]
+    }
+   ]
+  },
+  {
+   "code": "TERMO_ESPECIALISTA",
+   "version": "1.0",
+   "title": "TERMO DE PROTEÇÃO DE DADOS PESSOAIS SIGILO E RESPONSABILIDADES DO ESPECIALISTA ONEMA ONE",
+   "sections": [
+    {
+     "heading": null,
+     "paragraphs": [
+      "Código ONEMA-LGPD-ESP-001 | Versão 1.0 | Data de elaboração 05/11/2026",
+      "Status: minuta jurídica para revisão e preenchimento antes da publicação. Não constitui parecer ou aprovação jurídica.",
+      "QUADRO DE IDENTIFICAÇÃO",
+      "ONEMA SAÚDE: [razão social: a preencher pela ONEMA], CNPJ 18.834.917/0001-57, sede [endereço da sede: a preencher pela ONEMA], site https://onemasaude.com.br. Canal institucional para atendimento e privacidade: atendimento@onemasaude.com.br, também acessível por solicitação dentro do App.",
+      "Especialista: [NOME COMPLETO], CPF [IDENTIFICADOR PROTEGIDO NO FLUXO], COREN [UF/NÚMERO], identificador da conta [ID].",
+      "Início de vigência da versão publicada: [DATA DE APROVAÇÃO]. Política de Privacidade complementar: [LINK VÁLIDO]. Identificação e contato do encarregado, quando exigíveis: [PUBLICAR APÓS DESIGNAÇÃO E AVALIAÇÃO PERTINENTES]."
+     ]
+    },
+    {
+     "heading": "1. OBJETO E ABRANGÊNCIA",
+     "paragraphs": [
+      "1.1. O presente instrumento estabelece os deveres de confidencialidade, proteção de dados e segurança aplicáveis ao especialista parceiro da rede ONEMA ONE, bem como informa seus direitos como titular dos dados tratados pela ONEMA SAÚDE.",
+      "1.2. Aplica-se ao credenciamento, uso do PWA/App, ofertas e execução de atendimentos, Carteira Digital, comunicação assistencial, check-in e check-out, pagamentos e recibos, suporte, auditorias e ONEMA Academy, conforme funcionalidades efetivamente disponibilizadas.",
+      "1.3. Integra o Termo de Uso e Parceria do Especialista e deve ser lido com a Política de Privacidade. Não altera, por si só, remuneração, autonomia profissional ou natureza da relação entre as partes, nem substitui consentimento assistencial ou autorização específica do paciente.",
+      "1.4. Obrigações legais, éticas e direitos indisponíveis prevalecem sobre disposição incompatível. Em caso de dúvida, a interpretação preservará a finalidade legítima, a boa-fé e a proteção dos titulares, sem afastar responsabilidades legais."
+     ]
+    },
+    {
+     "heading": "2. DEFINIÇÕES E PRINCÍPIOS",
+     "paragraphs": [
+      "2.1. Dados pessoais são informações relacionadas a pessoa natural identificada ou identificável. Dados sensíveis incluem informações de saúde, biometria vinculada à pessoa e demais categorias definidas pela LGPD. Tratamento abrange coleta, consulta, registro, armazenamento, transmissão, compartilhamento, eliminação e outras operações previstas em lei.",
+      "2.2. Controlador é quem decide sobre finalidades e elementos essenciais do tratamento; operador realiza tratamento em nome do controlador, segundo suas instruções. Titular é a pessoa a quem os dados se referem. Incidente compreende evento de segurança que comprometa confidencialidade, integridade, disponibilidade ou autenticidade de dados pessoais.",
+      "2.3. As partes observarão finalidade, adequação, necessidade, livre acesso, qualidade, transparência, segurança, prevenção, não discriminação e responsabilização. Informação pseudonimizada não equivale automaticamente a dado anonimizado; retirar o nome de uma fotografia ou caso clínico pode não impedir identificação."
+     ]
+    },
+    {
+     "heading": "3. PAPÉIS DAS PARTES E INSTRUÇÕES",
+     "paragraphs": [
+      "3.1. A ONEMA atua como controladora nas operações em que efetivamente define finalidades e elementos essenciais, inclusive administração do cadastro e dos serviços que organiza. O especialista poderá atuar como operador em tarefas executadas em nome da ONEMA ou como controlador nas operações sobre as quais tenha decisão própria e responsabilidade legal, conforme os fatos e o mapa de tratamento aprovado.",
+      "3.2. A autonomia clínica não torna o especialista automaticamente controlador de todas as operações, e o vínculo à plataforma não o torna operador universal. A designação contratual não altera as responsabilidades determinadas pela atuação real.",
+      "3.3. Nas operações executadas em nome da ONEMA, o especialista cumprirá instruções documentadas, lícitas e compatíveis com a ética e a segurança. Se identificar instrução aparentemente ilegal ou acesso desnecessário, comunicará o canal institucional para esclarecimento, evitando a operação irregular, sem omitir assistência legalmente exigida em situação urgente.",
+      "3.4. A ONEMA disponibilizará políticas, canais e orientações aplicáveis. Decisões sobre novas finalidades, coleta ampliada, integração, subcontratação ou exportação de dados exigem análise e autorização institucional cabível antes da execução."
+     ]
+    },
+    {
+     "heading": "4. DADOS DO ESPECIALISTA TRATADOS PELA ONEMA",
+     "paragraphs": [
+      "4.1. Conforme a finalidade e necessidade, poderão ser tratados dados de identificação e contato, CPF, endereço, dados profissionais e COREN, documentos e evidências de consulta profissional, formação pertinente, selfie com documento, verificações de e-mail/celular, informações bancárias e transacionais, recibos, registros de suporte, aceites, ofertas e atendimentos realizados.",
+      "4.2. Também poderão ser tratados registros necessários de sessão, dispositivo e acesso, eventos de check-in/check-out, localização nos limites da cláusula 8, indicadores profissionais pertinentes, avaliações e respectivas contestações e registros de cursos, progresso e certificação na Academy.",
+      "4.3. A coleta de informação sensível sobre o especialista deve ser excepcional, necessária e fundada em hipótese legal própria. Não se presume coleta de histórico de saúde para credenciamento, nem se autoriza exigência discriminatória.",
+      "4.4. Os dados poderão ser fornecidos pelo especialista ou obtidos de fontes legitimadas, como conselho profissional, prestador de pagamento ou registros de atendimento e suporte. A ONEMA informará as categorias e origens relevantes, evitando coleta excessiva."
+     ]
+    },
+    {
+     "heading": "5. FINALIDADES E BASES LEGAIS",
+     "paragraphs": [
+      "5.1. Para dados pessoais comuns, as finalidades incluem avaliar e administrar o cadastro, validar regularidade profissional, disponibilizar ofertas, organizar atendimentos, documentar atividades, prestar suporte, administrar cursos, calcular e executar repasses, emitir ou receber documentos e atender obrigações legais. As bases poderão compreender execução de contrato ou procedimentos preliminares solicitados, obrigação legal/regulatória e exercício regular de direitos, conforme a operação.",
+      "5.2. Segurança, prevenção de fraude e gestão de qualidade poderão utilizar base legal apropriada, com avaliação de necessidade, proporcionalidade e expectativas. Legítimo interesse somente será utilizado para dados comuns quando cumpridos seus requisitos; não constitui fundamento autônomo para dados sensíveis.",
+      "5.3. Para dados de saúde e outros sensíveis, será identificada hipótese do art. 11 da LGPD pertinente à operação, como tutela da saúde, obrigação legal, exercício regular de direitos, proteção da vida ou prevenção de fraude nos limites legais. Quando a hipótese aplicável for consentimento, este será específico, destacado, informado e demonstrável.",
+      "5.4. A ONEMA não utilizará o aceite deste termo como consentimento universal, nem alterará a base legal de forma artificial para contornar revogação. Tratamentos obrigatórios e consequências da falta de dados necessários serão informados com destaque no respectivo fluxo."
+     ]
+    },
+    {
+     "heading": "6. DOCUMENTOS SELFIE E VALIDAÇÃO CADASTRAL",
+     "paragraphs": [
+      "6.1. O credenciamento poderá exigir documentos e selfie com documento para verificar identidade, com informação prévia sobre finalidade, acesso e guarda. O acesso assistencial depende de homologação; a mera entrega de documentos não habilita o profissional.",
+      "6.2. Selfie não será anunciada ou utilizada como reconhecimento biométrico automatizado se não houver essa funcionalidade. A adoção de biometria, prova de vida automatizada ou fornecedor novo exige avaliação de riscos, base legal própria, transparência, contrato e proteção adequados antes da ativação.",
+      "6.3. Evidências de consulta ao COREN poderão integrar cadastro interno restrito. O especialista poderá solicitar correção de inexatidão, prestar esclarecimentos e conhecer o fundamento de restrição, observadas limitações legais, prevenção de fraude e direitos de terceiros.",
+      "6.4. A ONEMA deverá limitar os dados coletados, segregar documentos de identificação do perfil assistencial e definir prazos de guarda específicos, inclusive para cadastro recusado ou não concluído."
+     ]
+    },
+    {
+     "heading": "7. DESTINATÁRIOS DOS DADOS DO PARCEIRO",
+     "paragraphs": [
+      "7.1. Dados pertinentes poderão ser acessados por pessoas da ONEMA com atribuição legítima de credenciamento, operação, qualidade, suporte, financeiro, privacidade e segurança, limitados à função. Prestadores necessários poderão tratar dados para infraestrutura, comunicação, verificação, pagamento e outras funções efetivamente contratadas, com salvaguardas.",
+      "7.2. Ao paciente, após atribuição do especialista, poderão ser apresentados nome, identificação profissional, COREN e informações necessárias ao atendimento e à segurança. Documentos de identidade, dados bancários, CPF integral e evidências internas não devem ser expostos como parte de perfil público sem necessidade e fundamento próprios.",
+      "7.3. Compartilhamentos com autoridades, conselhos e outros destinatários dependem de fundamento jurídico e necessidade. Relação ou categorias de fornecedores, finalidades e eventual transferência internacional serão informadas na Política de Privacidade e nos anexos institucionais atualizados.",
+      "7.4. Os dados não serão comercializados ou utilizados de modo ilícito ou incompatível. Publicidade, divulgação de imagem do especialista e outras finalidades opcionais não decorrem deste compromisso e serão tratadas em instrumento específico quando necessário."
+     ]
+    },
+    {
+     "heading": "8. GEOLOCALIZAÇÃO CÓDIGO E QR DE ATENDIMENTO",
+     "paragraphs": [
+      "8.1. Quando implementada e previamente informada, a geolocalização poderá apoiar confirmação de chegada e saída, autenticidade do atendimento e segurança, associada aos eventos de check-in/check-out. O App deverá informar dados, momento, finalidade, precisão necessária, destinatários e guarda.",
+      "8.2. Este termo não autoriza rastreamento permanente ou em segundo plano fora da finalidade e período necessários. Qualquer ampliação exige análise de necessidade, base legal, transparência e configuração próprias. Permissão técnica do sistema operacional não substitui a análise jurídica do tratamento.",
+      "8.3. Recusa de permissão, ausência de sinal ou falha de GPS devem ter procedimento de verificação ou contingência adequado, sem presunção automática de fraude. O especialista poderá contestar localização ou registro incorreto.",
+      "8.4. Códigos e QR são meios de confirmação e não equivalem ao consentimento clínico nem autorizam acesso irrestrito ao prontuário. Não deverão conter dados clínicos abertos. O especialista não solicitará senha ou código de acesso geral da conta do paciente, nem compartilhará o código de confirmação fora do fluxo autorizado."
+     ]
+    },
+    {
+     "heading": "9. DIREITOS DO ESPECIALISTA COMO TITULAR",
+     "paragraphs": [
+      "9.1. Mediante requerimento e observadas as condições legais, o especialista poderá obter confirmação de tratamento, acesso, correção, informação sobre compartilhamentos, anonimização, bloqueio ou eliminação de dados desnecessários, excessivos ou irregulares, portabilidade conforme regulamentação e segredos protegidos e eliminação de dados tratados com consentimento ressalvadas hipóteses legais de conservação.",
+      "9.2. Poderá obter informação sobre não consentir e suas consequências, revogar consentimento por meio gratuito e facilitado e opor-se a tratamento sem consentimento em caso de descumprimento da lei. Poderá requerer revisão de decisões exclusivamente automatizadas que afetem seus interesses e informações pertinentes sobre critérios e procedimentos, resguardados segredos comercial e industrial nos limites legais.",
+      "9.3. O exercício regular de direitos não ensejará punição ou discriminação. Não assegura eliminação de registros de guarda obrigatória nem de dados legitimamente conservados para finalidade demonstrável; eventual restrição será explicada. O especialista preserva o direito de peticionar à ANPD, aos órgãos competentes e ao Poder Judiciário."
+     ]
+    },
+    {
+     "heading": "10. CANAL E PROCEDIMENTO DE SOLICITAÇÕES",
+     "paragraphs": [
+      "10.1. O especialista poderá utilizar no App a área “Privacidade e meus dados”, quando disponibilizada, ou atendimento@onemasaude.com.br, identificando a solicitação como privacidade. A indisponibilidade da função no App não impede o uso do e-mail. Solicitações deverão receber protocolo ou confirmação rastreável conforme o fluxo institucional.",
+      "10.2. A ONEMA verificará identidade e poderes de representante por meios proporcionais, sem exigir documentos desnecessários. Pedidos são gratuitos e respondidos nos prazos legais aplicáveis. Confirmação e acesso observarão, como regra geral da LGPD, resposta simplificada imediata ou declaração completa em até quinze dias, ressalvada disciplina específica aplicável devidamente fundamentada.",
+      "10.3. A resposta deverá informar providências ou razões jurídicas/fáticas de impossibilidade, bem como encaminhamentos pertinentes. Não se adotará prazo genérico único para todos os direitos. Dados de outros profissionais ou pacientes serão protegidos, sem negar indevidamente o acesso aos dados do requerente.",
+      "10.4. Ser fundador ou RT não implica designação automática como encarregado. A ONEMA manterá canal institucional e, quando cabível, designação e divulgação adequadas, com avaliação de conflitos de interesses."
+     ]
+    },
+    {
+     "heading": "11. INDICADORES AVALIAÇÕES E DECISÕES AUTOMATIZADAS",
+     "paragraphs": [
+      "11.1. Critérios que utilizem dados do especialista para elegibilidade, níveis da rede, qualidade ou distribuição de ofertas deverão ser pertinentes, transparentes nos limites legais e não discriminatórios, com possibilidade de corrigir dados inexatos e contestar resultados.",
+      "11.2. Não se presume que toda decisão seja automatizada. Quando houver decisão exclusivamente automatizada que afete interesses do titular, deverão ser disponibilizados os direitos previstos no art. 20 da LGPD. Como salvaguarda de governança, decisões contestadas com impacto relevante devem ser encaminhadas à análise humana conforme o procedimento institucional.",
+      "11.3. Acesso aos próprios dados não autoriza exposição de informações clínicas de pacientes, identidade de denunciantes ou dados protegidos de terceiros; limitações deverão ser proporcionais e explicadas."
+     ]
+    },
+    {
+     "heading": "12. DEVERES DA ONEMA EM RELAÇÃO AO PARCEIRO E AOS PACIENTES",
+     "paragraphs": [
+      "12.1. A ONEMA deverá disponibilizar instruções lícitas, perfis de acesso compatíveis, medidas de proteção adequadas ao risco, meios para registrar assistência e incidentes e canal de exercício de direitos. Deverá avaliar fornecedores e limitar acesso administrativo às necessidades efetivas.",
+      "12.2. A ONEMA deverá manter gestão de versões, registros de tratamento quando exigidos, programa de retenção, procedimento de resposta a incidentes e medidas de continuidade adequadas, bem como orientar os especialistas sobre mudanças relevantes.",
+      "12.3. Não exigirá compartilhamento de credenciais, uso de contas pessoais inseguras, coleta excessiva ou procedimento contrário ao sigilo e à ética. Responderá por suas próprias ações, omissões e obrigações legais, sem transferência integral ao parceiro."
+     ]
+    },
+    {
+     "heading": "13. ACESSO E USO DE DADOS DE PACIENTES",
+     "paragraphs": [
+      "13.1. O especialista acessará apenas dados necessários ao cuidado ou tarefa legitimamente atribuída, no tempo e extensão necessários. É vedada consulta por curiosidade, interesse pessoal, relacionamento familiar, disputa comercial ou qualquer finalidade estranha ao serviço e às obrigações legais.",
+      "13.2. O acesso concedido é funcional e pessoal, não confere propriedade sobre banco de dados nem licença para constituir carteira comercial com informações obtidas na ONEMA. A mera atribuição de atendimento não autoriza divulgação ou extração integral do histórico.",
+      "13.3. O especialista respeitará manifestações do paciente, representação legítima e restrições aplicáveis, sem tratar parentesco ou pagamento como autorização irrestrita. Dúvidas serão encaminhadas à Central ou canal de privacidade, com preservação da segurança assistencial."
+     ]
+    },
+    {
+     "heading": "14. SIGILO E COMUNICAÇÃO PROFISSIONAL",
+     "paragraphs": [
+      "14.1. O sigilo abrange informações clínicas, imagens, conversas, documentos, acesso ao domicílio e demais fatos protegidos conhecidos no exercício profissional, inclusive após o encerramento da parceria e nas situações previstas no Código de Ética.",
+      "14.2. É vedado discutir casos identificáveis em locais públicos, permitir visualização por terceiros, divulgar listas de pacientes ou compartilhar dados em grupos informais. Comunicação assistencial necessária ocorrerá por canais institucionais e destinatários legitimados, com minimização.",
+      "14.3. Dever legal, determinação judicial válida ou outra hipótese legítima de divulgação será avaliada com a ONEMA quando o tempo e a lei permitirem, limitando o conteúdo ao necessário. Esta cláusula não impede denúncia, notificação obrigatória, defesa legítima ou atendimento de obrigação legal própria."
+     ]
+    },
+    {
+     "heading": "15. CONTA DISPOSITIVO E AMBIENTE SEGURO",
+     "paragraphs": [
+      "15.1. O especialista protegerá senha e códigos, utilizará autenticação adicional quando disponibilizada, bloqueará a tela ao se afastar, manterá sistema e aplicativos atualizados e evitará equipamentos compartilhados ou comprometidos. Não emprestará a conta nem realizará registros com credenciais de outra pessoa.",
+      "15.2. Em dispositivo pessoal autorizado, evitará sincronização de conteúdo clínico com galeria ou nuvem pessoal e não instalará ferramentas que capturem dados fora do fluxo permitido. Não se autoriza monitoramento indiscriminado do aparelho pessoal ou acesso da ONEMA a seus conteúdos particulares.",
+      "15.3. Ferramenta institucional de gestão, limpeza remota ou armazenamento offline exige informação prévia, escopo restrito e procedimento próprio. Não se promete que o PWA impeça screenshots ou cópias se a tecnologia não assegurar isso. O especialista permanece obrigado a não produzir cópia não autorizada.",
+      "15.4. Em falha de sistema, utilizará contingência aprovada que preserve autoria e sigilo; não deverá criar prontuário paralelo em ferramenta pessoal por conveniência. Risco clínico imediato será tratado segundo deveres legais, com registro seguro e posterior integração quando cabível."
+     ]
+    },
+    {
+     "heading": "16. PRONTUÁRIO AUTORIA E QUALIDADE DOS REGISTROS",
+     "paragraphs": [
+      "16.1. O especialista registrará a assistência de forma clara, verdadeira, cronológica e tempestiva na Carteira Digital, com identificação e autenticação compatíveis com requisitos legais. O aceite deste termo não substitui assinatura ou exigências técnicas dos documentos clínicos.",
+      "16.2. Correções deverão preservar rastreabilidade, autoria e histórico, sem falsificação, alteração retrospectiva não identificada ou exclusão de registro relevante. Não registrar fato não observado ou ato não realizado.",
+      "16.3. Encerrado o atendimento ou desativada a conta, o dever de concluir documentação necessária deverá ser viabilizado por acesso restrito ou canal seguro, respeitada apuração de risco e guarda. O especialista poderá solicitar acesso legítimo a registros necessários a obrigação legal ou defesa, sem autorização para cópia massiva ou uso externo indiscriminado."
+     ]
+    },
+    {
+     "heading": "17. FOTOGRAFIAS RELATÓRIOS E ACESSO DE TERCEIROS",
+     "paragraphs": [
+      "17.1. Fotografias de lesões seguirão o fluxo próprio de informação e autorização aplicável, a indicação assistencial, exposição mínima e armazenamento institucional validado. Não poderão ser produzidas ou mantidas em galeria, WhatsApp ou nuvem pessoal fora de procedimento expressamente autorizado e protegido.",
+      "17.2. Envio de relatório por iniciativa do paciente seguirá validação de legitimidade, conferência de destinatário, conteúdo e canal e confirmação específica. Delegação de acesso contínuo a familiar ou cuidador exige permissões e identidade próprias. O especialista não poderá presumir autorização por silêncio ou compartilhar senhas.",
+      "17.3. A ONEMA não promete recuperação de anexos já copiados por terceiros. Tal limitação deve ser informada ao paciente e não exonera erro de envio ou falha própria de segurança."
+     ]
+    },
+    {
+     "heading": "18. ENSINO PESQUISA PUBLICIDADE E INTELIGÊNCIA ARTIFICIAL",
+     "paragraphs": [
+      "18.1. Dados e imagens de pacientes não serão utilizados em aulas, portfólios, redes sociais, pesquisa, apresentação de casos ou publicidade apenas por terem sido obtidos no cuidado. Cada finalidade exige avaliação jurídica e ética e autorizações e aprovações cabíveis.",
+      "18.2. É vedado inserir dados identificáveis ou reidentificáveis de pacientes em ferramentas públicas de inteligência artificial, tradução, transcrição ou edição não aprovadas pela ONEMA para esse tratamento. Aprovação deve considerar necessidade, contratos, segurança, transferência e eventual treinamento com os dados.",
+      "18.3. Exercícios da Academy devem usar casos fictícios ou dados devidamente tratados para a finalidade, sem presumir anonimização pela retirada do nome. O uso da imagem ou depoimento do próprio especialista para divulgação institucional também não está autorizado por este termo."
+     ]
+    },
+    {
+     "heading": "19. SUBCONTRATAÇÃO E COMPARTILHAMENTO PELO ESPECIALISTA",
+     "paragraphs": [
+      "19.1. O especialista não poderá conceder seu acesso a substituto, assistente ou terceiro nem contratar armazenamento ou ferramenta que receba dados em nome da ONEMA sem autorização institucional prévia e cumprimento dos requisitos legais.",
+      "19.2. Quando autorizado e necessário, o compartilhamento deve documentar destinatário, finalidade, fundamento, escopo e proteção pertinente. Isso não impede obrigações legais próprias ou atos necessários à proteção da vida, que deverão ser limitados, registrados e comunicados quando cabível."
+     ]
+    },
+    {
+     "heading": "20. INCIDENTES E COOPERAÇÃO",
+     "paragraphs": [
+      "20.1. Perda ou furto de aparelho, envio ao destinatário incorreto, acesso indevido, exposição de documento, conta comprometida, perda de registros e indisponibilidade relevante devem ser comunicados imediatamente após conhecimento, sem demora injustificada, pelo App ou atendimento@onemasaude.com.br, com identificação “INCIDENTE DE DADOS”. Não se deve esperar a investigação terminar.",
+      "20.2. A comunicação inicial trará fatos conhecidos, horário aproximado, natureza e categorias de dados, sistemas ou atendimentos afetados e providências adotadas, sem reproduzir dados sensíveis em canais inseguros. Informações complementares serão prestadas progressivamente.",
+      "20.3. O especialista deverá colaborar para contenção e preservação de evidências, proteger a conta e evitar apagar registros ou divulgar o caso. Não fará anúncio em nome da ONEMA nem contatará titulares como seu representante sem coordenação, ressalvados dever legal próprio, urgência assistencial, direitos de denúncia e sua eventual posição de controlador.",
+      "20.4. A ONEMA avaliará o incidente e realizará comunicações de sua responsabilidade à ANPD e aos titulares quando exigidas, conforme critérios e prazos regulamentares. O aviso interno imediato do parceiro não se confunde com prazo regulatório do controlador. Se o especialista atuar como controlador de operação própria, suas obrigações independentes permanecem."
+     ]
+    },
+    {
+     "heading": "21. GUARDA ELIMINAÇÃO E ENCERRAMENTO",
+     "paragraphs": [
+      "21.1. A ONEMA definirá e disponibilizará critérios e prazos por categoria, fundamento e termo inicial na tabela de retenção e Política de Privacidade. Não se estabelece guarda ilimitada para documentos cadastrais, selfies, localização ou logs por mera conveniência.",
+      "21.2. Prontuários e documentos clínicos seguirão sua disciplina específica, inclusive a Lei nº 13.787/2018 e normas profissionais. O prazo do prontuário não se transfere automaticamente a todos os dados administrativos do parceiro. Encerramento de conta e revogação de consentimento não eliminam registros legitimamente conservados por obrigação ou outra hipótese legal aplicável.",
+      "21.3. Findas as finalidades e ausente fundamento de conservação, os dados deverão ser eliminados ou anonimizados de forma adequada, conforme procedimentos documentados e limites técnicos e legais. Backups devem ter ciclos e restrições compatíveis, sem reutilização para finalidade incompatível.",
+      "21.4. No término da relação, o especialista cessará acessos não mais autorizados e devolverá ou eliminará cópias institucionais sob seu controle conforme instruções lícitas e obrigações próprias. A eliminação não alcançará informação que deva legalmente preservar, devendo indicar fundamento e proteger acesso e guarda. O sigilo subsiste."
+     ]
+    },
+    {
+     "heading": "22. TRANSFERÊNCIA INTERNACIONAL",
+     "paragraphs": [
+      "22.1. Uso de infraestrutura ou prestador estrangeiro poderá implicar transferência internacional, sujeita a hipótese e garantias da LGPD e regulamentação da ANPD. Países ou critérios pertinentes, agentes, finalidades e mecanismo utilizado devem ser disponibilizados no aviso correspondente antes da operação.",
+      "22.2. Este aceite não é consentimento específico genérico para qualquer transferência internacional. A ONEMA avaliará fornecedores e suboperadores; o especialista não exportará dados por ferramenta própria sem os requisitos e autorizações pertinentes."
+     ]
+    },
+    {
+     "heading": "23. AUDITORIA TREINAMENTO E PRESTAÇÃO DE CONTAS",
+     "paragraphs": [
+      "23.1. A ONEMA poderá verificar registros e acessos institucionais, apurar ocorrências e oferecer orientações e treinamentos pertinentes à proteção de dados. Auditorias serão limitadas à finalidade, proporcionais e realizadas por pessoas legitimadas, sem exposição desnecessária ou acesso irrestrito ao aparelho pessoal.",
+      "23.2. O especialista colaborará, apresentando informações e evidências necessárias, respeitados seus direitos e o sigilo de terceiros. A ONEMA protegerá dados de avaliações e apurações e permitirá manifestação sobre inexatidões ou medidas que o afetem, quando compatível com a segurança e a lei."
+     ]
+    },
+    {
+     "heading": "24. DESCUMPRIMENTO MEDIDAS E RESPONSABILIDADE",
+     "paragraphs": [
+      "24.1. Violação poderá ensejar orientação, correção, restrição de acesso, suspensão preventiva proporcional ou encerramento fundamentado, conforme gravidade, risco, recorrência, fatos e normas aplicáveis. Risco imediato pode justificar medida urgente, com registro e posterior reavaliação e oportunidade de esclarecimento quando cabível.",
+      "24.2. Responsabilidades civis, administrativas e ético-profissionais serão apuradas segundo as competências e os requisitos legais, inclusive dano, nexo e participação pertinentes. Não se presume que todo incidente seja culpa do especialista, nem que a ONEMA esteja isenta por exigir aceite.",
+      "24.3. Não se transfere automaticamente ao especialista toda multa regulatória, condenação ou prejuízo da ONEMA. Eventual ressarcimento dependerá de fundamento, apuração e limites legais, com possibilidade de contestação. Este termo não cria multa contratual automática nem autoriza abatimento unilateral e arbitrário de repasses.",
+      "24.4. Relato de boa-fé ou exercício de direito não constitui falta por si. Fraude, ocultação deliberada e uso indevido serão avaliados individualmente. Não há renúncia a acesso à Justiça ou imposição de arbitragem compulsória."
+     ]
+    },
+    {
+     "heading": "25. VIGÊNCIA ALTERAÇÕES E HIERARQUIA",
+     "paragraphs": [
+      "25.1. O compromisso vigora a partir de aceite válido da versão publicada e durante as operações abrangidas, subsistindo sigilo, guarda, cooperação e responsabilidade nos limites legais após o término. Não retroage para criar infração contratual anterior.",
+      "25.2. Mudanças materiais serão informadas com versão, data de vigência e resumo. Novo aceite das obrigações ou novo consentimento específico serão solicitados quando necessários. A falta de aceite de nova versão terá consequências explicadas, preservando direitos, documentação assistencial e transição segura.",
+      "25.3. Tolerância não constitui renúncia permanente. A invalidade de cláusula não prejudica as disposições separáveis. Aplica-se a legislação brasileira e o foro competente segundo a lei, sem redução de direitos indisponíveis."
+     ]
+    },
+    {
+     "heading": "26. MANIFESTAÇÃO ELETRÔNICA",
+     "paragraphs": [
+      "26.1. O texto integral deve ser acessível antes da decisão e conservável posteriormente. Identidade, versão, conteúdo, data, hora, ação e demais evidências proporcionais serão registrados com segurança; o registro não impede contestação ou produção de prova contrária.",
+      "26.2. Caixa de compromisso, inicialmente desmarcada:",
+      "“Li o Termo de Proteção de Dados, Sigilo e Responsabilidades do Especialista ONEMA ONE e assumo os deveres de confidencialidade e uso seguro nele previstos. Estou ciente de como exercer meus direitos sobre meus dados pessoais.”",
+      "26.3. Botões recomendados: “Aceitar compromisso e continuar” e “Voltar”. A ciência das informações sobre tratamento não constitui consentimento universal. Escolhas opcionais permanecerão separadas e sua recusa não será tratada como violação deste compromisso.",
+      "26.4. Cópia, histórico de versões, solicitações de privacidade e relato de incidentes deverão ter acesso permanente na área do especialista, conforme o guia de implementação, sem impedir o canal de e-mail."
+     ]
+    }
+   ]
+  },
+  {
+   "code": "TERMOS_PACIENTE",
+   "version": "1.2",
+   "title": "Termos de uso e contratação do paciente",
+   "sections": [
+    {
+     "heading": null,
+     "paragraphs": [
+      "Este instrumento disciplina o cadastro, a contratação e o uso dos serviços da ONEMA SAÚDE pelo paciente ou por seu representante. A oferta e o resumo do pedido identificam o serviço efetivamente contratado e integram este instrumento."
+     ]
+    },
+    {
+     "heading": "1 Partes e representação",
+     "paragraphs": [
+      "A plataforma ONEMA SAÚDE é operada por [razão social: a preencher pela ONEMA], inscrita no CNPJ nº 18.834.917/0001-57, com sede em [endereço da sede: a preencher pela ONEMA], doravante ONEMA. Atendimento ao usuário: solicitação pelo App ou atendimento@onemasaude.com.br. Privacidade: área de privacidade do App ou atendimento@onemasaude.com.br.",
+      "O contratante é a pessoa identificada no cadastro e no pedido. Quando contrata para outra pessoa, deve informar quem é o paciente, qual sua relação com ele e se possui poderes de representação. Pagar pelo atendimento não confere, por si só, acesso ao prontuário ou poder para consentir em procedimentos. A capacidade e a legitimidade do representante poderão ser verificadas por meios proporcionais. Crianças, adolescentes e pessoas representadas receberão proteção adequada, considerando sua autonomia e seu melhor interesse."
+     ]
+    },
+    {
+     "heading": "2 Objeto e documentos integrantes",
+     "paragraphs": [
+      "A ONEMA organiza a contratação, a coordenação e a documentação de cuidados de enfermagem, presenciais ou remotos, conforme catálogo e disponibilidade. Integram a contratação a oferta apresentada, o resumo confirmado do pedido, o plano assistencial pertinente e a Política de Cancelamento e Reembolso. O Política de Privacidade explica o tratamento de dados, sem representar consentimento genérico. Autorizações facultativas são colhidas separadamente. Condições específicas não afastam normas obrigatórias nem direitos do consumidor."
+     ]
+    },
+    {
+     "heading": "3 Cadastro e segurança da conta",
+     "paragraphs": [
+      "O usuário deve fornecer informações verdadeiras e atualizadas, proteger suas credenciais e comunicar suspeitas de acesso indevido. A ONEMA disponibilizará meios de recuperação e proteção da conta. É vedado utilizar identidade de terceiro sem autorização, cadastrar pedidos fraudulentos ou divulgar credenciais profissionais. A adoção de senha ou código não transfere ao usuário a responsabilidade por falhas de segurança imputáveis à ONEMA. O usuário poderá solicitar correção e encerramento do cadastro pelo canal de atendimento."
+     ]
+    },
+    {
+     "heading": "4 Oferta e formação do pedido",
+     "paragraphs": [
+      "Antes do pagamento serão apresentados serviço, modalidade, paciente, local ou meio de atendimento, período ou agenda, preço, descontos, materiais incluídos e excluídos, quantidade de atos e condições de cancelamento. O usuário poderá corrigir erros antes de confirmar. A confirmação da compra e a confirmação da agenda são eventos distintos e devem ser comunicados. Se a oferta não puder ser cumprida, serão oferecidas as soluções legalmente cabíveis, incluindo restituição quando devida. Nenhum serviço adicional será cobrado sem informação e aceite prévios."
+     ]
+    },
+    {
+     "heading": "5 Avaliação e limites assistenciais",
+     "paragraphs": [
+      "A execução depende da avaliação do enfermeiro, de sua competência legal, das condições de segurança e, quando exigível, de prescrição válida. A compra não obriga a realização de ato contraindicado. A ONEMA e o profissional devem explicar a impossibilidade, registrar o ocorrido, orientar continuidade segura e aplicar a política financeira pertinente. Não se garante cura, resultado específico ou ausência de intercorrências; permanece o dever de cuidado, informação e atuação conforme os padrões técnicos aplicáveis. Scores e alertas não substituem avaliação profissional."
+     ]
+    },
+    {
+     "heading": "6 Informação e consentimento para o cuidado",
+     "paragraphs": [
+      "O paciente receberá explicações compreensíveis sobre finalidade, benefícios, riscos relevantes, alternativas e cuidados posteriores do procedimento. O aceite destes termos não substitui consentimento assistencial específico quando necessário. O paciente pode formular dúvidas, recusar ou interromper o procedimento, recebendo orientação sobre consequências e alternativas. A recusa será registrada sem tratamento discriminatório. Situações de incapacidade, urgência ou representação serão tratadas conforme a legislação e as normas profissionais, sem presumir consentimento irrestrito."
+     ]
+    },
+    {
+     "heading": "7 Atendimento domiciliar e identificação",
+     "paragraphs": [
+      "O contratante informará endereço, referências de acesso, riscos conhecidos e condições relevantes para a visita. Na chegada, poderá ser utilizado código ou QR Code para confirmação de identidade e início do atendimento. O código não comprova, isoladamente, execução, satisfação ou quitação. O profissional poderá registrar localização nos eventos de entrada e saída para segurança e comprovação operacional, conforme o Política de Privacidade. Falhas de sinal, acessibilidade ou dispositivo terão procedimento alternativo registrado, sem falsificação de localização ou prejuízo assistencial indevido."
+     ]
+    },
+    {
+     "heading": "8 Atendimento remoto",
+     "paragraphs": [
+      "Quando ofertado, o atendimento remoto depende de avaliação de adequação, identificação dos participantes, privacidade e conexão suficiente. Antes da sessão será prestada informação específica e registrado o consentimento para essa modalidade. O profissional poderá indicar avaliação presencial. O uso da Daily como infraestrutura de vídeo não a transforma em prestadora do cuidado. Gravação de áudio, vídeo ou transcrição integral fica desabilitada por padrão e exige finalidade, informação, base legal e autorização específica quando cabível. Falhas técnicas serão registradas e tratadas por continuidade, reagendamento ou restituição conforme o caso."
+     ]
+    },
+    {
+     "heading": "9 Obrigações das partes e situações de urgência",
+     "paragraphs": [
+      "O paciente informará alergias, medicamentos, sintomas e documentos relevantes de que tenha conhecimento e seguirá as orientações acordadas, comunicando dificuldades. A ONEMA manterá profissionais habilitados, canais de suporte, registros e mecanismos de acompanhamento compatíveis com o serviço. A plataforma não constitui pronto atendimento nem assegura resposta emergencial contínua. Em urgência, o usuário deve procurar serviço de emergência ou acionar o SAMU pelo 192. A equipe não poderá condicionar orientação imediata diante de intercorrência ao pagamento de nova oferta."
+     ]
+    },
+    {
+     "heading": "10 Preço pagamento e documentos fiscais",
+     "paragraphs": [
+      "O preço é aquele confirmado no pedido, acrescido somente de itens previamente informados e aceitos. Os pagamentos serão processados pelo Asaas ou por prestador identificado no checkout. A ONEMA recebe os valores e emite o documento fiscal correspondente à operação, observadas as regras fiscais. O comprovante de pagamento não substitui a nota fiscal. Descontos comerciais não alteram o escopo nem o repasse profissional. Tarifas incorporadas ao preço não autorizam cobranças adicionais ocultas. Estornos e contestações terão protocolo e rastreabilidade."
+     ]
+    },
+    {
+     "heading": "11 Pacotes assinatura PRIME e cancelamentos",
+     "paragraphs": [
+      "Pacotes possuem quantidade e prazo expressos de utilização; não significam atendimento ilimitado. Cada ato executado deve aparecer no histórico. A assinatura PRIME é facultativa e possui termo próprio, cobrança separada e benefícios delimitados. A compra de um serviço não autoriza adesão automática ao PRIME. Cancelamentos, interrupções, reembolsos e arrependimento seguem a política específica, acessível antes da compra e depois dela. Direitos legais não são renunciados por check-in, assinatura de presença ou aceite eletrônico."
+     ]
+    },
+    {
+     "heading": "12 Prontuário privacidade e imagens",
+     "paragraphs": [
+      "Os registros assistenciais serão produzidos pelos profissionais e mantidos com identificação de autoria e histórico. O paciente poderá solicitar acesso e cópia, com verificação proporcional de identidade. Correções preservarão a integridade e a rastreabilidade do registro original. Imagens clínicas, exportações da Carteira Digital, marketing e divulgação pública possuem finalidades e instrumentos distintos. Recusar publicidade ou mensagens promocionais não impede o cuidado. Encerrar a conta não determina destruição de documentos sujeitos à guarda legal."
+     ]
+    },
+    {
+     "heading": "13 Responsabilidade e solução de problemas",
+     "paragraphs": [
+      "Cada parte responde por seus atos e omissões na medida prevista em lei. A contratação de profissionais autônomos não afasta as responsabilidades da ONEMA por sua própria atuação e aquelas que a legislação lhe atribuir. Este instrumento não limita antecipadamente indenizações legais, não exclui responsabilidade por falhas assistenciais ou de dados e não impõe ao paciente prova impossível. Reclamações serão recebidas com protocolo, preservação das evidências e resposta fundamentada. Permanece livre o acesso aos órgãos competentes e ao Judiciário."
+     ]
+    },
+    {
+     "heading": "14 Suspensão encerramento e continuidade",
+     "paragraphs": [
+      "A conta poderá ser restringida por fraude, risco à segurança ou descumprimento relevante, com motivação, registro e possibilidade de contestação. Medidas urgentes de proteção poderão ser imediatas, com comunicação posterior compatível com a investigação. Restrições não autorizam retenção arbitrária de valores, impedimento de acesso aos próprios registros ou abandono assistencial. Obrigações já contratadas serão concluídas, transferidas de modo seguro ou encerradas com restituição devida e orientação apropriada."
+     ]
+    },
+    {
+     "heading": "15 Vigência alterações e aceite",
+     "paragraphs": [
+      "Este instrumento vincula a utilização após manifestação inequívoca de concordância. Alterações relevantes terão comunicação e novo aceite quando necessário, com efeitos prospectivos. Pedidos existentes preservam a oferta aceita. Será disponibilizada cópia da versão vinculada ao usuário, com data e protocolo. A invalidade de uma disposição não prejudica as demais disposições válidas. Aplica-se a legislação brasileira, assegurado ao consumidor o foro de seu domicílio e os demais foros legalmente competentes, sem arbitragem compulsória.",
+      "Declaração de aceite: Li e aceito os Termos de Uso e Contratação do Paciente, na versão apresentada, e pude acessar a Política de Cancelamento e Reembolso e o Política de Privacidade. Este aceite não inclui publicidade, divulgação de imagens ou compartilhamento externo de prontuário."
+     ]
+    }
+   ]
+  },
+  {
+   "code": "TERMOS_ESPECIALISTA",
+   "version": "1.2",
+   "title": "Termo de parceria do especialista ONEMA ONE",
+   "sections": [
+    {
+     "heading": null,
+     "paragraphs": [
+      "Este instrumento estabelece as condições de credenciamento, atuação assistencial, remuneração e uso da plataforma pelos profissionais parceiros ONEMA ONE. Cada oferta aceita identifica o ato profissional e o respectivo repasse."
+     ]
+    },
+    {
+     "heading": "1 Qualificação e objeto",
+     "paragraphs": [
+      "A plataforma ONEMA SAÚDE é operada por [razão social: a preencher pela ONEMA], inscrita no CNPJ nº 18.834.917/0001-57, com sede em [endereço da sede: a preencher pela ONEMA], doravante ONEMA. Atendimento ao usuário: solicitação pelo App ou atendimento@onemasaude.com.br. Privacidade: área de privacidade do App ou atendimento@onemasaude.com.br.",
+      "O profissional é identificado no cadastro validado, com nome civil, CPF ou CNPJ, registro no conselho, endereço e dados de recebimento. A parceria tem por objeto a execução de serviços de enfermagem legalmente permitidos, dentro da habilitação e competência demonstradas, com coordenação, documentação e suporte da ONEMA. O termo não autoriza atos fora do exercício profissional nem substitui inscrições, licenças ou obrigações pessoais exigíveis."
+     ]
+    },
+    {
+     "heading": "2 Natureza da relação e autonomia",
+     "paragraphs": [
+      "A atuação é autônoma, com liberdade para informar disponibilidade e aceitar ou recusar ofertas antes da contratação, sem exclusividade ou volume mínimo garantido. O parceiro poderá atuar para terceiros, respeitados sigilo, compromissos assumidos e ausência de uso indevido de dados. A ONEMA não garante renda mínima. Após aceitar um ato, o profissional deve cumprir o compromisso ou comunicar impedimento com antecedência possível, permitindo substituição e continuidade. A qualificação jurídica da relação depende também da realidade da prestação; cláusulas contratuais não afastam direitos legalmente reconhecidos."
+     ]
+    },
+    {
+     "heading": "3 Credenciamento e aprovação técnica",
+     "paragraphs": [
+      "O cadastro depende de identidade, formação, regularidade profissional e demais documentos pertinentes ao serviço. A liberação assistencial exige análise e decisão registrada do RT, além da integração exigida e da verificação das competências aplicáveis. Documentos vencidos, restrições ou informação falsa devem ser comunicados. A validação cadastral não representa garantia permanente de aptidão para todo procedimento. Indeferimento ou pedido de complementação terá justificativa e canal de revisão. Pagamento de curso não assegura credenciamento."
+     ]
+    },
+    {
+     "heading": "4 Formação e protocolos",
+     "paragraphs": [
+      "O parceiro observará protocolos e POPs oficiais vigentes, cuja versão, aprovação e data de eficácia devem estar disponíveis. Alterações materiais exigem ciência e capacitação quando necessárias. Protocolos não substituem julgamento clínico nem justificam ato contrário à lei ou à segurança. Divergências relevantes devem ser comunicadas ao RT, com fundamentação e registro. Regras de reciclagem, inclusive após inatividade, somente produzirão efeitos se previamente aprovadas, informadas e disponibilizadas; este instrumento não cria prazo ou cobrança adicional de reativação."
+     ]
+    },
+    {
+     "heading": "5 Aceite da oferta e escopo",
+     "paragraphs": [
+      "Cada oferta deve identificar modalidade, local, janela de atendimento, ato, materiais, requisitos, riscos conhecidos e repasse. O aceite vincula o profissional somente ao escopo informado e tecnicamente viável. Mudanças que afetem duração, deslocamento, complexidade ou remuneração exigem nova concordância. Nos pacotes, cada evento possui identificação própria e repasse reservado; o parceiro não assume gratuitamente atos adicionais. Recusa por incompetência técnica, contraindicação ou risco justificado não deve gerar punição automática."
+     ]
+    },
+    {
+     "heading": "6 Identificação e execução segura",
+     "paragraphs": [
+      "O parceiro confirmará sua identidade e a do paciente, utilizando código ou QR Code no domicílio e registros de entrada e saída quando disponíveis. A localização será coletada nos eventos necessários, com transparência e acesso restrito, sem rastreamento permanente fora da prestação. Exceções técnicas exigem justificativa e validação alternativa. É vedado simular presença, compartilhar acesso, emprestar identidade ou registrar ato não executado. A assinatura do paciente confirma o fato declarado e não afasta análise de reclamações posteriores."
+     ]
+    },
+    {
+     "heading": "7 Deveres assistenciais e registros",
+     "paragraphs": [
+      "O profissional realizará avaliação pertinente, conferirá prescrições quando exigidas, obterá consentimentos aplicáveis e registrará as ações no prontuário de forma íntegra, tempestiva e identificada. Deve reconhecer limites, orientar continuidade e comunicar intercorrências. A ONEMA assegurará condições de acesso aos documentos e canais operacionais necessários. Ferramentas de IA podem auxiliar a redação apenas sob governança aprovada; o profissional revisará o conteúdo e assumirá somente o que efetivamente verificar, sem assinar dados inventados ou decisões geradas sem avaliação."
+     ]
+    },
+    {
+     "heading": "8 Apoio segurança e interrupção",
+     "paragraphs": [
+      "O parceiro poderá acionar Preciso de apoio diante de violência, ameaça, risco ambiental, divergência de identificação ou outra condição insegura. A ONEMA registrará o acionamento, o responsável que assumiu e a resolução. O profissional pode recusar entrada ou interromper a visita com justificativa, adotando medidas possíveis de continuidade segura e comunicação. Não se exige permanência em risco. Regras de pagamento por deslocamento ou tentativa frustrada dependem de condição comercial específica previamente aceita; não se presume execução integral do ato."
+     ]
+    },
+    {
+     "heading": "9 Remuneração e política de repasse",
+     "paragraphs": [
+      "O repasse é o valor confirmado ao parceiro no aceite de cada ato, preservado em seu histórico. Desconto PRIME, promoção ao paciente e tarifa do gateway não reduzem esse valor por iniciativa unilateral da ONEMA. A política comercial estabelecida é de repasse em D+2 dias corridos, correspondente a 48 horas após a conclusão e a validação do ato, inclusive sábados, domingos e feriados. A data de conclusão, a data de validação e o vencimento serão visíveis no extrato. O prazo operacional de validação será de [prazo de validação: a definir pela ONEMA] após o recebimento dos requisitos completos, com justificativa objetiva para eventuais pendências.",
+      "O prazo de validação não poderá ser usado para postergação indefinida. Falha de saldo, limite bancário ou processamento deverá gerar comunicação, tratamento prioritário e registro, sem extinguir o crédito ou alterar unilateralmente o vencimento. A ONEMA deve planejar liquidez compatível com seu compromisso, independentemente do prazo de recebimento do paciente."
+     ]
+    },
+    {
+     "heading": "10 Fluxo financeiro e documentação",
+     "paragraphs": [
+      "No MVP, a ONEMA recebe o pagamento em sua conta PJ Asaas e realiza transferências por API para conta externa ou chave Pix validada do parceiro, sem exigir subconta. O parceiro manterá dados corretos e de sua titularidade. A transferência somente será considerada liquidada quando houver confirmação do provedor e conciliação. Serão disponibilizados extrato e comprovante. A ONEMA emite o documento fiscal ao cliente e o parceiro fornece o recibo do repasse e demais documentos exigíveis. Obrigações tributárias e retenções legalmente obrigatórias serão observadas e discriminadas; o recibo simples não afasta exigência fiscal específica."
+     ]
+    },
+    {
+     "heading": "11 Pendências contestações e ajustes",
+     "paragraphs": [
+      "Pendências devem indicar documento ou requisito faltante, ato afetado e responsável pela análise. Valores incontroversos não serão retidos por divergência de outro evento. Duplicidades e erros serão corrigidos mediante comprovação e ciência do parceiro. Reembolso ao paciente ou chargeback não autorizam, por si sós, desconto automático de ato devidamente executado. Compensações dependem de fundamento legal ou contratual válido, apuração dos fatos e oportunidade de contestação, vedados confisco de remuneração e transferência automática do risco comercial ao profissional."
+     ]
+    },
+    {
+     "heading": "12 Sigilo e proteção de dados",
+     "paragraphs": [
+      "O parceiro acessará apenas os dados necessários ao cuidado e às tarefas autorizadas, mantendo sigilo inclusive após o término. É vedado copiar prontuários para contas pessoais, utilizar imagens em redes sociais, captar pacientes com dados obtidos indevidamente ou enviar informações a IA pública sem governança autorizada. Compartilhamento assistencial legítimo deve preservar finalidade, segurança e registro. A posição de controlador ou operador será definida por operação e obrigações legais, sem presunção de que toda atuação clínica configure mero processamento subordinado."
+     ]
+    },
+    {
+     "heading": "13 Responsabilidades da ONEMA e do parceiro",
+     "paragraphs": [
+      "A ONEMA responde pela organização da plataforma, seleção e suporte sob sua competência, proteção dos dados e cumprimento de suas obrigações financeiras e assistenciais. O parceiro responde pela veracidade de suas informações, regularidade, competência, atos profissionais e deveres que lhe sejam legalmente atribuídos. A responsabilidade perante paciente e terceiros seguirá a legislação e os fatos, sem exoneração genérica da ONEMA nem obrigação de indenização ilimitada imposta ao parceiro. Cooperação em auditorias deve respeitar o sigilo e a proporcionalidade."
+     ]
+    },
+    {
+     "heading": "14 Apuração suspensão e encerramento",
+     "paragraphs": [
+      "Descumprimentos serão analisados conforme gravidade, evidências, impacto e recorrência. Medidas possíveis incluem orientação, correção, capacitação, restrição técnica, suspensão e desligamento motivado. Risco imediato poderá justificar suspensão cautelar, com comunicação e revisão. O parceiro terá canal para manifestação e apresentação de evidências. Não há multa automática instituída por este instrumento. Qualquer parte pode encerrar a parceria, preservando atendimentos já aceitos, transição segura, pagamentos devidos, acesso aos comprovantes e obrigações de sigilo e guarda."
+     ]
+    },
+    {
+     "heading": "15 Marca propriedade intelectual e resolução de conflitos",
+     "paragraphs": [
+      "O acesso ao software, marca e conteúdos é limitado à execução autorizada, sem cessão de titularidade. Modelos institucionais não autorizam divulgação de dados dos pacientes. Conteúdos ou trabalhos próprios do parceiro não são cedidos genericamente por este termo. Reclamações poderão ser encaminhadas à ONEMA e, quando pertinente, ao RT. Aplicam-se as leis brasileiras e os foros legalmente competentes, sem exclusão de competências obrigatórias ou arbitragem compulsória."
+     ]
+    },
+    {
+     "heading": "16 Vigência e aceite",
+     "paragraphs": [
+      "O contrato vigora a partir do aceite e da aprovação do credenciamento para atuação, sem retroatividade de mudanças comerciais. Alterações relevantes serão informadas e aceitas quando necessário. A ONEMA conservará a versão aceita, comprovante e histórico acessíveis ao parceiro. Declaração de aceite: Li e aceito o Termo de Parceria ONEMA ONE e declaro que os dados apresentados são verdadeiros. Estou ciente de que cada oferta exige aceite próprio e de que publicidade, imagem e comunicações promocionais dependem de escolhas separadas."
+     ]
+    }
+   ]
+  },
+  {
+   "code": "TERMOS_ACADEMY",
+   "version": "1.2",
+   "title": "Termos de uso da ONEMA Academy",
+   "sections": [
+    {
+     "heading": null,
+     "paragraphs": [
+      "Este instrumento disciplina o acesso, a contratação e a participação nos cursos da ONEMA Academy. Distingue a integração para parceiros dos cursos de educação continuada e preserva as condições apresentadas em cada oferta."
+     ]
+    },
+    {
+     "heading": "1 Prestadora e aluno",
+     "paragraphs": [
+      "A plataforma ONEMA SAÚDE é operada por [razão social: a preencher pela ONEMA], inscrita no CNPJ nº 18.834.917/0001-57, com sede em [endereço da sede: a preencher pela ONEMA], doravante ONEMA. Atendimento ao usuário: solicitação pelo App ou atendimento@onemasaude.com.br. Privacidade: área de privacidade do App ou atendimento@onemasaude.com.br.",
+      "O aluno é a pessoa identificada na matrícula. A Academy é a unidade educacional da ONEMA, com ofertas de integração e educação continuada. Cursos livres e atividades de capacitação não equivalem a graduação, especialização reconhecida ou título profissional, salvo informação específica e comprovada de outra natureza educacional."
+     ]
+    },
+    {
+     "heading": "2 Oferta e condições da matrícula",
+     "paragraphs": [
+      "Antes da contratação serão informados título, objetivos, público, pré-requisitos, ementa, carga horária, formato, preço, prazo de acesso, suporte, avaliações, critério de aprovação, tentativas e certificado. Tais dados integram o contrato e serão preservados na matrícula. Campo indefinido ou divergência relevante impede a publicação da oferta. Alterações posteriores não podem reduzir a prestação já contratada sem solução adequada ao aluno. A matrícula é pessoal, vedado compartilhar credenciais ou realizar avaliações em nome de terceiros."
+     ]
+    },
+    {
+     "heading": "3 Integração e educação continuada",
+     "paragraphs": [
+      "A trilha de integração de parceiros é distinta dos cursos de educação continuada. O preço do pacote de integração é o informado na oferta e confirmado no checkout, sem aplicação automática aos cursos de educação continuada e sem criar assinatura recorrente. A realização ou o pagamento dos cursos não garante aprovação do cadastro, oferta de atendimentos, renda ou progressão automática na rede ONEMA ONE."
+     ]
+    },
+    {
+     "heading": "4 Acesso e requisitos técnicos",
+     "paragraphs": [
+      "O acesso depende de conta ativa, ambiente compatível e conexão adequada, conforme requisitos informados. A ONEMA deve oferecer orientações de acesso, mecanismos de recuperação e suporte pelo canal suporte da Academy no App ou atendimento@onemasaude.com.br. Falhas imputáveis à plataforma serão corrigidas, com reposição de acesso ou prorrogação proporcional quando houver prejuízo relevante. Manutenção programada será comunicada quando possível. Barreiras de acessibilidade devem ser relatadas e tratadas de forma razoável e compatível com a oferta, sem promessas de disponibilidade absoluta."
+     ]
+    },
+    {
+     "heading": "5 Conteúdo docentes e atualização",
+     "paragraphs": [
+      "O conteúdo será organizado conforme objetivos e referências identificadas, com revisão técnica pertinente. A ONEMA poderá corrigir erros e atualizar materiais, mantendo os elementos necessários à compreensão da versão cursada. Recomendações educacionais não dispensam avaliação do paciente, protocolos aplicáveis e limites do exercício profissional. Casos e simulações são recursos didáticos; dados reais somente poderão ser utilizados sob fundamento e salvaguardas adequados. Exemplos não devem revelar pacientes nem permitir sua identificação indevida."
+     ]
+    },
+    {
+     "heading": "6 Participação avaliação e integridade",
+     "paragraphs": [
+      "O aluno deverá realizar as atividades indicadas e demonstrar o desempenho exigido na oferta. Não haverá nota mínima, percentual de presença ou limite de tentativas criado silenciosamente após a matrícula. Revisão de questões ou de resultado poderá ser solicitada pelo suporte, com fundamentação. Suspeitas de fraude serão apuradas com preservação de evidências e oportunidade de resposta, antes de sanção definitiva. Medidas cautelares de proteção poderão ocorrer quando justificadas, sem perda automática de valores ou certificados válidos."
+     ]
+    },
+    {
+     "heading": "7 Certificado",
+     "paragraphs": [
+      "O certificado será emitido apenas após o cumprimento dos critérios previamente informados e conterá identificação do aluno, curso, carga horária efetivamente prevista, conclusão e mecanismo de validação. Eventuais assinaturas e identificação do responsável seguirão o modelo institucional autorizado. Não se emitirá certificado com presença, desempenho ou carga horária fictícios. A certificação não amplia competências legais nem garante aceitação por empregador, conselho ou instituição externa. Correções cadastrais poderão ser solicitadas, com verificação de identidade."
+     ]
+    },
+    {
+     "heading": "8 Reciclagem e reativação de parceiros",
+     "paragraphs": [
+      "A ONEMA poderá estabelecer formação de atualização ou reativação mediante regra específica aprovada e previamente comunicada, com conteúdo, critérios, custos e transição expressos. Este documento não institui prazo de inatividade ou nova cobrança de reativação por si só. Se a regra for adotada, deverá constar do regulamento de credenciamento e ser apresentada antes de produzir efeitos, preservando direitos e atividades já contratadas."
+     ]
+    },
+    {
+     "heading": "9 Direitos autorais e licença de uso",
+     "paragraphs": [
+      "O aluno recebe licença pessoal e limitada para estudar os materiais durante o período contratado e usar instrumentos disponibilizados conforme suas permissões específicas. É vedada redistribuição comercial de aulas, remoção de autoria, publicação de provas e compartilhamento de acesso, respeitadas as exceções legais. Materiais expressamente fornecidos para aplicação profissional poderão ser utilizados nos limites indicados, sem divulgar dados reais. Conteúdos de terceiros continuam sujeitos às respectivas licenças. Não há cessão geral de trabalhos autorais do aluno à ONEMA."
+     ]
+    },
+    {
+     "heading": "10 Imagem voz e trabalhos do aluno",
+     "paragraphs": [
+      "A participação em aula ao vivo não autoriza automaticamente gravação ou divulgação pública de imagem e voz. Caso a atividade seja gravada, finalidade, público, prazo de acesso e condições serão informados antes, com base legal e manifestação específica quando exigida. Uso promocional, depoimentos e publicação de trabalhos identificados dependem de autorização facultativa própria. Recusar publicidade não impede matrícula, avaliação ou certificação. Atividades enviadas poderão ser acessadas pela equipe apenas para avaliação, suporte e demais finalidades legítimas informadas."
+     ]
+    },
+    {
+     "heading": "11 Pagamento cancelamento e restituição",
+     "paragraphs": [
+      "O valor e a forma de pagamento são os da oferta aceita. Não se presume renovação automática de curso avulso. O aluno poderá exercer arrependimento nas condições legais e solicitar atendimento pelo mesmo ambiente de contratação ou canal indicado. A Política de Cancelamento e Reembolso integra esta relação. A disponibilização imediata de conteúdo não representa renúncia automática ao arrependimento. Reprovação, por si só, não caracteriza defeito do curso; permanecem os direitos relativos a falha da prestação ou divergência da oferta."
+     ]
+    },
+    {
+     "heading": "12 Dados pessoais e comunicações",
+     "paragraphs": [
+      "Serão tratados dados de cadastro, matrícula, progresso, atividades, avaliações e certificado conforme o Política de Privacidade. Comunicações de acesso, suporte e certificação são distintas de publicidade. Dados clínicos de pacientes não devem ser inseridos em exercícios sem autorização e proteção apropriadas. Pedidos de acesso, correção e exercício de direitos serão recebidos pelo canal de privacidade. A guarda de comprovantes educacionais seguirá a necessidade de comprovação e obrigações aplicáveis, sem retenção ilimitada de todas as atividades."
+     ]
+    },
+    {
+     "heading": "13 Conduta suspensão e responsabilidade",
+     "paragraphs": [
+      "É vedado assédio, discriminação, violação de sigilo e utilização indevida do ambiente. Medidas disciplinares devem ser motivadas, proporcionais e sujeitas a revisão. A ONEMA responde por suas obrigações e pelos direitos assegurados em lei; este termo não contém renúncia antecipada a reparação nem garantia de resultado profissional. O encerramento de uma conta não dispensa tratamento de cursos pagos, certificados válidos e restituições devidas."
+     ]
+    },
+    {
+     "heading": "14 Vigência e aceite",
+     "paragraphs": [
+      "A versão aceita será vinculada à matrícula, com cópia acessível e data de concordância. Mudanças relevantes terão efeitos prospectivos e comunicação adequada. Aplicam-se a legislação brasileira e os foros legalmente competentes, assegurado o foro do consumidor quando cabível. Declaração de aceite: Li e aceito os Termos da ONEMA Academy e as condições específicas da oferta identificada na minha matrícula. Não autorizei publicidade nem uso público de imagem e voz por este aceite."
+     ]
+    }
+   ]
+  },
+  {
+   "code": "TERMOS_PRIME",
+   "version": "1.2",
+   "title": "Termo de adesão ao ONEMA PRIME",
+   "sections": [
+    {
+     "heading": null,
+     "paragraphs": [
+      "Este instrumento regula a assinatura opcional ONEMA PRIME e o benefício comercial aplicado a pedidos elegíveis. Os serviços assistenciais são contratados separadamente e permanecem sujeitos à avaliação profissional."
+     ]
+    },
+    {
+     "heading": "1 Prestadora e natureza da adesão",
+     "paragraphs": [
+      "A plataforma ONEMA SAÚDE é operada por [razão social: a preencher pela ONEMA], inscrita no CNPJ nº 18.834.917/0001-57, com sede em [endereço da sede: a preencher pela ONEMA], doravante ONEMA. Atendimento ao usuário: solicitação pelo App ou atendimento@onemasaude.com.br. Privacidade: área de privacidade do App ou atendimento@onemasaude.com.br.",
+      "O PRIME é um programa de assinatura de benefícios comerciais da ONEMA. Sua mensalidade não inclui atendimentos, não assegura cobertura assistencial ilimitada e não substitui contratação de serviços ou plano de saúde. A adesão é voluntária e separada do cadastro e dos pedidos assistenciais. Não se exigirá PRIME para acesso aos próprios registros, documentos, orientações necessárias ao cuidado e alertas essenciais."
+     ]
+    },
+    {
+     "heading": "2 Mensalidade ciclo e renovação",
+     "paragraphs": [
+      "A mensalidade do PRIME nesta versão é R$ 34,90 por ciclo mensal. A tela de adesão deve informar o preço vigente, a data de início, a próxima cobrança, o meio de pagamento e a renovação automática. O ciclo mensal corresponde ao período informado no extrato, sem alteração silenciosa para mês civil. Na ausência de dia equivalente no mês seguinte, será utilizada a data válida informada pelo sistema. A adesão depende de manifestação específica para a cobrança recorrente, sem seleção prévia."
+     ]
+    },
+    {
+     "heading": "3 Benefício e limite de utilização",
+     "paragraphs": [
+      "O assinante com benefícios ativos possui direito a 5% de desconto sobre o preço público de um único pedido elegível por ciclo mensal, limitado a R$ 20,00. O cálculo é o menor valor entre 5% do preço público, arredondado para centavos pelo critério monetário convencional, e R$ 20,00. Não se trata de desconto fixo de R$ 20 em qualquer contratação. O benefício não é convertido em dinheiro, não gera saldo acumulável e expira ao final do ciclo se não utilizado."
+     ]
+    },
+    {
+     "heading": "4 Pedido elegível e pacotes",
+     "paragraphs": [
+      "Pedido é a contratação comercial identificada por número próprio, seja de serviço avulso ou pacote. Em pacote com várias visitas, sessões ou monitoramentos, o benefício é aplicado uma única vez na contratação, sem repetição nos eventos internos. A lista de elegíveis deve estar disponível antes da adesão e no checkout, com versão e vigência. O catálogo anteriormente aprovado inclui serviços avulsos, continuidade e pacotes; alterações futuras devem ser comunicadas e não modificar pedidos já pagos nem esvaziar benefício do ciclo já contratado."
+     ]
+    },
+    {
+     "heading": "5 Condições de aplicação",
+     "paragraphs": [
+      "O benefício exige assinatura com direitos ativos, ciclo vigente, pedido elegível e uso disponível, sem reserva simultânea em outra compra. Não há cumulação com campanha incompatível previamente informada. O checkout apresentará preço cheio, desconto, preço final e motivo quando não aplicável. Uma reserva temporária em checkout não pode consumir definitivamente o benefício se não houver confirmação. A repetição de uma mesma operação não pode gerar uso duplicado nem cobrança indevida."
+     ]
+    },
+    {
+     "heading": "6 Exemplos de cálculo e preservação do repasse",
+     "paragraphs": [
+      "Em pedido de R$ 300,00, o desconto corresponde a R$ 15,00 e o preço final a R$ 285,00. Em pedido de R$ 500,00, 5% seriam R$ 25,00, mas aplica-se o teto de R$ 20,00, resultando em R$ 480,00. Um pacote com quatro atos recebe um único desconto. A mensalidade da assinatura é cobrança separada. O desconto é suportado pela ONEMA, sem redução do repasse contratualmente devido ao profissional."
+     ]
+    },
+    {
+     "heading": "7 Cobrança pendência e regularização",
+     "paragraphs": [
+      "O sistema exibirá cobranças, pagamentos, falhas, próxima renovação e histórico. Não se presume período gratuito, fidelidade anual ou parcelamento anual. Falha de cobrança deve gerar comunicação e possibilidade de atualização do meio de pagamento. O sistema não pode realizar tentativas ou cobranças duplicadas fora das condições informadas. Benefícios de ciclo efetivamente pago devem ser preservados. Ciclo não pago poderá ficar sem benefícios, sem impedir acesso a documentos assistenciais ou suporte relativo a obrigações anteriores."
+     ]
+    },
+    {
+     "heading": "8 Cancelamento da assinatura",
+     "paragraphs": [
+      "O assinante pode solicitar cancelamento digital, com confirmação e protocolo. O cancelamento impede cobranças de renovação posteriores ao seu processamento e mantém os benefícios do período já pago até seu término, salvo restituição integral e encerramento imediato legitimamente aplicáveis. Não há multa de saída ou fidelidade mínima instituída neste termo. Cancelar PRIME não cancela automaticamente pedido assistencial e cancelar pedido não cancela automaticamente a assinatura; o aplicativo deve explicar e permitir ambas as ações quando solicitadas."
+     ]
+    },
+    {
+     "heading": "9 Arrependimento e restituições",
+     "paragraphs": [
+      "Aplicam-se o direito de arrependimento nas contratações à distância e as demais hipóteses legais de restituição, conforme a política específica. Uso do benefício não autoriza cláusula automática de renúncia ao arrependimento. Fora das hipóteses legais ou de falha da prestação, o simples cancelamento para ciclos futuros não gera devolução automática do período já disponibilizado. Qualquer análise será fundamentada, com canal de contestação, sem cobrança de multa não prevista ou desconto retroativo surpreendente."
+     ]
+    },
+    {
+     "heading": "10 Cancelamento de pedido beneficiado",
+     "paragraphs": [
+      "Se o pedido for desfeito antes da execução, a restituição considerará o valor efetivamente pago, sem reembolso de desconto em dinheiro. O benefício será devolvido ao mesmo ciclo de origem quando ainda vigente, sem ampliar limite ou criar crédito para ciclo futuro. Em pacote parcialmente realizado, não haverá múltipla reaplicação do desconto; a apuração seguirá a composição aceita e a política de cancelamento. Erro imputável à ONEMA terá solução que preserve os direitos do assinante, sem consumo fictício do benefício."
+     ]
+    },
+    {
+     "heading": "11 Alterações de preço benefícios e indisponibilidade",
+     "paragraphs": [
+      "Alterações relevantes serão comunicadas antes de sua aplicação a ciclos futuros, com informação suficiente para o assinante decidir se permanece. O usuário poderá cancelar sem multa antes da nova cobrança. Não haverá reajuste retroativo de pedido ou mensalidade já paga. Se a ONEMA encerrar o programa ou impossibilitar benefícios de ciclo contratado, oferecerá solução proporcional adequada, inclusive restituição quando cabível. Funcionalidades futuras ou fases posteriores não integram o PRIME v1 salvo oferta expressa."
+     ]
+    },
+    {
+     "heading": "12 Privacidade suporte e disposições finais",
+     "paragraphs": [
+      "O PRIME não autoriza segmentação comercial por diagnósticos, medicamentos, feridas, score ou outros dados sensíveis. Marketing depende de escolha separada. O assinante poderá consultar sua versão contratual, extrato de benefício e comprovantes. A ONEMA responde por suas obrigações conforme a legislação; o termo não exclui direitos do consumidor nem impõe arbitragem. Declaração de adesão: Quero contratar o ONEMA PRIME por R$ 34,90 por ciclo mensal, com renovação automática, e compreendo o desconto de 5%, limitado a R$ 20, em um pedido elegível por ciclo. Posso cancelar a renovação pelo aplicativo."
+     ]
+    }
+   ]
+  },
+  {
+   "code": "CANCELAMENTO",
+   "version": "1.2",
+   "title": "Política de cancelamento e reembolso",
+   "sections": [
+    {
+     "heading": null,
+     "paragraphs": [
+      "Esta política disciplina pedidos de cancelamento, reagendamento, interrupção e restituição para serviços, pacotes, PRIME e Academy. A política comercial abaixo preserva os direitos legais e aplica-se conforme a versão vigente na contratação.",
+      "Diretriz de cancelamento e reembolso",
+      "A ONEMA SAÚDE adota, para o início da operação do MVP, uma política de cancelamento e reembolso sem multa automática, com cálculo transparente do saldo dos pacotes parcialmente realizados e preservação dos repasses legitimamente devidos aos especialistas. A devolução ao paciente não implica desconto automático de remuneração por ato corretamente executado. Permanecem preservados os direitos legais de restituição e as demais condições desta política."
+     ]
+    },
+    {
+     "heading": "1 Identificação e alcance",
+     "paragraphs": [
+      "A plataforma ONEMA SAÚDE é operada por [razão social: a preencher pela ONEMA], inscrita no CNPJ nº 18.834.917/0001-57, com sede em [endereço da sede: a preencher pela ONEMA], doravante ONEMA. Atendimento ao usuário: solicitação pelo App ou atendimento@onemasaude.com.br. Privacidade: área de privacidade do App ou atendimento@onemasaude.com.br.",
+      "A política integra os termos correspondentes e deve estar acessível antes de contratar e durante toda a relação. A análise considera a oferta aceita, o estágio efetivo da execução e os direitos legais, com decisão fundamentada. Condição de oferta não pode reduzir direito obrigatório. As regras desta versão não estabelecem multa por cancelamento, taxa de ausência ou percentual de retenção não informado."
+     ]
+    },
+    {
+     "heading": "2 Solicitação e protocolo",
+     "paragraphs": [
+      "Cancelamento e reagendamento podem ser solicitados pelo aplicativo ou pelo canal de atendimento, com identificação do pedido e do solicitante. O sistema confirmará o recebimento, gerará protocolo e informará o estágio do tratamento. O exercício de direito não depende de contato exclusivo por telefone ou de justificativa quando ela não for legalmente exigível. Solicitações por representante terão legitimidade verificada de modo proporcional. A confirmação de recebimento não poderá ser confundida com confirmação bancária do reembolso."
+     ]
+    },
+    {
+     "heading": "3 Arrependimento em contratação à distância",
+     "paragraphs": [
+      "Nas hipóteses do artigo 49 do Código de Defesa do Consumidor, o consumidor pode desistir no prazo legal de sete dias, com devolução dos valores pagos conforme a lei. O aceite, o pagamento, o check-in ou o acesso ao curso não constituem renúncia automática a esse direito. A solicitação será confirmada e comunicada prontamente ao prestador de pagamento para providências cabíveis. Situações de serviço solicitado e executado durante o prazo serão examinadas individualmente, sem cobrança automática de penalidade ou cláusula que exclua previamente o direito legal."
+     ]
+    },
+    {
+     "heading": "4 Serviço não iniciado",
+     "paragraphs": [
+      "Como regra comercial definida para o MVP, o cancelamento antes do início efetivo do serviço gera restituição integral do valor pago pelo serviço, sem multa automática. Aceite do profissional e deslocamento não se confundem com execução clínica. Eventual política de compensação por deslocamento ou cancelamento tardio depende de definição, informação prévia e conformidade legal; não será criada pelo sistema nem aplicada retroativamente. A ONEMA deve tratar separadamente eventual remuneração devida ao profissional por compromisso assumido."
+     ]
+    },
+    {
+     "heading": "5 Reagendamento",
+     "paragraphs": [
+      "O reagendamento depende de disponibilidade e adequação assistencial, com confirmação do novo compromisso. Pedido de alteração não equivale, por si só, a ausência injustificada. Diferença de preço decorrente de nova escolha só será cobrada após informação e aceite. Não se utilizará reagendamento compulsório para impedir restituição devida. Se houver risco clínico pela espera, a equipe orientará alternativa de continuidade ou procura do serviço adequado, sem garantia de vaga imediata fora da oferta."
+     ]
+    },
+    {
+     "heading": "6 Falha de oferta e cancelamento pela ONEMA",
+     "paragraphs": [
+      "Na impossibilidade de realizar o serviço, a ONEMA comunicará o usuário e oferecerá as soluções cabíveis, como substituição por profissional apto, reagendamento aceito ou restituição do serviço não executado. Se a impossibilidade for imputável à ONEMA, não haverá multa ao paciente nem desconto de tarifa do gateway do valor que deva ser integralmente devolvido. Falta de profissional ou indisponibilidade de agenda não autoriza manter pagamento indefinidamente sem alternativa e resposta."
+     ]
+    },
+    {
+     "heading": "7 Interrupção segurança e contraindicação",
+     "paragraphs": [
+      "O profissional pode suspender ou não iniciar ato quando houver contraindicação, ausência de documento indispensável, divergência de identidade ou risco à segurança, registrando os fatos e as orientações. A existência de impedimento não prova automaticamente culpa do paciente. A apuração financeira considerará o que foi efetivamente prestado e a informação previamente disponível. Falha assistencial ou de informação atribuível à ONEMA não será transformada em cobrança integral por atendimento incompleto. O acionamento de apoio não autoriza abandono da continuidade possível."
+     ]
+    },
+    {
+     "heading": "8 Ausência e impossibilidade de acesso",
+     "paragraphs": [
+      "Na ausência do paciente, recusa de acesso ou problema de endereço, serão registrados os horários, tentativas de contato e o ocorrido, preservando privacidade. Esta versão não institui multa automática de ausência. Qualquer cobrança futura exigirá regra válida previamente informada e apuração proporcional, preservados os direitos legais. A simples leitura de geolocalização ou confirmação por código não basta para declarar execução integral. Em conflito de versões, serão consideradas as evidências e a manifestação das partes."
+     ]
+    },
+    {
+     "heading": "9 Pacote parcialmente executado",
+     "paragraphs": [
+      "O saldo restituível será demonstrado por memória de cálculo que identifique preço efetivamente pago, atos contratados e concluídos, desconto aplicado e valores atribuídos aos componentes na oferta original. Não haverá perda automática de todo o saldo nem reprificação retroativa dos atos pela tarifa avulsa mais cara. Quando a oferta não individualizar preços de venda por componente, a regra de alocação deverá ser apresentada e aceita antes da compra; até sua definição, o sistema não poderá automatizar retenção. Repasse profissional não equivale ao preço de venda do ato. Divergências serão tratadas com solução fundamentada, preservando o consumidor e remunerações legitimamente devidas."
+     ]
+    },
+    {
+     "heading": "10 Regras do PRIME",
+     "paragraphs": [
+      "O cancelamento da assinatura impede renovações futuras e gera protocolo. Benefícios de ciclo pago permanecem até seu fim, ressalvadas restituição integral e outras soluções cabíveis. O arrependimento e falhas da prestação seguem as regras legais. Fora dessas hipóteses, não se promete reembolso proporcional automático de mensalidade já disponibilizada. Pedido assistencial e assinatura são relações separadas. Se um pedido com desconto for cancelado antes da execução, devolve-se o valor pago e libera-se o uso para o ciclo de origem ainda vigente, sem converter desconto em dinheiro ou acumular crédito."
+     ]
+    },
+    {
+     "heading": "11 Regras da Academy",
+     "paragraphs": [
+      "Aplicam-se o arrependimento legal e os direitos por falha ou descumprimento da oferta. Matrícula paga sem acesso por falha imputável à ONEMA terá solução de acesso, extensão ou restituição cabível. A abertura de uma aula ou download não autoriza recusa automática do arrependimento. Reprovação em avaliação conforme critérios informados não gera, isoladamente, restituição, mas não afasta contestação sobre erro ou defeito do curso. Cancelar curso não significa cancelar automaticamente parceria ou assinatura diversa."
+     ]
+    },
+    {
+     "heading": "12 Forma de restituição",
+     "paragraphs": [
+      "Sempre que suportado e apropriado, a devolução ocorrerá vinculada à cobrança original. Pix, cartão e boleto possuem procedimentos próprios; o usuário receberá instruções e status correspondentes. Dados bancários adicionais somente serão exigidos quando necessários e por canal seguro. Não será prometido prazo de crédito de cartão como se dependesse exclusivamente da ONEMA. A ordem de restituição deve ser solicitada prontamente após a decisão ou exercício legal, com informação do prazo operacional efetivo do prestador e da instituição financeira, sem confundir esse prazo com autorização para reter valores."
+     ]
+    },
+    {
+     "heading": "13 Nota fiscal repasse e contestação",
+     "paragraphs": [
+      "O cancelamento financeiro não substitui o tratamento fiscal da nota, que poderá exigir cancelamento ou ajuste segundo as regras aplicáveis. O sistema registrará cada providência. Reembolso ao paciente não gera desconto automático do profissional por ato corretamente executado. Chargeback será apurado com preservação de evidências, sem bloquear indiscriminadamente todo o saldo. Valores incontroversos devem ser tratados separadamente. O usuário poderá contestar a decisão, consultar memória de cálculo e apresentar documentos, sem renúncia a órgãos de defesa ou ao Judiciário."
+     ]
+    },
+    {
+     "heading": "14 Vigência e acesso",
+     "paragraphs": [
+      "Esta política terá versão e data de eficácia publicadas. A oferta e a política aplicáveis ao pedido serão preservadas, sem aplicação retroativa de regras mais restritivas. Novas condições serão informadas antes de novas contratações. O acesso permanecerá disponível no aplicativo e por cópia solicitada ao suporte. Sua incorporação ao aceite contratual não inclui consentimento para marketing ou divulgação de dados."
+     ]
+    }
+   ]
+  }
+ ]
+}

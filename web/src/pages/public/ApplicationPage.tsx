@@ -5,6 +5,7 @@ import { useApi, useSubmit } from '../../lib/hooks';
 import { dateTime } from '../../lib/format';
 import { Alert, Badge, Button, ErrorState, Field, Loading, fieldError } from '../../ui/ui';
 import { IconCheck } from '../../ui/icons';
+import { LegalLink } from '../../ui/LegalDialog';
 
 const STATUS: Record<string, { label: string; tone: string; text: string }> = {
   RASCUNHO: { label: 'Rascunho', tone: 'dark', text: 'Complete seus dados, envie os documentos e clique em "Enviar para análise".' },
@@ -32,7 +33,7 @@ export function ApplicationPage() {
   const send = useSubmit<any>();
   const [upErr, setUpErr] = useState<ApiError | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
-  const [f, setF] = useState({ fullName: '', cpf: '', corenNumber: '', corenUf: 'SP', phone: '', regions: '', needs: [] as string[], availability: '', consent: false });
+  const [f, setF] = useState({ fullName: '', cpf: '', corenNumber: '', corenUf: 'SP', phone: '', regions: '', needs: [] as string[], availability: '', consent: false, dataTerm: false });
   useEffect(() => { document.title = 'Candidatura ONEMA ONE · ONEMA SAÚDE'; }, []);
   useEffect(() => {
     const a = data?.application;
@@ -93,7 +94,11 @@ export function ApplicationPage() {
           </fieldset>
           <Field label="Disponibilidade (opcional)"><input type="text" value={f.availability} onChange={(e) => setF({ ...f, availability: e.target.value })} placeholder="Ex.: manhãs em dias úteis" /></Field>
           <label className="choice mandatory"><input type="checkbox" checked={f.consent} onChange={(e) => setF({ ...f, consent: e.target.checked })} />
-            <span>Declaro que as informações são verdadeiras e estou ciente de que a ONEMA SAÚDE usará estes dados e documentos somente para validar meu credenciamento, conforme a <Link to="/institucional/lgpd">LGPD</Link>.</span></label>
+            <span><strong>Veracidade do cadastro.</strong> Declaro que as informações e os documentos apresentados são verdadeiros e comprometo-me a mantê-los atualizados.</span></label>
+          <label className="choice mandatory"><input type="checkbox" checked={f.dataTerm} onChange={(e) => setF({ ...f, dataTerm: e.target.checked })} />
+            <span><strong>Proteção de dados e sigilo.</strong> Li o <LegalLink kind="termo-especialista">Termo de Proteção de Dados, Sigilo e Responsabilidades</LegalLink> do Especialista ONEMA ONE e assumo os deveres de confidencialidade e uso seguro nele previstos. Estou ciente de como exercer meus direitos sobre meus dados pessoais.</span></label>
+          <p className="small"><LegalLink kind="privacidade">Consultar a Política de Privacidade</LegalLink></p>
+          {fieldError(save.error, 'dataTerm') && <p className="err small">{fieldError(save.error, 'dataTerm')}</p>}
           {fieldError(save.error, 'consent') && <p className="err small">{fieldError(save.error, 'consent')}</p>}
           <Alert error={save.error && !Array.isArray(save.error.details) ? save.error : null} />
           {editable && <Button className="deep" busy={save.busy}>Salvar dados</Button>}

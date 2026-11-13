@@ -1305,5 +1305,19 @@ CREATE TABLE specialist_preferences (
   updated_at TEXT NOT NULL
 );
 ALTER TABLE specialist_preferences ENABLE ROW LEVEL SECURITY;
+
+-- 020c: Aceites de documentos (doc, versão, hash, data do servidor e contexto). Append-only.
+CREATE TABLE legal_acceptances (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  code TEXT NOT NULL,
+  version TEXT NOT NULL,
+  content_hash TEXT NOT NULL,
+  context TEXT NOT NULL,
+  accepted_at TEXT NOT NULL
+);
+CREATE INDEX ix_legal_acceptances_user ON legal_acceptances(user_id, code);
+CREATE TRIGGER trg_legal_acceptances_append BEFORE UPDATE OR DELETE ON legal_acceptances FOR EACH ROW EXECUTE FUNCTION onema_append_only();
+ALTER TABLE legal_acceptances ENABLE ROW LEVEL SECURITY;
 ` },
 ];

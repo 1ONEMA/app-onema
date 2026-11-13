@@ -128,6 +128,8 @@ export default function App() {
 
       <Route path="/admin/*" element={<RequireAuth roles={['SUPORTE_ACADEMY', 'GESTOR_CONTEUDO', 'AVALIADOR_RT', 'ADMIN_ACADEMY', 'CREDENCIAMENTO', 'FINANCEIRO', 'AUDITOR', 'OPERADOR_CENTRAL', 'ADMIN_PRIME']}><AdminRoutes /></RequireAuth>} />
       <Route path="/institucional/:slug" element={<Layout><InstitutionalPage /></Layout>} />
+      <Route path="/politica-de-privacidade" element={<Navigate to="/institucional/privacidade" replace />} />
+      <Route path="/termos-de-uso" element={<Navigate to="/institucional/termos" replace />} />
       <Route path="/carteira" element={<RequireAuth roles={['PACIENTE']}><WalletPage /></RequireAuth>} />
       <Route path="/carteira/compartilhamentos" element={<RequireAuth roles={['PACIENTE']}><ReportSharesPage /></RequireAuth>} />
       <Route path="*" element={<NotFound />} />
