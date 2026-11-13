@@ -18,7 +18,8 @@ export function ContentPage() {
   if (error) return <ErrorState error={error} onRetry={reload} />;
   return (
     <>
-      <PageHeader kicker="ONEMA Academy · ACA-012" title="Catálogo e versões de curso"><p>Rascunhos são editáveis; versões em revisão, aprovadas e publicadas são imutáveis. A publicação exige aprovação do Avaliador/RT.</p></PageHeader>
+      <PageHeader kicker="ONEMA Academy · ACA-012" title="Catálogo e versões de curso"><p>Rascunhos são editáveis; versões em revisão, aprovadas e publicadas são imutáveis. A publicação exige aprovação do Avaliador/RT.</p>
+        {has('GESTOR_CONTEUDO', 'ADMIN_ACADEMY') && <p><Link className="btn sm deep" to="/admin/conteudo/videos">Enviar vídeos das aulas (em lote)</Link></p>}</PageHeader>
       <Alert error={create.error || status.error} />
       {data.courses.map((c: any) => (
         <section key={c.id} className="surface">
@@ -149,10 +150,11 @@ export function VersionEditor() {
       <PageHeader kicker={`${v.code} · versão ${v.version}`} title={v.title} back={{ to: '/admin/conteudo', label: 'Catálogo' }}><Badge tone={tone(v.state)}>{label(v.state)}</Badge></PageHeader>
       <Alert error={action.error} success={ok} />
       {data.issues.length > 0 && v.state !== 'PUBLISHED' && v.state !== 'ARCHIVED' && <div className="caution"><strong>Pendências para liberação:</strong><ul className="small mb0">{data.issues.map((i: string) => <li key={i}>{i}</li>)}</ul></div>}
+      {data.warnings?.length > 0 && <div className="small muted"><strong>Pendências de acessibilidade (não impedem a liberação):</strong> {data.warnings.join(' ')}</div>}
       <div className="row" style={{ marginBottom: 16 }}>
         {v.state === 'DRAFT' && has('GESTOR_CONTEUDO', 'ADMIN_ACADEMY') && <Button className="deep" busy={action.busy} onClick={() => doAction('submit', {}, 'Enviado para revisão do RT.')}>Enviar para revisão RT</Button>}
         {v.state === 'IN_REVIEW' && has('AVALIADOR_RT') && <>
-          <Button className="green" busy={action.busy} onClick={() => doAction('approve', {}, 'Versão aprovada.')}>Aprovar versão (RT)</Button>
+          <Button className="green" busy={action.busy} onClick={() => doAction('approve', {}, 'Versão e vídeos aprovados. Falta publicar (Admin Academy).')}>Aprovar versão e vídeos (RT)</Button>
           <input type="text" placeholder="Motivo da devolução" value={note} onChange={(e) => setNote(e.target.value)} style={{ maxWidth: 320 }} />
           <Button className="ghost" busy={action.busy} onClick={() => doAction('reject', { note }, 'Devolvida para rascunho.')}>Devolver</Button></>}
         {v.state === 'APPROVED' && has('ADMIN_ACADEMY') && <Button className="deep" busy={action.busy} onClick={() => doAction('publish', {}, 'Versão publicada para novas vinculações.')}>Publicar</Button>}

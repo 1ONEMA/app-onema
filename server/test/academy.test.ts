@@ -359,7 +359,10 @@ describe('Certificado, credenciamento e integrações', () => {
 describe('Administração de conteúdo, mídia e auditoria', () => {
   it('publicação exige aprovação RT; versão publicada é imutável; matrícula preserva versão original (ACA-T007, T039, T040)', async () => {
     const c = await partner(); await payAndEnroll(c);
-    await c.get('/api/academy/courses/C01'); // vincula v1
+    const d0 = await c.get('/api/academy/courses/C01'); // vincula v1
+    // já começou o curso: fica congelada na v1 (quem não começou passa para a nova versão)
+    const first = await c.get(`/api/academy/lessons/${d0.body.lessons[0].code}`);
+    expect((await c.put(`/api/academy/progress/${d0.body.lessons[0].code}`, { percent: 30, position: 10, complete: false, rowVersion: first.body.progress.rowVersion }, true)).status).toBe(200);
     const gestor = await loginAs(app, 'gestor');
     const courses = await gestor.get('/api/admin/academy/courses');
     const v1 = courses.body.courses[0].versions[0];
@@ -383,7 +386,7 @@ describe('Administração de conteúdo, mídia e auditoria', () => {
     expect((await one<any>(`SELECT COUNT(*) AS n FROM audit_events WHERE action = 'COURSE_VERSION_APPROVED' AND after_hash IS NOT NULL`)).n).toBe(1);
   });
 
-  it('vídeo sem legenda/transcrição não libera versão; checksum divergente bloqueia; URL assinada expira (ACA-T032, T041, T042)', async () => {
+  it('vídeo sem legenda/transcrição vira pendência (não bloqueia; exigência volta com ACADEMY_REQUIRE_CAPTIONS); checksum divergente bloqueia; URL assinada expira (ACA-T032, T041, T042)', async () => {
     const gestor = await loginAs(app, 'gestor');
     const draft = await gestor.post('/api/admin/academy/course-versions', { courseCode: 'C02' });
     const upload = async (kind: string, mime: string, content: string, expected?: string) => {
@@ -402,9 +405,14 @@ describe('Administração de conteúdo, mídia e auditoria', () => {
     expect((await rt.post(`/api/admin/academy/media/${vid.id}/approve`)).status).toBe(200);
     const lesson = await one<any>('SELECT id FROM academy_lessons WHERE course_version_id = ? ORDER BY sort_order LIMIT 1', draft.body.id);
     await gestor.put(`/api/admin/academy/lessons/${lesson.id}`, { title: 'Aula com vídeo', body: null, videoAssetId: vid.id, captionAssetId: null, transcriptAssetId: null, completionMinPercent: 90 });
+    process.env.ACADEMY_REQUIRE_CAPTIONS = 'true';
     const sub = await gestor.post(`/api/admin/academy/course-versions/${draft.body.id}/submit`);
     expect(sub.status).toBe(422);
     expect(sub.body.error.details.join(' ')).toMatch(/sem legenda aprovada.*|sem transcrição/);
+    delete process.env.ACADEMY_REQUIRE_CAPTIONS;
+    const det = (await gestor.get(`/api/admin/academy/course-versions/${draft.body.id}`)).body;
+    expect(det.issues.join(' ')).not.toMatch(/legenda/);
+    expect(det.warnings.join(' ')).toMatch(/legenda pendente/);
     // URL assinada: válida, adulterada, expirada
     const prev = await gestor.get(`/api/admin/academy/media/${vid.id}/preview`);
     expect((await app.inject({ url: prev.body.url })).statusCode).toBe(200);
@@ -415,6 +423,29 @@ describe('Administração de conteúdo, mídia e auditoria', () => {
     fs.writeFileSync(path.join(config.mediaDir, vid.id), 'adulterado');
     expect((await app.inject({ url: prev.body.url })).statusCode).toBe(409);
     expect((await one<any>('SELECT state FROM academy_media_assets WHERE id = ?', vid.id)).state).toBe('BLOCKED');
+  });
+
+  it('vídeos em lote: rascunho com vídeo pendente vai ao RT; aprovar a versão aprova os vídeos; publicar move só quem não começou', async () => {
+    const c = await partner(); await payAndEnroll(c);
+    await c.get('/api/academy/journey');
+    const enr = await one<any>(`SELECT ec.enrollment_id, ec.course_version_id FROM academy_enrollment_courses ec JOIN academy_courses k ON k.id = ec.course_id WHERE k.code = 'C02'`);
+    const gestor = await loginAs(app, 'gestor');
+    const draft = (await gestor.post('/api/admin/academy/course-versions', { courseCode: 'C02' })).body;
+    // envio em partes (mesmo caminho da tela de lote)
+    const bytes = Buffer.from('video-ficticio-aula-01');
+    const sha = (await import('node:crypto')).createHash('sha256').update(bytes).digest('hex');
+    const up = (await gestor.post('/api/admin/academy/media/uploads', { kind: 'VIDEO', title: 'C02-A01 · Identificação segura', filename: 'AULA 01.mp4', mime: 'video/mp4', size: bytes.length, checksum: sha })).body;
+    expect((await app.inject({ method: 'PUT', url: `/api/admin/academy/media/uploads/${up.id}/chunks/0`, payload: bytes, headers: { cookie: gestor.cookie, 'x-csrf-token': gestor.csrf, 'content-type': 'application/octet-stream' } })).statusCode).toBe(200);
+    expect((await gestor.post(`/api/admin/academy/media/uploads/${up.id}/complete`, {})).body.state).toBe('PENDING');
+    const l = (await gestor.get(`/api/admin/academy/course-versions/${draft.id}`)).body.lessons[0];
+    expect((await gestor.put(`/api/admin/academy/lessons/${l.id}`, { title: l.title, body: l.body, videoAssetId: up.id, captionAssetId: null, transcriptAssetId: null, completionMinPercent: l.completion_min_percent ?? 90 })).status).toBe(200);
+    expect((await gestor.post(`/api/admin/academy/course-versions/${draft.id}/submit`)).status).toBe(200);
+    const rt = await loginAs(app, 'rt');
+    expect((await rt.post(`/api/admin/academy/course-versions/${draft.id}/approve`)).status).toBe(200);
+    expect((await one<any>('SELECT state FROM academy_media_assets WHERE id = ?', up.id)).state).toBe('APPROVED');
+    const admin = await loginAs(app, 'adminAcademy');
+    expect((await admin.post(`/api/admin/academy/course-versions/${draft.id}/publish`)).status).toBe(200);
+    if (enr) expect((await one<any>('SELECT course_version_id FROM academy_enrollment_courses WHERE enrollment_id = ? AND course_id = (SELECT id FROM academy_courses WHERE code = ?)', enr.enrollment_id, 'C02')).course_version_id).toBe(draft.id);
   });
 
   it('trilha de auditoria é append-only (ACA-T028)', async () => {

@@ -33,7 +33,7 @@ function segregate(a: AuthCtx, createdBy: string | null) {
 }
 
 /** Validações de liberação da versão (ACA-T032: vídeo sem legenda/transcrição não libera). */
-export async function versionIssues(cvId: string): Promise<string[]> {
+export async function versionIssues(cvId: string, opts: { pendingVideoOk?: boolean } = {}): Promise<string[]> {
   const issues: string[] = [];
   const cv = await one<any>('SELECT * FROM academy_course_versions WHERE id = ?', cvId)!;
   if (cv.activity_required == null) issues.push('Defina se a atividade integradora é obrigatória.');
@@ -44,12 +44,33 @@ export async function versionIssues(cvId: string): Promise<string[]> {
     if (!l.body && !l.video_asset_id) issues.push(`${l.code}: conteúdo pendente (texto ou vídeo).`);
     if (l.completion_min_percent == null) issues.push(`${l.code}: critério mínimo de conclusão não definido.`);
     if (l.video_asset_id) {
-      if (!(await approved(l.video_asset_id))) issues.push(`${l.code}: vídeo não aprovado.`);
-      if (!(await approved(l.caption_asset_id))) issues.push(`${l.code}: vídeo sem legenda aprovada.`);
-      if (!(await approved(l.transcript_asset_id))) issues.push(`${l.code}: vídeo sem transcrição aprovada.`);
+      // No envio para revisão, vídeo íntegro aguardando o RT é aceito: a aprovação da versão aprova os vídeos dela.
+      const vs = (await one<any>('SELECT state FROM academy_media_assets WHERE id = ?', l.video_asset_id))?.state;
+      if (!(vs === 'APPROVED' || (opts.pendingVideoOk && vs === 'PENDING'))) issues.push(`${l.code}: vídeo ${vs === 'BLOCKED' ? 'bloqueado (envie de novo)' : vs === 'UPLOADING' ? 'com envio incompleto' : 'não aprovado'}.`);
+      // Decisão ONEMA (13/11/2026): legenda e transcrição viram pendência registrada (não bloqueiam).
+      // ACADEMY_REQUIRE_CAPTIONS=true restaura a exigência original (ACA-T032).
+      if (requireCaptions()) {
+        if (!(await approved(l.caption_asset_id))) issues.push(`${l.code}: vídeo sem legenda aprovada.`);
+        if (!(await approved(l.transcript_asset_id))) issues.push(`${l.code}: vídeo sem transcrição aprovada.`);
+      }
     }
   }
   return issues;
+}
+const requireCaptions = () => process.env.ACADEMY_REQUIRE_CAPTIONS === 'true';
+
+/** Pendências que não impedem a liberação (acessibilidade a completar). */
+export async function versionWarnings(cvId: string): Promise<string[]> {
+  if (requireCaptions()) return [];
+  const out: string[] = [];
+  const lessons = await all<any>('SELECT code, video_asset_id, caption_asset_id, transcript_asset_id FROM academy_lessons WHERE course_version_id = ? ORDER BY sort_order', cvId);
+  for (const l of lessons) {
+    if (!l.video_asset_id) continue;
+    const st = async (id: string | null) => (id ? (await one<any>('SELECT state FROM academy_media_assets WHERE id = ?', id))?.state : null);
+    if ((await st(l.caption_asset_id)) !== 'APPROVED') out.push(`${l.code}: legenda pendente (acessibilidade).`);
+    if ((await st(l.transcript_asset_id)) !== 'APPROVED') out.push(`${l.code}: transcrição pendente (acessibilidade).`);
+  }
+  return out;
 }
 
 async function versionSnapshot(cvId: string) {
@@ -123,6 +144,7 @@ export async function academyAdminRoutes(app: FastifyInstance) {
     return {
       version: cv,
       issues: await versionIssues(id),
+      warnings: await versionWarnings(id),
       lessons,
       activities: await Promise.all(activities.map(async (act) => ({
         ...act,
@@ -252,7 +274,7 @@ export async function academyAdminRoutes(app: FastifyInstance) {
     const { id } = parse(idParam, req.params);
     return await tx(async () => {
       const cv = await cvOrThrow(id); requireDraft(cv);
-      const issues = await versionIssues(id);
+      const issues = await versionIssues(id, { pendingVideoOk: true });
       if (issues.length) throw unprocessable('VERSION_INCOMPLETE', 'A versão possui pendências que impedem o envio para revisão.', issues);
       await run(`UPDATE academy_course_versions SET state = 'IN_REVIEW', submitted_at = ? WHERE id = ?`, nowIso(), id);
       await audit({ actorId: a.userId, action: 'COURSE_VERSION_SUBMITTED', subjectType: 'course_version', subjectId: id, correlationId: req.correlationId });
@@ -267,6 +289,16 @@ export async function academyAdminRoutes(app: FastifyInstance) {
       const cv = await cvOrThrow(id);
       if (cv.state !== 'IN_REVIEW') throw conflict('INVALID_STATE', 'Somente versões em revisão podem ser aprovadas.');
       segregate(a, cv.created_by);
+      // O RT aprova junto os vídeos das aulas desta versão (integridade conferida; quem enviou não aprova).
+      for (const m of await all<any>(`SELECT m.* FROM academy_media_assets m JOIN academy_lessons l ON l.video_asset_id = m.id WHERE l.course_version_id = ? AND m.state = 'PENDING'`, id)) {
+        segregate(a, m.created_by);
+        if (!(await verifyMedia(m))) {
+          await run(`UPDATE academy_media_assets SET state = 'BLOCKED' WHERE id = ?`, m.id);
+          throw new AppError(409, 'MEDIA_INTEGRITY', `Checksum divergente no vídeo "${m.title}": mídia bloqueada. Envie o arquivo de novo.`);
+        }
+        await run(`UPDATE academy_media_assets SET state = 'APPROVED' WHERE id = ?`, m.id);
+        await audit({ actorId: a.userId, action: 'MEDIA_APPROVED', subjectType: 'media', subjectId: m.id, correlationId: req.correlationId, meta: { viaCourseVersion: id } });
+      }
       const issues = await versionIssues(id);
       if (issues.length) throw unprocessable('VERSION_INCOMPLETE', 'A versão possui pendências.', issues);
       const snap = await versionSnapshot(id);
@@ -301,6 +333,14 @@ export async function academyAdminRoutes(app: FastifyInstance) {
       await run(`UPDATE academy_course_versions SET state = 'ARCHIVED' WHERE course_id = ? AND state = 'PUBLISHED'`, cv.course_id);
       await run(`UPDATE academy_course_versions SET state = 'PUBLISHED', published_at = ? WHERE id = ?`, now, id);
       await run('UPDATE academy_courses SET current_version_id = ? WHERE id = ?', id, cv.course_id);
+      // Quem está vinculado à versão anterior mas ainda não começou o curso passa para a nova (ex.: aulas com vídeo).
+      // Quem já começou ou concluiu continua na versão congelada (ACA-T007).
+      const moved = await run(`UPDATE academy_enrollment_courses ec SET course_version_id = ?, bound_at = ? WHERE ec.course_id = ? AND ec.course_version_id <> ? AND ec.result IS NULL
+          AND NOT EXISTS (SELECT 1 FROM academy_lesson_progress p JOIN academy_lessons l ON l.id = p.lesson_id WHERE p.enrollment_id = ec.enrollment_id AND l.course_version_id = ec.course_version_id)
+          AND NOT EXISTS (SELECT 1 FROM academy_activity_attempts t JOIN academy_activities x ON x.id = t.activity_id WHERE t.enrollment_id = ec.enrollment_id AND x.course_version_id = ec.course_version_id)
+          AND NOT EXISTS (SELECT 1 FROM academy_assessment_attempts t JOIN academy_assessments x ON x.id = t.assessment_id WHERE t.enrollment_id = ec.enrollment_id AND x.course_version_id = ec.course_version_id)`,
+        id, now, cv.course_id, id);
+      if (moved.changes) await audit({ actorId: a.userId, action: 'ENROLLMENTS_REBOUND_NOT_STARTED', subjectType: 'course_version', subjectId: id, correlationId: req.correlationId, meta: { count: moved.changes } });
       await audit({ actorId: a.userId, action: 'COURSE_VERSION_PUBLISHED', subjectType: 'course_version', subjectId: id, correlationId: req.correlationId, meta: { course: cv.code, version: cv.version } });
       return { ok: true };
     });

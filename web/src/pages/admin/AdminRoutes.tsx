@@ -2,6 +2,7 @@ import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-route
 import { useAuth, type Role } from '../../lib/auth';
 import { PageHeader } from '../../ui/ui';
 import { ContentPage, VersionEditor, AssessmentEditor } from './Content';
+import { CourseVideosPage } from './CourseVideos';
 import { MediaPage, CertAdminPage } from './Media';
 import { CredentialingPage, SupportPage, ReportsPage } from './AcademyOps';
 import { FinancePage, SharesAdminPage, PrimeAdminPage } from './PrimeOps';
@@ -46,6 +47,7 @@ export function AdminRoutes() {
       <Routes>
         <Route index element={<AdminHome />} />
         <Route path="conteudo" element={<ContentPage />} />
+        <Route path="conteudo/videos" element={<CourseVideosPage />} />
         <Route path="conteudo/versoes/:id" element={<VersionEditor />} />
         <Route path="conteudo/avaliacoes/:id" element={<AssessmentEditor />} />
         <Route path="midia" element={<MediaPage />} />
