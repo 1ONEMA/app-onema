@@ -7,7 +7,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { z } from 'zod';
 
-export const EVOLUTION_MODEL = process.env.KARY_MODEL || 'claude-opus-5-5';
+export const EVOLUTION_MODEL = process.env.KARY_MODEL || 'claude-haiku-5-5';
 export const evolutionAiEnabled = () => !!process.env.ANTHROPIC_API_KEY;
 
 /** Seções da evolução (mesma estrutura no ditado organizado pela IA e no preenchimento manual). */

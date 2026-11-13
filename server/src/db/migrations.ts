@@ -1266,4 +1266,149 @@ ALTER TABLE lifescore_safety_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lifescore_reminders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lifescore_releases ENABLE ROW LEVEL SECURITY;
 ` },
+  { name: '020_jornada_painel', sql: `
+-- 020a: Jornada de solicitação (ONEMA-JOR-001, 05/11/2026): endereço completo (selado), identificação do paciente,
+-- janela de horário, orientação de materiais (sem cotação) e anexos (pedido médico/exame).
+ALTER TABLE care_requests ADD COLUMN address_sealed TEXT;
+ALTER TABLE care_requests ADD COLUMN patient_birth_date TEXT;
+ALTER TABLE care_requests ADD COLUMN time_window TEXT;
+ALTER TABLE care_requests ADD COLUMN relationship TEXT;
+ALTER TABLE care_requests ADD COLUMN guidance_status TEXT NOT NULL DEFAULT 'NAO_APLICAVEL';
+ALTER TABLE care_requests ADD COLUMN guidance_text TEXT;
+ALTER TABLE care_requests ADD COLUMN guidance_by TEXT REFERENCES users(id);
+ALTER TABLE care_requests ADD COLUMN guidance_at TEXT;
+ALTER TABLE care_requests ADD COLUMN materials_confirmed_at TEXT;
+CREATE TABLE care_request_documents (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL REFERENCES care_requests(id),
+  uploaded_by TEXT NOT NULL REFERENCES users(id),
+  kind TEXT NOT NULL CHECK (kind IN ('PEDIDO_MEDICO','EXAME','OUTRO')),
+  filename TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  storage_key TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  deleted_at TEXT
+);
+CREATE INDEX ix_care_request_documents ON care_request_documents(request_id);
+ALTER TABLE care_request_documents ENABLE ROW LEVEL SECURITY;
+
+-- 020b: Painel da especialista (ONEMA-UX-ESP-001): disponibilidade e preferências de alerta.
+CREATE TABLE specialist_preferences (
+  user_id TEXT PRIMARY KEY REFERENCES users(id),
+  available INTEGER NOT NULL DEFAULT 1,
+  available_changed_at TEXT,
+  sound_alerts INTEGER NOT NULL DEFAULT 1,
+  whatsapp_alerts INTEGER NOT NULL DEFAULT 0,
+  whatsapp_phone TEXT,
+  updated_at TEXT NOT NULL
+);
+ALTER TABLE specialist_preferences ENABLE ROW LEVEL SECURITY;
+
+-- 020c: Aceites de documentos (doc, versão, hash, data do servidor e contexto). Append-only.
+CREATE TABLE legal_acceptances (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  code TEXT NOT NULL,
+  version TEXT NOT NULL,
+  content_hash TEXT NOT NULL,
+  context TEXT NOT NULL,
+  accepted_at TEXT NOT NULL
+);
+CREATE INDEX ix_legal_acceptances_user ON legal_acceptances(user_id, code);
+CREATE TRIGGER trg_legal_acceptances_append BEFORE UPDATE OR DELETE ON legal_acceptances FOR EACH ROW EXECUTE FUNCTION onema_append_only();
+ALTER TABLE legal_acceptances ENABLE ROW LEVEL SECURITY;
+` },
+  { name: '021_telenfermagem', sql: `
+-- 021: Telenfermagem (POP-ONEMA-TELE-001 v1.0) — HOMOLOGAÇÃO. Episódio remoto com máquina de estados, consentimento
+-- append-only, sala temporária com token de curta duração (sem gravação), registro próprio com assinatura e adendos.
+CREATE TABLE tele_episodes (
+  id TEXT PRIMARY KEY,
+  protocol TEXT NOT NULL UNIQUE,
+  patient_id TEXT NOT NULL REFERENCES users(id),
+  created_by TEXT NOT NULL REFERENCES users(id),
+  origin_event_id TEXT REFERENCES care_events(id),
+  origin_specialist_id TEXT REFERENCES users(id),
+  modality TEXT NOT NULL CHECK (modality IN ('RETORNO_ONLINE','MONITORAMENTO','CONSULTA_REMOTA')),
+  protocol_version TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  window_until TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('SOLICITADO','TRIAGEM','OFERTADO','ACEITO','AGENDADO','EM_ATENDIMENTO','AGUARDANDO_REGISTRO','ASSINADO','CONCLUIDO',
+    'INELEGIVEL','RECUSADO','EXPIRADO','CANCELADO','NAO_COMPARECEU','FALHA_TECNICA','ENCAMINHADO_PRESENCIAL','URGENCIA_ENCAMINHADA')),
+  eligibility_note TEXT,
+  eligibility_by TEXT REFERENCES users(id),
+  pricing_rule TEXT CHECK (pricing_rule IN ('INCLUIDO','COBRADO')),
+  pricing_reason TEXT,
+  price_cents INTEGER,
+  price_accepted_at TEXT,
+  offered_to TEXT REFERENCES users(id),
+  offer_expires_at TEXT,
+  professional_id TEXT REFERENCES users(id),
+  accepted_at TEXT,
+  scheduled_at TEXT,
+  timezone TEXT NOT NULL DEFAULT 'America/Sao_Paulo',
+  call_started_at TEXT,
+  call_ended_at TEXT,
+  failures INTEGER NOT NULL DEFAULT 0,
+  outcome_reason TEXT,
+  outcome_plan TEXT,
+  closed_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX ix_tele_episodes_patient ON tele_episodes(patient_id, created_at);
+CREATE INDEX ix_tele_episodes_status ON tele_episodes(status);
+ALTER TABLE tele_episodes ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE tele_consents (
+  id TEXT PRIMARY KEY,
+  episode_id TEXT NOT NULL REFERENCES tele_episodes(id),
+  actor_id TEXT NOT NULL REFERENCES users(id),
+  version TEXT NOT NULL,
+  purpose TEXT NOT NULL,
+  decision TEXT NOT NULL CHECK (decision IN ('ACEITO','RECUSADO','REVOGADO')),
+  created_at TEXT NOT NULL
+);
+CREATE INDEX ix_tele_consents_episode ON tele_consents(episode_id, created_at);
+CREATE TRIGGER trg_tele_consents_append BEFORE UPDATE OR DELETE ON tele_consents FOR EACH ROW EXECUTE FUNCTION onema_append_only();
+ALTER TABLE tele_consents ENABLE ROW LEVEL SECURITY;
+
+-- Tokens de sala: só o hash é guardado; vida curta; nenhum arquivo de mídia é persistido (sem gravação).
+CREATE TABLE tele_room_tokens (
+  id TEXT PRIMARY KEY,
+  episode_id TEXT NOT NULL REFERENCES tele_episodes(id),
+  user_id TEXT NOT NULL REFERENCES users(id),
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  created_at TEXT NOT NULL
+);
+ALTER TABLE tele_room_tokens ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE tele_notes (
+  id TEXT PRIMARY KEY,
+  episode_id TEXT NOT NULL REFERENCES tele_episodes(id),
+  patient_id TEXT NOT NULL REFERENCES users(id),
+  author_id TEXT NOT NULL REFERENCES users(id),
+  kind TEXT NOT NULL CHECK (kind IN ('REGISTRO','ADENDO')),
+  parent_note_id TEXT REFERENCES tele_notes(id),
+  version INTEGER NOT NULL DEFAULT 1,
+  dictation TEXT NOT NULL DEFAULT '',
+  content_json TEXT NOT NULL,
+  ai_suggested INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL CHECK (status IN ('RASCUNHO','ASSINADA')),
+  content_hash TEXT,
+  signed_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+-- Um único registro principal por episódio (impede assinatura duplicada); adendos versionados.
+CREATE UNIQUE INDEX uq_tele_notes_main ON tele_notes(episode_id) WHERE kind = 'REGISTRO';
+CREATE UNIQUE INDEX uq_tele_notes_version ON tele_notes(episode_id, version);
+CREATE INDEX ix_tele_notes_patient ON tele_notes(patient_id, signed_at);
+CREATE TRIGGER tele_note_locked BEFORE UPDATE ON tele_notes FOR EACH ROW EXECUTE FUNCTION onema_evolution_locked();
+CREATE TRIGGER tele_note_no_delete BEFORE DELETE ON tele_notes FOR EACH ROW EXECUTE FUNCTION onema_forbid('tele note is immutable');
+ALTER TABLE tele_notes ENABLE ROW LEVEL SECURITY;
+` },
 ];

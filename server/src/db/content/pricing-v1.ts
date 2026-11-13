@@ -147,4 +147,5 @@ export const EXPECTED_PAYOUT: Record<string, [number, number]> = {
  * Parâmetros do relatório gerencial (seção 6.5): gateway 3% + tributos 6% + reserva 2% = 11% do valor recebido,
  * e R$ 12 de operação por ato. Contribuição NÃO é lucro líquido e não substitui cálculo fiscal.
  */
-export const REPORT_PARAMS = { rateBps: 1100, opCostPerActCents: 1200, warnBelowBps: 1700 };
+/** Margem de contribuição: alerta abaixo de 17%; mínimo absoluto de 16% (decisão ONEMA, nov/2026), inclusive com desconto PRIME. */
+export const REPORT_PARAMS = { rateBps: 1100, opCostPerActCents: 1200, warnBelowBps: 1700, minBps: 1600 };

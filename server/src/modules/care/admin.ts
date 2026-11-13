@@ -81,6 +81,14 @@ export async function careAdminRoutes(app: FastifyInstance) {
       if (b.validFrom < nowIso() && cur && b.validFrom < cur.valid_from) throw unprocessable('INVALID_VALIDITY', 'A vigência não pode ser anterior à versão atual.');
       // CAT-08 e PAC-05: mesma oferta comercial — preço e repasse precisam permanecer idênticos entre as visões.
       const twins = await all<any>('SELECT * FROM catalog_items WHERE canonical_code = ? AND id <> ?', item.canonical_code, item.id);
+      // Margem mínima de 16% (com o desconto PRIME aplicado, quando elegível).
+      const payoutTotal = b.components.reduce((s0, c) => s0 + c.qty * c.unit, 0), actsTotal = b.components.reduce((s0, c) => s0 + c.qty, 0);
+      const pp = await currentParams();
+      const worstPrice = b.primeEligible ? b.priceCents - discountFor(b.priceCents, pp.discount_bps, pp.discount_cap_cents) : b.priceCents;
+      const m = contribution(worstPrice, payoutTotal, actsTotal);
+      if (m.marginBps < REPORT_PARAMS.minBps) {
+        throw unprocessable('MARGIN_BELOW_MINIMUM', `A margem de contribuição ficaria em ${(m.marginBps / 100).toFixed(1).replace('.', ',')}%${b.primeEligible ? ' (com desconto PRIME)' : ''}, abaixo do mínimo de 16%. Ajuste preço ou repasse.`, { marginBps: m.marginBps });
+      }
       const r = await insertVersion(item.id, { ...b, recurring: b.recurring, components: b.components.map((c) => ({ ...c, unitLabels: c.unitLabels ?? null })) }, a.userId);
       for (const t of twins) {
         const tv = await currentVersion(t.id, b.validFrom);

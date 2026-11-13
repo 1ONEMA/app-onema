@@ -1,0 +1,1100 @@
+{
+ "source": "ONEMA Academy — Avaliações Finais C01–C04 — banco definitivo de 42 questões aprovado pelo RT (pacote Mestre, 12/10/2026)",
+ "courses": [
+  {
+   "code": "C01",
+   "questions": [
+    {
+     "position": 1,
+     "lesson": 1,
+     "stem": "Ao chegar ao domicílio, qual conduta representa adequadamente a identidade profissional ONEMA?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Iniciar o procedimento sem apresentação para ganhar tempo."
+      },
+      {
+       "id": "B",
+       "text": "Apresentar-se, identificar sua função, confirmar o paciente e explicar a finalidade do atendimento."
+      },
+      {
+       "id": "C",
+       "text": "Solicitar que o familiar conduza integralmente a visita."
+      },
+      {
+       "id": "D",
+       "text": "Garantir resultados clínicos antes da avaliação."
+      }
+     ],
+     "answer": "B",
+     "rationale": "A apresentação, a confirmação do paciente e o esclarecimento sobre o atendimento estabelecem uma relação profissional responsável."
+    },
+    {
+     "position": 2,
+     "lesson": 1,
+     "stem": "O que deve orientar a atuação do Enfermeiro parceiro?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Qualquer solicitação feita pelo cliente."
+      },
+      {
+       "id": "B",
+       "text": "A vontade do familiar, independentemente do paciente."
+      },
+      {
+       "id": "C",
+       "text": "Competências profissionais, segurança, protocolos e regras institucionais aplicáveis."
+      },
+      {
+       "id": "D",
+       "text": "A realização do maior número possível de procedimentos."
+      }
+     ],
+     "answer": "C",
+     "rationale": "A atuação profissional deve respeitar competências, condições de segurança e requisitos assistenciais e institucionais."
+    },
+    {
+     "position": 3,
+     "lesson": 1,
+     "stem": "Quando uma demanda não puder ser atendida nas condições apresentadas, o profissional deve:",
+     "options": [
+      {
+       "id": "A",
+       "text": "Improvisar uma solução."
+      },
+      {
+       "id": "B",
+       "text": "Omitir a dificuldade."
+      },
+      {
+       "id": "C",
+       "text": "Prometer que resolverá sem verificar."
+      },
+      {
+       "id": "D",
+       "text": "Explicar os limites e utilizar o encaminhamento apropriado."
+      }
+     ],
+     "answer": "D",
+     "rationale": "Reconhecer limites e encaminhar adequadamente protege o paciente e evita compromissos ou intervenções indevidos."
+    },
+    {
+     "position": 4,
+     "lesson": 2,
+     "stem": "Um paciente demonstra preocupação no início da visita. Qual atitude é adequada?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Escutar com atenção e buscar compreender sua preocupação."
+      },
+      {
+       "id": "B",
+       "text": "Interromper a conversa imediatamente."
+      },
+      {
+       "id": "C",
+       "text": "Ignorar a manifestação."
+      },
+      {
+       "id": "D",
+       "text": "Pedir que apenas o familiar responda."
+      }
+     ],
+     "answer": "A",
+     "rationale": "A escuta ativa permite compreender necessidades e construir uma comunicação respeitosa."
+    },
+    {
+     "position": 5,
+     "lesson": 2,
+     "stem": "Qual abordagem favorece a compreensão das orientações?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Usar exclusivamente termos técnicos."
+      },
+      {
+       "id": "B",
+       "text": "Transmitir as informações rapidamente, sem perguntas."
+      },
+      {
+       "id": "C",
+       "text": "Utilizar linguagem clara e verificar se o paciente compreendeu."
+      },
+      {
+       "id": "D",
+       "text": "Conversar somente com o acompanhante."
+      }
+     ],
+     "answer": "C",
+     "rationale": "A linguagem acessível e a verificação da compreensão ajudam a reduzir falhas de comunicação."
+    },
+    {
+     "position": 6,
+     "lesson": 2,
+     "stem": "Quando o familiar responde constantemente pelo paciente, a conduta inicial deve ser:",
+     "options": [
+      {
+       "id": "A",
+       "text": "Ignorar o paciente."
+      },
+      {
+       "id": "B",
+       "text": "Dirigir-se ao paciente e verificar como deseja a participação do familiar, observando as regras aplicáveis."
+      },
+      {
+       "id": "C",
+       "text": "Expulsar o familiar sem consultar o paciente."
+      },
+      {
+       "id": "D",
+       "text": "Aceitar automaticamente todas as respostas do acompanhante."
+      }
+     ],
+     "answer": "B",
+     "rationale": "O paciente deve ser incluído na comunicação conforme suas condições, preferências e os requisitos aplicáveis."
+    },
+    {
+     "position": 7,
+     "lesson": 3,
+     "stem": "Uma pessoa não envolvida no atendimento permanece ouvindo informações clínicas. O Enfermeiro deve:",
+     "options": [
+      {
+       "id": "A",
+       "text": "Continuar sem considerar a situação."
+      },
+      {
+       "id": "B",
+       "text": "Compartilhar o histórico completo."
+      },
+      {
+       "id": "C",
+       "text": "Solicitar que a pessoa registre as orientações."
+      },
+      {
+       "id": "D",
+       "text": "Verificar a preferência do paciente e organizar condições adequadas de privacidade."
+      }
+     ],
+     "answer": "D",
+     "rationale": "A intimidade e a confidencialidade exigem atenção ao ambiente e aos limites de compartilhamento."
+    },
+    {
+     "position": 8,
+     "lesson": 3,
+     "stem": "Antes de realizar uma intervenção, qual conduta é adequada?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Explicar o procedimento e observar os requisitos de consentimento aplicáveis."
+      },
+      {
+       "id": "B",
+       "text": "Considerar que a contratação autoriza qualquer intervenção."
+      },
+      {
+       "id": "C",
+       "text": "Solicitar autorização exclusivamente ao familiar em todos os casos."
+      },
+      {
+       "id": "D",
+       "text": "Realizar o procedimento antes de esclarecer dúvidas."
+      }
+     ],
+     "answer": "A",
+     "rationale": "O consentimento envolve informação adequada, manifestação de vontade e observância dos requisitos específicos da intervenção."
+    },
+    {
+     "position": 9,
+     "lesson": 3,
+     "stem": "Diante da recusa de uma intervenção, o profissional deve:",
+     "options": [
+      {
+       "id": "A",
+       "text": "Pressionar até obter concordância."
+      },
+      {
+       "id": "B",
+       "text": "Ignorar a manifestação."
+      },
+      {
+       "id": "C",
+       "text": "Escutar, esclarecer, avaliar o contexto, registrar e seguir os encaminhamentos aplicáveis."
+      },
+      {
+       "id": "D",
+       "text": "Encerrar automaticamente toda a assistência."
+      }
+     ],
+     "answer": "C",
+     "rationale": "A recusa exige respeito, avaliação contextual, documentação e encaminhamento responsável."
+    },
+    {
+     "position": 10,
+     "lesson": 4,
+     "stem": "Um familiar reclama de um atraso. Qual resposta profissional é adequada?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Discutir para demonstrar autoridade."
+      },
+      {
+       "id": "B",
+       "text": "Ouvir a reclamação, esclarecer o que for possível e encaminhar a demanda quando necessário."
+      },
+      {
+       "id": "C",
+       "text": "Prometer compensação sem autorização."
+      },
+      {
+       "id": "D",
+       "text": "Ignorar a reclamação."
+      }
+     ],
+     "answer": "B",
+     "rationale": "A comunicação respeitosa deve reconhecer a demanda sem assumir fatos não verificados ou prometer soluções fora do alcance profissional."
+    },
+    {
+     "position": 11,
+     "lesson": 4,
+     "stem": "O familiar exige um procedimento não previsto. O Enfermeiro deve:",
+     "options": [
+      {
+       "id": "A",
+       "text": "Executá-lo para evitar conflito."
+      },
+      {
+       "id": "B",
+       "text": "Aceitar um acordo informal."
+      },
+      {
+       "id": "C",
+       "text": "Realizar a intervenção sem verificar documentação."
+      },
+      {
+       "id": "D",
+       "text": "Avaliar a situação, verificar requisitos e utilizar os fluxos apropriados."
+      }
+     ],
+     "answer": "D",
+     "rationale": "Demandas adicionais precisam ser avaliadas conforme competências, requisitos clínicos, segurança e regras institucionais."
+    },
+    {
+     "position": 12,
+     "lesson": 4,
+     "stem": "Após uma situação difícil, qual registro é adequado?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Descrição objetiva dos fatos relevantes, orientações e encaminhamentos."
+      },
+      {
+       "id": "B",
+       "text": "Opiniões sobre a personalidade do familiar."
+      },
+      {
+       "id": "C",
+       "text": "Atribuições de intenção sem evidência."
+      },
+      {
+       "id": "D",
+       "text": "Omissão dos fatos para evitar problemas."
+      }
+     ],
+     "answer": "A",
+     "rationale": "O registro profissional deve ser objetivo, pertinente e rastreável, evitando julgamentos e afirmações não demonstradas."
+    }
+   ],
+   "questionCount": 12,
+   "passMin": 10,
+   "maxAttempts": 3,
+   "criticalGate": false,
+   "critical": []
+  },
+  {
+   "code": "C02",
+   "questions": [
+    {
+     "position": 1,
+     "lesson": 1,
+     "stem": "Antes de qualquer procedimento, qual é a conduta mais segura para identificar o paciente?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Confirmar apenas o primeiro nome."
+      },
+      {
+       "id": "B",
+       "text": "Utilizar pelo menos dois identificadores confiáveis e confrontá-los com as informações disponíveis."
+      },
+      {
+       "id": "C",
+       "text": "Perguntar ao acompanhante se é a pessoa correta."
+      },
+      {
+       "id": "D",
+       "text": "Conferir somente o endereço do atendimento."
+      }
+     ],
+     "answer": "B",
+     "rationale": "A identificação segura deve anteceder a intervenção e não depender de um único dado."
+    },
+    {
+     "position": 2,
+     "lesson": 1,
+     "stem": "Ao encontrar divergência entre a data de nascimento informada pelo paciente e a registrada, o Enfermeiro deve:",
+     "options": [
+      {
+       "id": "A",
+       "text": "Escolher o dado que parecer mais provável."
+      },
+      {
+       "id": "B",
+       "text": "Prosseguir e corrigir depois."
+      },
+      {
+       "id": "C",
+       "text": "Interromper a sequência, esclarecer a divergência e somente então prosseguir com segurança."
+      },
+      {
+       "id": "D",
+       "text": "Pedir ao familiar para decidir qual dado usar."
+      }
+     ],
+     "answer": "C",
+     "rationale": "Divergências de identificação precisam ser resolvidas antes de procedimentos ou registros associados ao paciente."
+    },
+    {
+     "position": 3,
+     "lesson": 2,
+     "stem": "Em relação à higiene das mãos, qual princípio deve orientar a prática?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Realizá-la apenas quando houver sujeira visível."
+      },
+      {
+       "id": "B",
+       "text": "Substituí-la pelo uso de luvas."
+      },
+      {
+       "id": "C",
+       "text": "Executá-la nos momentos indicados, inclusive antes e após contatos assistenciais pertinentes."
+      },
+      {
+       "id": "D",
+       "text": "Realizá-la apenas no início da visita."
+      }
+     ],
+     "answer": "C",
+     "rationale": "A higiene das mãos é medida essencial de prevenção e não é substituída automaticamente pelo uso de luvas."
+    },
+    {
+     "position": 4,
+     "lesson": 2,
+     "stem": "Após retirar as luvas ao término de uma atividade assistencial, o profissional deve:",
+     "options": [
+      {
+       "id": "A",
+       "text": "Realizar higiene das mãos conforme indicação."
+      },
+      {
+       "id": "B",
+       "text": "Manter as luvas para organizar os materiais."
+      },
+      {
+       "id": "C",
+       "text": "Higienizar apenas se houve contato com sangue."
+      },
+      {
+       "id": "D",
+       "text": "Aguardar o encerramento da visita."
+      }
+     ],
+     "answer": "A",
+     "rationale": "A retirada das luvas não elimina a necessidade de higiene das mãos quando indicada."
+    },
+    {
+     "position": 5,
+     "lesson": 3,
+     "stem": "Um paciente relata reação anterior a um medicamento, mas o registro disponível não contém essa informação. O que fazer?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Desconsiderar o relato porque não está registrado."
+      },
+      {
+       "id": "B",
+       "text": "Administrar metade da dose."
+      },
+      {
+       "id": "C",
+       "text": "Considerar o relato relevante, esclarecer a informação e não prosseguir por suposição."
+      },
+      {
+       "id": "D",
+       "text": "Pedir ao familiar que autorize a administração."
+      }
+     ],
+     "answer": "C",
+     "rationale": "Ausência de registro não equivale à ausência de alergia; informação essencial deve ser esclarecida."
+    },
+    {
+     "position": 6,
+     "lesson": 3,
+     "stem": "Antes da administração de um medicamento, o Enfermeiro identifica dado essencial ausente na prescrição. A conduta adequada é:",
+     "options": [
+      {
+       "id": "A",
+       "text": "Interromper, esclarecer a pendência e registrar/comunicar conforme o fluxo aplicável."
+      },
+      {
+       "id": "B",
+       "text": "Completar o dado com base na experiência."
+      },
+      {
+       "id": "C",
+       "text": "Administrar e confirmar depois."
+      },
+      {
+       "id": "D",
+       "text": "Solicitar que o paciente escolha."
+      }
+     ],
+     "answer": "A",
+     "rationale": "Medicamentos não devem ser administrados com base em suposição quando falta informação essencial."
+    },
+    {
+     "position": 7,
+     "lesson": 4,
+     "stem": "Durante a visita, o paciente apresenta dificuldade respiratória importante e alteração inesperada do estado geral. Qual deve ser a prioridade?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Finalizar o registro administrativo."
+      },
+      {
+       "id": "B",
+       "text": "Avaliar e proteger o paciente, adotando as medidas cabíveis e acionando a resposta necessária sem aguardar autorização administrativa."
+      },
+      {
+       "id": "C",
+       "text": "Concluir o procedimento iniciado antes de reavaliar."
+      },
+      {
+       "id": "D",
+       "text": "Aguardar retorno da Central para qualquer ação."
+      }
+     ],
+     "answer": "B",
+     "rationale": "Risco clínico imediato exige priorização assistencial; o fluxo administrativo não deve atrasar medidas necessárias."
+    },
+    {
+     "position": 8,
+     "lesson": 4,
+     "stem": "Ao reconhecer uma mudança clínica relevante, o Enfermeiro deve:",
+     "options": [
+      {
+       "id": "A",
+       "text": "Comparar apenas com o atendimento anterior."
+      },
+      {
+       "id": "B",
+       "text": "Considerar relatos, achados atuais, tempo de início, risco e contexto para definir a resposta segura."
+      },
+      {
+       "id": "C",
+       "text": "Registrar somente se houver encaminhamento."
+      },
+      {
+       "id": "D",
+       "text": "Evitar comunicar até ter certeza diagnóstica."
+      }
+     ],
+     "answer": "B",
+     "rationale": "Reconhecimento de sinais de alerta depende da avaliação do estado atual e do contexto, não de diagnóstico presumido."
+    },
+    {
+     "position": 9,
+     "lesson": 5,
+     "stem": "Um quase erro é identificado antes de atingir o paciente. Como deve ser tratado?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Como situação relevante para segurança, com comunicação e registro conforme os fluxos aplicáveis."
+      },
+      {
+       "id": "B",
+       "text": "Como evento sem importância porque não houve dano."
+      },
+      {
+       "id": "C",
+       "text": "Somente como falha individual do profissional."
+      },
+      {
+       "id": "D",
+       "text": "Sem registro para evitar preocupação."
+      }
+     ],
+     "answer": "A",
+     "rationale": "Quase erros oferecem informação de segurança e devem ser tratados de forma responsável."
+    },
+    {
+     "position": 10,
+     "lesson": 5,
+     "stem": "Diante de um incidente durante o atendimento, qual sequência representa melhor a prioridade profissional?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Concluir o atendimento, depois avaliar o paciente e por último comunicar."
+      },
+      {
+       "id": "B",
+       "text": "Procurar primeiro um responsável administrativo e aguardar orientação."
+      },
+      {
+       "id": "C",
+       "text": "Proteger o paciente, avaliar a situação, tomar as medidas pertinentes, comunicar/escalonar e registrar de forma objetiva."
+      },
+      {
+       "id": "D",
+       "text": "Apagar o registro anterior e criar um novo."
+      }
+     ],
+     "answer": "C",
+     "rationale": "A resposta a incidentes começa pela segurança do paciente, seguida de avaliação, comunicação/escalonamento e documentação."
+    }
+   ],
+   "questionCount": 10,
+   "passMin": 8,
+   "maxAttempts": 3,
+   "criticalGate": false,
+   "critical": []
+  },
+  {
+   "code": "C03",
+   "questions": [
+    {
+     "position": 1,
+     "lesson": 1,
+     "stem": "Qual é a principal função da Carteira Digital ONEMA no contexto assistencial?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Substituir a avaliação atual do Enfermeiro."
+      },
+      {
+       "id": "B",
+       "text": "Organizar o histórico e informações relevantes para apoiar continuidade do cuidado."
+      },
+      {
+       "id": "C",
+       "text": "Liberar automaticamente procedimentos."
+      },
+      {
+       "id": "D",
+       "text": "Servir apenas como área administrativa."
+      }
+     ],
+     "answer": "B",
+     "rationale": "A Carteira Digital organiza a história assistencial e apoia a continuidade, sem substituir a avaliação atual."
+    },
+    {
+     "position": 2,
+     "lesson": 1,
+     "stem": "Ao consultar um registro anterior, o Enfermeiro deve:",
+     "options": [
+      {
+       "id": "A",
+       "text": "Repetir automaticamente a conduta anterior."
+      },
+      {
+       "id": "B",
+       "text": "Considerá-lo como diagnóstico definitivo."
+      },
+      {
+       "id": "C",
+       "text": "Usá-lo como contexto e realizar avaliação do estado atual do paciente."
+      },
+      {
+       "id": "D",
+       "text": "Ignorá-lo para evitar influência."
+      }
+     ],
+     "answer": "C",
+     "rationale": "O histórico contextualiza; a decisão assistencial depende da avaliação atual."
+    },
+    {
+     "position": 3,
+     "lesson": 2,
+     "stem": "O paciente diz estar muito fraco, enquanto o Enfermeiro observa que ele caminha lentamente com apoio. Como registrar?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Separar claramente o relato do paciente do achado observado pelo Enfermeiro."
+      },
+      {
+       "id": "B",
+       "text": "Registrar apenas “paciente fraco”."
+      },
+      {
+       "id": "C",
+       "text": "Transformar a observação em diagnóstico."
+      },
+      {
+       "id": "D",
+       "text": "Copiar a descrição do atendimento anterior."
+      }
+     ],
+     "answer": "A",
+     "rationale": "A origem de cada informação deve permanecer identificável."
+    },
+    {
+     "position": 4,
+     "lesson": 2,
+     "stem": "Uma intervenção estava planejada, mas não foi realizada. Qual registro é correto?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Registrar como realizada porque estava prevista."
+      },
+      {
+       "id": "B",
+       "text": "Excluir qualquer referência à intervenção."
+      },
+      {
+       "id": "C",
+       "text": "Registrar fielmente que não foi realizada e documentar o impedimento ou contexto pertinente."
+      },
+      {
+       "id": "D",
+       "text": "Copiar o planejamento para a evolução."
+      }
+     ],
+     "answer": "C",
+     "rationale": "Planejado não é realizado; o prontuário deve representar o que efetivamente aconteceu."
+    },
+    {
+     "position": 5,
+     "lesson": 3,
+     "stem": "O que uma evolução assistencial deve permitir ao próximo profissional compreender?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Somente o horário de início e fim."
+      },
+      {
+       "id": "B",
+       "text": "Apenas a opinião do profissional anterior."
+      },
+      {
+       "id": "C",
+       "text": "O que foi avaliado, o que foi realizado, a resposta observada e as orientações/encaminhamentos pertinentes."
+      },
+      {
+       "id": "D",
+       "text": "Somente os procedimentos cobrados."
+      }
+     ],
+     "answer": "C",
+     "rationale": "A evolução deve apoiar continuidade por meio de informação objetiva e suficiente."
+    },
+    {
+     "position": 6,
+     "lesson": 3,
+     "stem": "Ao encerrar uma visita, permanece uma necessidade clínica ainda não resolvida. O que fazer?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Fechar a pendência para concluir a tela."
+      },
+      {
+       "id": "B",
+       "text": "Omitir a pendência do registro."
+      },
+      {
+       "id": "C",
+       "text": "Registrar a situação real e o encaminhamento/continuidade pertinente, sem tratar o encerramento da tela como resolução clínica."
+      },
+      {
+       "id": "D",
+       "text": "Transferir a responsabilidade ao paciente sem orientação."
+      }
+     ],
+     "answer": "C",
+     "rationale": "Encerrar uma visita não significa que uma pendência clínica deixou de existir."
+    },
+    {
+     "position": 7,
+     "lesson": 3,
+     "stem": "Quando outro profissional dará continuidade ao cuidado, as informações pertinentes devem ser:",
+     "options": [
+      {
+       "id": "A",
+       "text": "Compartilhadas por meios autorizados, preservando clareza e necessidade assistencial."
+      },
+      {
+       "id": "B",
+       "text": "Enviadas por qualquer aplicativo pessoal disponível."
+      },
+      {
+       "id": "C",
+       "text": "Resumidas sem registrar a origem."
+      },
+      {
+       "id": "D",
+       "text": "Transmitidas somente verbalmente e sem registro."
+      }
+     ],
+     "answer": "A",
+     "rationale": "A continuidade exige comunicação pertinente por meios autorizados e documentação coerente."
+    },
+    {
+     "position": 8,
+     "lesson": 4,
+     "stem": "Uma captura de tela com dados assistenciais é enviada em um grupo informal para pedir opinião. Essa conduta é:",
+     "options": [
+      {
+       "id": "A",
+       "text": "Adequada se o nome do paciente for conhecido pelo grupo."
+      },
+      {
+       "id": "B",
+       "text": "Aceitável se for mais rápida."
+      },
+      {
+       "id": "C",
+       "text": "Inadequada; dados assistenciais exigem confidencialidade, finalidade e meios autorizados."
+      },
+      {
+       "id": "D",
+       "text": "Obrigatória sempre que houver dúvida."
+      }
+     ],
+     "answer": "C",
+     "rationale": "Dados assistenciais são sensíveis e não devem circular por meios informais sem base e autorização adequadas."
+    },
+    {
+     "position": 9,
+     "lesson": 4,
+     "stem": "Ao corrigir um registro assistencial, qual princípio deve ser preservado?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Apagar completamente o histórico anterior."
+      },
+      {
+       "id": "B",
+       "text": "Rastreabilidade da correção e integridade da história, utilizando o mecanismo validado da plataforma."
+      },
+      {
+       "id": "C",
+       "text": "Criar outro paciente para substituir o registro."
+      },
+      {
+       "id": "D",
+       "text": "Alterar silenciosamente o texto para evitar dúvidas."
+      }
+     ],
+     "answer": "B",
+     "rationale": "Correções precisam preservar integridade e rastreabilidade."
+    },
+    {
+     "position": 10,
+     "lesson": 4,
+     "stem": "Sobre o acesso às informações da Carteira Digital, é correto afirmar que:",
+     "options": [
+      {
+       "id": "A",
+       "text": "Qualquer profissional pode acessar todo o histórico."
+      },
+      {
+       "id": "B",
+       "text": "O acesso é irrestrito durante a jornada Academy."
+      },
+      {
+       "id": "C",
+       "text": "Deve ocorrer conforme permissões, finalidade e regras aplicáveis, protegendo a confidencialidade."
+      },
+      {
+       "id": "D",
+       "text": "A assinatura comercial define sozinha quem pode acessar dados clínicos."
+      }
+     ],
+     "answer": "C",
+     "rationale": "Acesso a dados assistenciais deve respeitar permissões, finalidade e confidencialidade."
+    }
+   ],
+   "questionCount": 10,
+   "passMin": 8,
+   "maxAttempts": 3,
+   "criticalGate": false,
+   "critical": []
+  },
+  {
+   "code": "C04",
+   "questions": [
+    {
+     "position": 1,
+     "lesson": 1,
+     "stem": "Ao receber uma oferta de atendimento, qual é a primeira decisão responsável?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Analisar informações, agenda, localização, competência e condições para assumir, podendo aceitar, esclarecer ou recusar."
+      },
+      {
+       "id": "B",
+       "text": "Aceitar sempre para evitar perda da oportunidade."
+      },
+      {
+       "id": "C",
+       "text": "Recusar toda oferta com informação incompleta."
+      },
+      {
+       "id": "D",
+       "text": "Considerar que aceite equivale à autorização clínica."
+      }
+     ],
+     "answer": "A",
+     "rationale": "A oferta exige análise operacional responsável; aceitar não substitui julgamento clínico."
+    },
+    {
+     "position": 2,
+     "lesson": 1,
+     "stem": "Falta uma informação essencial para decidir sobre a oferta. O Enfermeiro deve:",
+     "options": [
+      {
+       "id": "A",
+       "text": "Aceitar e descobrir no domicílio."
+      },
+      {
+       "id": "B",
+       "text": "Recusar sem justificativa."
+      },
+      {
+       "id": "C",
+       "text": "Solicitar esclarecimento pelo fluxo apropriado e reavaliar antes de assumir."
+      },
+      {
+       "id": "D",
+       "text": "Pedir ao paciente que altere a solicitação."
+      }
+     ],
+     "answer": "C",
+     "rationale": "Informação insuficiente deve ser esclarecida antes da decisão operacional."
+    },
+    {
+     "position": 3,
+     "lesson": 2,
+     "stem": "Antes do deslocamento, qual conjunto de verificações melhor representa o preparo seguro para a visita?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Somente endereço e horário."
+      },
+      {
+       "id": "B",
+       "text": "Informações do atendimento, materiais necessários, condições para deslocamento e identificação profissional."
+      },
+      {
+       "id": "C",
+       "text": "Apenas o valor do atendimento."
+      },
+      {
+       "id": "D",
+       "text": "Somente o nome do paciente."
+      }
+     ],
+     "answer": "B",
+     "rationale": "O preparo reduz falhas operacionais e ajuda a garantir condições adequadas para iniciar a visita."
+    },
+    {
+     "position": 4,
+     "lesson": 2,
+     "stem": "Ao chegar ao domicílio, qual conduta é adequada?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Entrar e iniciar imediatamente o procedimento."
+      },
+      {
+       "id": "B",
+       "text": "Solicitar que o familiar organize toda a visita."
+      },
+      {
+       "id": "C",
+       "text": "Identificar-se, confirmar paciente e finalidade do atendimento e organizar o início com postura profissional."
+      },
+      {
+       "id": "D",
+       "text": "Solicitar pagamento antes de qualquer identificação."
+      }
+     ],
+     "answer": "C",
+     "rationale": "A chegada deve combinar identificação, confirmação e organização segura do atendimento."
+    },
+    {
+     "position": 5,
+     "lesson": 3,
+     "stem": "O profissional constata ausência de material essencial para executar com segurança o procedimento previsto. O que deve fazer?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Interromper aquela etapa, explicar o impedimento, avaliar a situação e seguir o fluxo adequado sem improvisar."
+      },
+      {
+       "id": "B",
+       "text": "Substituir por qualquer material disponível."
+      },
+      {
+       "id": "C",
+       "text": "Executar parcialmente para não frustrar o paciente."
+      },
+      {
+       "id": "D",
+       "text": "Pedir ao familiar que assuma a responsabilidade."
+      }
+     ],
+     "answer": "A",
+     "rationale": "Ausência de condição essencial impede improvisação e exige avaliação e encaminhamento apropriados."
+    },
+    {
+     "position": 6,
+     "lesson": 3,
+     "stem": "Durante o atendimento surge solicitação de procedimento adicional não previsto. Qual é a conduta correta?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Executar porque o profissional já está no domicílio."
+      },
+      {
+       "id": "B",
+       "text": "Recusar automaticamente sem avaliar."
+      },
+      {
+       "id": "C",
+       "text": "Avaliar a solicitação, competência, segurança, requisitos e fluxo aplicável antes de qualquer execução."
+      },
+      {
+       "id": "D",
+       "text": "Cobrar diretamente e realizar."
+      }
+     ],
+     "answer": "C",
+     "rationale": "Pedido adicional não autoriza execução automática; requer avaliação profissional e institucional."
+    },
+    {
+     "position": 7,
+     "lesson": 3,
+     "stem": "Qual é o papel dos POPs na atuação do Enfermeiro parceiro?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Substituir completamente o julgamento profissional."
+      },
+      {
+       "id": "B",
+       "text": "Orientar a prática dentro do escopo e das regras aprovadas, sem eliminar a responsabilidade profissional."
+      },
+      {
+       "id": "C",
+       "text": "Autorizar qualquer procedimento solicitado."
+      },
+      {
+       "id": "D",
+       "text": "Servir apenas para auditoria após o atendimento."
+      }
+     ],
+     "answer": "B",
+     "rationale": "POPs orientam e padronizam práticas, mas não substituem avaliação, competência e responsabilidade."
+    },
+    {
+     "position": 8,
+     "lesson": 3,
+     "stem": "Durante o atendimento, o paciente apresenta alteração clínica inesperada que exige resposta imediata. O Enfermeiro deve:",
+     "options": [
+      {
+       "id": "A",
+       "text": "Aguardar autorização administrativa antes de agir."
+      },
+      {
+       "id": "B",
+       "text": "Finalizar o procedimento para não interromper o fluxo."
+      },
+      {
+       "id": "C",
+       "text": "Priorizar avaliação e segurança, adotar as medidas cabíveis e comunicar/escalonar sem atrasar a resposta clínica."
+      },
+      {
+       "id": "D",
+       "text": "Encerrar o aplicativo e sair do domicílio."
+      }
+     ],
+     "answer": "C",
+     "rationale": "Segurança clínica tem prioridade; a Central organiza suporte, mas não substitui julgamento profissional nem deve atrasar resposta necessária."
+    },
+    {
+     "position": 9,
+     "lesson": 4,
+     "stem": "No encerramento da visita, qual registro é adequado?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Apenas marcar o atendimento como concluído."
+      },
+      {
+       "id": "B",
+       "text": "Registrar fielmente avaliação, ações realizadas, resposta, orientações e encaminhamentos/continuidade pertinentes."
+      },
+      {
+       "id": "C",
+       "text": "Copiar o registro da visita anterior."
+      },
+      {
+       "id": "D",
+       "text": "Registrar somente o que foi cobrado."
+      }
+     ],
+     "answer": "B",
+     "rationale": "O encerramento precisa deixar histórico objetivo, rastreável e útil para continuidade."
+    },
+    {
+     "position": 10,
+     "lesson": 4,
+     "stem": "Não há encaminhamento operacional a ser feito, mas existe um achado relevante que deve chegar ao médico assistente. Qual orientação está alinhada ao fluxo definido?",
+     "options": [
+      {
+       "id": "A",
+       "text": "Acionar a Central Operacional obrigatoriamente para qualquer achado."
+      },
+      {
+       "id": "B",
+       "text": "Não registrar porque não haverá encaminhamento."
+      },
+      {
+       "id": "C",
+       "text": "Enviar o dado diretamente por mensagem pessoal ao médico."
+      },
+      {
+       "id": "D",
+       "text": "Registrar fielmente o achado e orientar paciente/responsável a encaminhar o relatório digital ao médico pela Carteira Digital ONEMA."
+      }
+     ],
+     "answer": "D",
+     "rationale": "Quando não há demanda operacional para a Central, o registro deve permanecer fiel e a continuidade informacional pode ocorrer pelo relatório digital ao médico via Carteira Digital."
+    }
+   ],
+   "questionCount": 10,
+   "passMin": 8,
+   "maxAttempts": 3,
+   "criticalGate": true,
+   "critical": [
+    3,
+    6,
+    8,
+    10
+   ]
+  }
+ ]
+}

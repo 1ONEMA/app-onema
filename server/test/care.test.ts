@@ -32,7 +32,7 @@ function form(itemCode: string, extra: Record<string, unknown> = {}) {
   return {
     need: NEED_OF[itemCode], itemCode, infoText: 'Teste de homologação (fictício)', materials: 'SIM', materialsDetail: '', materialsSupplyRequested: false,
     patientName: 'Paciente Fictício', phone: '(11) 99999-0000', location: 'Vila Mariana', whenPref: 'PROXIMOS_DIAS', whenDate: null, notes: '',
-    forSelf: true, responsibleAuthorized: false, ...extra,
+    forSelf: true, responsibleAuthorized: false, address: { cep: '04101-000', street: 'Rua Fictícia', number: '100', complement: '', district: 'Vila Mariana', city: 'São Paulo', reference: '' }, timeWindow: 'MANHA', ...extra,
   };
 }
 /** Especialista inicia com o código do paciente, assina a evolução e conclui o atendimento. */
@@ -441,12 +441,15 @@ describe('P15 — Release e rollback', () => {
     expect((await one<any>('SELECT COUNT(*) AS n FROM catalog_item_versions')).n).toBe(before);
     const fin = await loginAs(app, 'financeiro');
     const dump = await exportDatabase();
-    await fin.post('/api/admin/care/catalog/CAT-01/versions', {
-      priceCents: 1, primeEligible: true, actsLabel: 'x x', periodDays: null, recurring: null, inclusions: [], exclusions: [], validFrom: new Date(Date.now() - 1000).toISOString(),
-      reason: 'Alteração indevida (reversão)', components: [{ act: 'AVALIACAO_PRESENCIAL', label: 'x x', modality: 'PRESENCIAL', qty: 1, unit: 1 }],
+    const ver = (priceCents: number, unit: number) => fin.post('/api/admin/care/catalog/CAT-01/versions', {
+      priceCents, primeEligible: true, actsLabel: 'x x', periodDays: null, recurring: null, inclusions: [], exclusions: [], validFrom: new Date(Date.now() - 1000).toISOString(),
+      reason: 'Alteração indevida (reversão)', components: [{ act: 'AVALIACAO_PRESENCIAL', label: 'x x', modality: 'PRESENCIAL', qty: 1, unit }],
     });
+    // margem mínima de 16% (com desconto PRIME): preço que não cobre o repasse é recusado
+    expect((await ver(20000, 17000)).body.error.code).toBe('MARGIN_BELOW_MINIMUM');
+    expect((await ver(99990, 1)).status).toBe(200);
     const pc = await patient();
-    expect((await pc.get('/api/care/price?itemCode=CAT-01')).body.offer.priceCents).toBe(1);
+    expect((await pc.get('/api/care/price?itemCode=CAT-01')).body.offer.priceCents).toBe(99990);
     await restoreDatabase(dump);
     const pc2 = await patient();
     expect((await pc2.get('/api/care/price?itemCode=CAT-01')).body.offer.priceCents).toBe(26990);

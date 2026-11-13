@@ -18,7 +18,7 @@ import {
   SYSTEM_PROMPT, URGENCY, URGENCY_ANSWER, type KaryAnswer,
 } from './knowledge.ts';
 
-const MODEL = process.env.KARY_MODEL || 'claude-opus-5-5';
+const MODEL = process.env.KARY_MODEL || 'claude-haiku-5-5';
 export const karyLlmEnabled = () => process.env.KARY_PROVIDER === 'anthropic' && !!process.env.ANTHROPIC_API_KEY;
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();

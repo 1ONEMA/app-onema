@@ -8,6 +8,8 @@ import { migrate, pendingMigrations } from './db/migrate.ts';
 import { seedAcademyDemoRest, seedDemo, seedOfficial } from './db/seed.ts';
 import { PRICING_V2_SOURCE, seedPricingV1, seedPricingV2 } from './modules/care/catalog.ts';
 import { POP_LIBRARY_VERSION, loadPops } from './modules/pops/routes.ts';
+import { loadLegalTexts } from './modules/legal.ts';
+import { loadOfficialAssessments, loadOfficialCertificateTemplate } from './modules/academy/official-bank.ts';
 import { CAFE_LAST_BATCH_DATE, importCafeBatches, seedCafeLibrary } from './modules/cafe/routes.ts';
 import { MIGRATIONS } from './db/migrations.ts';
 import { ROLES, type Role } from './lib/roles.ts';
@@ -91,6 +93,13 @@ async function runInit(opts: ReadyOptions): Promise<string[]> {
       const r = await loadPops();
       log(`POPs: ${r.inserted} documentos carregados${r.skipped ? ` (${r.skipped})` : ''}`);
     }
+    // Avaliações finais oficiais (42 questões aprovadas pelo RT) no lugar das questões de demonstração.
+    if (process.env.ACADEMY_OFFICIAL_BANK_DISABLED !== '1' && !(await one(`SELECT 1 AS ok FROM academy_assessments WHERE source_note LIKE 'BANCO_OFICIAL_RT_42Q_v1%' LIMIT 1`))) {
+      log(`Academy: banco oficial de avaliações carregado (${await loadOfficialAssessments()} versões)`);
+    }
+    if (!(await one(`SELECT 1 AS ok FROM academy_certificate_templates WHERE heading = 'CERTIFICADO DE CONCLUSÃO' LIMIT 1`))) log(`Certificado: modelo oficial ${await loadOfficialCertificateTemplate() ? 'aprovado' : 'já existente'}`);
+    // Documentos institucionais (nov/2026).
+    if (!(await one(`SELECT 1 AS ok FROM legal_texts WHERE code = 'PRIV' LIMIT 1`))) log(`Documentos legais: ${await loadLegalTexts()} publicados`);
     // Lotes mensais do Café: uma consulta quando o último lote já está carregado.
     if (!(await one('SELECT 1 AS ok FROM devotionals WHERE publish_date = ?', CAFE_LAST_BATCH_DATE))) log(`Café com a ONEMA: ${await importCafeBatches()} mensagens do lote importadas`);
     await loadSecrets(settings);

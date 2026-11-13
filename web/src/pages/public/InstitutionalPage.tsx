@@ -3,10 +3,13 @@ import { Link, useParams } from 'react-router-dom';
 import { useApi } from '../../lib/hooks';
 import { ErrorState, LegalText, Loading } from '../../ui/ui';
 import { openKary } from '../../ui/Kary';
+import { LegalLink } from '../../ui/LegalDialog';
 
-const PAGES: Record<string, { title: string; kicker: string; text?: 'T1' | 'T2' }> = {
-  privacidade: { title: 'Política de Privacidade', kicker: 'Institucional', text: 'T2' },
-  termos: { title: 'Termos de Uso', kicker: 'Institucional', text: 'T1' },
+const PAGES: Record<string, { title: string; kicker: string; text?: string }> = {
+  privacidade: { title: 'Política de Privacidade', kicker: 'Institucional', text: 'PRIV' },
+  termos: { title: 'Termos de Uso', kicker: 'Institucional', text: 'TERMOS_PACIENTE' },
+  cancelamento: { title: 'Política de cancelamento e reembolso', kicker: 'Institucional', text: 'CANCELAMENTO' },
+  'termo-especialista': { title: 'Termo de Proteção de Dados, Sigilo e Responsabilidades do Especialista', kicker: 'Rede ONEMA ONE', text: 'TERMO_ESPECIALISTA' },
   lgpd: { title: 'LGPD e seus direitos', kicker: 'Proteção de dados' },
 };
 
@@ -21,7 +24,20 @@ export function InstitutionalPage() {
     <article className="inst">
       <div className="eyebrow-teal">{page.kicker}</div>
       <h1 className="display-light">{page.title}</h1>
-      {slug === 'lgpd' ? (
+      {slug === 'lgpd' ? <LgpdContent /> : text.loading && !text.data ? <Loading /> : text.error ? <ErrorState error={text.error} onRetry={text.reload} /> : (
+        <div className="inst-body">
+          <p className="small muted">Versão {text.data.version}{text.data.legalReview === 'APROVADO' ? ' · revisão jurídica concluída' : ' · revisão jurídica em andamento'}.</p>
+          <LegalText body={text.data.body} />
+          {slug === 'termos' && <p className="small">Termos por perfil: <LegalLink kind="termos">abrir Paciente, Especialista, Academy, PRIME e Cancelamento</LegalLink>.</p>}
+        </div>
+      )}
+    </article>
+  );
+}
+
+/** Conteúdo LGPD (usado na página e na janela flutuante do rodapé). */
+export function LgpdContent() {
+  return (
         <div className="inst-body">
           <p>A ONEMA SAÚDE trata dados pessoais e de saúde somente para organizar e prestar o cuidado contratado, cumprir obrigações legais e manter a segurança da plataforma, conforme a Lei Geral de Proteção de Dados (Lei 13.709/2018).</p>
           <h2>Seus direitos como titular</h2>
@@ -60,13 +76,5 @@ export function InstitutionalPage() {
           </table></div>
           <p className="pending-box">Encarregado de dados (DPO): nome e contato serão publicados aqui assim que definidos pela ONEMA SAÚDE. Até lá, use o e-mail acima.</p>
         </div>
-      ) : text.loading && !text.data ? <Loading /> : text.error ? <ErrorState error={text.error} onRetry={text.reload} /> : (
-        <div className="inst-body">
-          <p className="small muted">Versão {text.data.version} · aprovada pelo Responsável Técnico{text.data.legalReview === 'APROVADO' ? ' e pela revisão jurídica' : ' · revisão jurídica em andamento'}.</p>
-          <LegalText body={text.data.body} />
-          {slug === 'termos' && <p className="pending-box">Estes são os termos do ONEMA PRIME. Os termos gerais de uso da plataforma serão publicados após aprovação jurídica.</p>}
-        </div>
-      )}
-    </article>
   );
 }

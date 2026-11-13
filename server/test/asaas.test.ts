@@ -45,7 +45,7 @@ const CPF = '529.982.247-25';
 const NEED_OF = Object.fromEntries(PRICING_V1.map((d) => [d.code, d.need]));
 const form = (itemCode: string) => ({
   need: NEED_OF[itemCode], itemCode, infoText: '', materials: 'SIM', materialsDetail: '', materialsSupplyRequested: false,
-  patientName: 'Paciente Fictício', phone: '(11) 99999-0000', location: 'Vila Mariana', whenPref: 'PROXIMOS_DIAS', whenDate: null, notes: '', forSelf: true, responsibleAuthorized: false,
+  patientName: 'Paciente Fictício', phone: '(11) 99999-0000', location: 'Vila Mariana', whenPref: 'PROXIMOS_DIAS', whenDate: null, notes: '', forSelf: true, responsibleAuthorized: false, address: { cep: '04101-000', street: 'Rua Fictícia', number: '100', complement: '', district: 'Vila Mariana', city: 'São Paulo', reference: '' }, timeWindow: 'MANHA',
 });
 const hook = (body: unknown, token = TOKEN) => app.inject({ method: 'POST', url: '/api/payments/asaas/webhook', payload: body as any, headers: { 'asaas-access-token': token } });
 const ev = (id: string, event: string, payment: Record<string, unknown>) => ({ id, event, payment });

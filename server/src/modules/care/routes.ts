@@ -12,7 +12,7 @@ import { NEEDS } from '../../db/content/pricing-v1.ts';
 import { audit } from '../../lib/audit.ts';
 import { idempotent, parse, requireRoles } from '../../lib/context.ts';
 import { conflict, forbidden, notFound, unprocessable } from '../../lib/errors.ts';
-import { hmac, safeEqual } from '../../lib/security.ts';
+import { hmac, openField, safeEqual, sealField } from '../../lib/security.ts';
 import { nowIso, protocol, randomToken, uid } from '../../lib/util.ts';
 import { PAYMENT_METHOD_KEYS, SANDBOX_METHODS, notify, quote } from '../prime/core.ts';
 import { cancelPayment } from '../../lib/asaas.ts';
@@ -20,7 +20,9 @@ import { newVisitCode } from './visit.ts';
 import { primeActive } from './report-share.ts';
 import { patientPops } from '../pops/routes.ts';
 import { notifyRole } from '../finance/payouts.ts';
+import { teleWalletNotes } from '../tele/routes.ts';
 import { careTimeline } from './timeline.ts';
+import { specialistNeeds, specialistPrefs } from './specialist-panel.ts';
 import { cpfSchema } from '../../lib/cpf.ts';
 import { currentVersion, offerByCode, publicOffer } from './catalog.ts';
 import { applyPaymentEvent, buildQuote, patientOrderView, placeOrder } from './core.ts';
@@ -44,6 +46,19 @@ const requestSchema = z.object({
   notes: z.string().trim().max(600).optional().default(''),
   forSelf: z.boolean(),
   responsibleAuthorized: z.boolean(),
+  // Jornada 05/11/2026: identificação e endereço completo (exigido para atendimento domiciliar no aceite).
+  address: z.object({
+    cep: z.string().trim().regex(/^\d{5}-?\d{3}$/, 'CEP inválido.'),
+    street: z.string().trim().min(3, 'Informe a rua.').max(120),
+    number: z.string().trim().min(1, 'Informe o número.').max(20),
+    complement: z.string().trim().max(80).optional().default(''),
+    district: z.string().trim().min(2, 'Informe o bairro.').max(80),
+    city: z.string().trim().min(2, 'Informe a cidade.').max(80),
+    reference: z.string().trim().max(160).optional().default(''),
+  }).nullable().optional(),
+  patientBirthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data de nascimento inválida.').nullable().optional(),
+  timeWindow: z.enum(['MANHA', 'TARDE', 'NOITE', 'QUALQUER']).nullable().optional(),
+  relationship: z.string().trim().max(60).nullable().optional(),
 }).refine((b) => b.forSelf || b.responsibleAuthorized, { message: 'Confirme que você é responsável autorizado pelo paciente.', path: ['responsibleAuthorized'] })
   .refine((b) => b.whenPref !== 'AGENDAR' || !!b.whenDate, { message: 'Escolha a data desejada.', path: ['whenDate'] });
 type RequestBody = z.infer<typeof requestSchema>;
@@ -58,16 +73,41 @@ function requestView(r: any, order?: any) {
     materials: r.materials, materialsDetail: r.materials_detail, materialsSupplyRequested: !!r.materials_supply_requested,
     patientName: r.patient_name, phone: r.phone, location: r.location, whenPref: r.when_pref, whenDate: r.when_date, notes: r.notes,
     forSelf: !!r.for_self, responsibleAuthorized: !!r.responsible_authorized,
-    quote: q, quoteVersion: r.quote_version, quoteIssuedAt: r.quote_issued_at,
+    address: r.address_sealed ? JSON.parse(openField(r.address_sealed)) : null, patientBirthDate: r.patient_birth_date, timeWindow: r.time_window, relationship: r.relationship,
+    guidance: { status: r.guidance_status, text: r.guidance_text, at: r.guidance_at, materialsConfirmedAt: r.materials_confirmed_at },
+    quote: q, quoteVersion: r.quote_version, quoteIssuedAt: r.quote_issued_at, quoteExpiresAt: quoteExpiresAt(r.quote_issued_at),
     acceptedVersion: r.accepted_version, acceptedAt: r.accepted_at, acceptanceValid: r.accepted_version === r.quote_version,
     order: order ? patientOrderView(order) : null, createdAt: r.created_at, updatedAt: r.updated_at,
   };
 }
 
+/** Validade do orçamento (decisão ONEMA): 3 dias corridos a partir da emissão. */
+export const QUOTE_VALID_MS = 3 * 86400000;
+const quoteExpiresAt = (issued: string) => new Date(new Date(issued).getTime() + QUOTE_VALID_MS).toISOString();
+const guidanceFor = (materials: string, prev?: any) =>
+  materials === 'SIM' ? 'NAO_APLICAVEL' : prev && prev.materials === materials && prev.guidance_status !== 'NAO_APLICAVEL' ? prev.guidance_status : 'SOLICITADA';
+const extraArgs = (b: RequestBody) => [b.address ? sealField(JSON.stringify(b.address)) : null, b.patientBirthDate ?? null, b.timeWindow ?? null, b.forSelf ? null : (b.relationship ?? null)];
+
 async function ownRequest(id: string, userId: string) {
   const r = await one<any>('SELECT * FROM care_requests WHERE id = ?', id);
   if (!r || r.requester_id !== userId) throw notFound('Solicitação não encontrada.');
   return r;
+}
+
+/**
+ * Orçamento vencido (mais de 3 dias): emite nova versão com o preço vigente e pede novo aceite.
+ * Lança QUOTE_EXPIRED depois de gravar a nova versão (o cliente recarrega e revisa).
+ */
+async function expireQuoteIfNeeded(r: any, userId: string, correlationId: string) {
+  if (Date.now() <= new Date(r.quote_issued_at).getTime() + QUOTE_VALID_MS) return;
+  const body = { need: r.need, itemCode: r.item_code, materials: r.materials, materialsSupplyRequested: !!r.materials_supply_requested } as any;
+  const version = r.quote_version + 1;
+  const q = await buildQuote(userId, body, version);
+  const now = nowIso();
+  await run(`UPDATE care_requests SET status = ?, quote_version = ?, quote_json = ?, quote_issued_at = ?, accepted_version = NULL, accepted_at = NULL, updated_at = ? WHERE id = ?`,
+    q.pending ? 'ORCAMENTO_PENDENTE' : 'ORCADO', version, JSON.stringify(q), now, now, r.id);
+  await audit({ actorId: userId, action: 'CARE_QUOTE_EXPIRED_REISSUED', subjectType: 'care_request', subjectId: r.id, correlationId, meta: { quoteVersion: version } });
+  throw conflict('QUOTE_EXPIRED', 'O orçamento venceu (validade de 3 dias). Emitimos uma nova versão com os valores atuais: revise e confirme novamente.');
 }
 
 export async function careRoutes(app: FastifyInstance) {
@@ -123,11 +163,12 @@ export async function careRoutes(app: FastifyInstance) {
       const q = await buildQuote(a.userId, b, 1);
       const id = uid(), now = nowIso();
       await run(`INSERT INTO care_requests (id, protocol, requester_id, need, item_code, info_text, materials, materials_detail, materials_supply_requested,
-           patient_name, phone, location, when_pref, when_date, notes, for_self, responsible_authorized, status, quote_version, quote_json, quote_issued_at, created_at, updated_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+           patient_name, phone, location, when_pref, when_date, notes, for_self, responsible_authorized, status, quote_version, quote_json, quote_issued_at, created_at, updated_at,
+           address_sealed, patient_birth_date, time_window, relationship, guidance_status)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         id, protocol('CUI'), a.userId, b.need, b.itemCode, b.infoText, b.materials, b.materialsDetail, b.materialsSupplyRequested ? 1 : 0,
         b.patientName, b.phone, b.location, b.whenPref, b.whenDate ?? null, b.notes, b.forSelf ? 1 : 0, b.responsibleAuthorized ? 1 : 0,
-        q.pending ? 'ORCAMENTO_PENDENTE' : 'ORCADO', 1, JSON.stringify(q), now, now, now);
+        q.pending ? 'ORCAMENTO_PENDENTE' : 'ORCADO', 1, JSON.stringify(q), now, now, now, ...extraArgs(b), guidanceFor(b.materials));
       await audit({ actorId: a.userId, action: 'CARE_REQUEST_CREATED', subjectType: 'care_request', subjectId: id, correlationId: req.correlationId, meta: { item: b.itemCode } });
       return { status: 201, body: { request: requestView((await one('SELECT * FROM care_requests WHERE id = ?', id))!) } };
     });
@@ -182,10 +223,10 @@ export async function careRoutes(app: FastifyInstance) {
       const now = nowIso();
       await run(`UPDATE care_requests SET need = ?, item_code = ?, info_text = ?, materials = ?, materials_detail = ?, materials_supply_requested = ?, patient_name = ?, phone = ?,
            location = ?, when_pref = ?, when_date = ?, notes = ?, for_self = ?, responsible_authorized = ?, status = ?, quote_version = ?, quote_json = ?, quote_issued_at = ?,
-           accepted_version = ?, accepted_at = ?, updated_at = ? WHERE id = ?`,
+           accepted_version = ?, accepted_at = ?, updated_at = ?, address_sealed = ?, patient_birth_date = ?, time_window = ?, relationship = ?, guidance_status = ? WHERE id = ?`,
         b.need, b.itemCode, b.infoText, b.materials, b.materialsDetail, b.materialsSupplyRequested ? 1 : 0, b.patientName, b.phone, b.location, b.whenPref,
         b.whenDate ?? null, b.notes, b.forSelf ? 1 : 0, b.responsibleAuthorized ? 1 : 0, q.pending ? 'ORCAMENTO_PENDENTE' : 'ORCADO', version, JSON.stringify(q), now,
-        null, null, now, id);
+        null, null, now, ...extraArgs(b), guidanceFor(b.materials, r), id);
       await audit({ actorId: a.userId, action: affects ? 'CARE_QUOTE_REISSUED' : 'CARE_REQUEST_EDITED', subjectType: 'care_request', subjectId: id, correlationId: req.correlationId,
         meta: { quoteVersion: version, acceptanceInvalidated: r.accepted_version != null } });
       return { request: requestView((await one('SELECT * FROM care_requests WHERE id = ?', id))!), quoteReissued: affects, acceptanceInvalidated: r.accepted_version != null };
@@ -197,11 +238,14 @@ export async function careRoutes(app: FastifyInstance) {
     const a = patient(req);
     const { id } = parse(idParam, req.params);
     const { quoteVersion } = parse(z.object({ quoteVersion: z.number().int().min(1) }), req.body);
+    { const r0 = await ownRequest(id, a.userId); if (['ORCADO', 'ACEITO'].includes(r0.status)) await expireQuoteIfNeeded(r0, a.userId, req.correlationId); }
     return await tx(async () => {
       const r = await ownRequest(id, a.userId);
       if (r.status === 'ORCAMENTO_PENDENTE') throw unprocessable('QUOTE_PENDING', 'O orçamento ainda está pendente. O pagamento fica bloqueado até o valor completo.');
       if (!['ORCADO', 'ACEITO'].includes(r.status)) throw conflict('REQUEST_CLOSED', 'Esta solicitação não aceita mais confirmação.');
       if (quoteVersion !== r.quote_version) throw conflict('QUOTE_OUTDATED', 'O orçamento foi atualizado. Revise os novos valores e confirme novamente.');
+      const modality = JSON.parse(r.quote_json)?.offer?.modality;
+      if (modality !== 'REMOTO' && !r.address_sealed) throw unprocessable('ADDRESS_REQUIRED', 'Informe o endereço completo do atendimento (rua, número, bairro, CEP e cidade) antes de confirmar.');
       const now = nowIso();
       await run(`UPDATE care_requests SET status = 'ACEITO', accepted_version = ?, accepted_at = ?, updated_at = ? WHERE id = ?`, quoteVersion, now, now, id);
       await audit({ actorId: a.userId, action: 'CARE_QUOTE_ACCEPTED', subjectType: 'care_request', subjectId: id, correlationId: req.correlationId, meta: { quoteVersion } });
@@ -214,6 +258,9 @@ export async function careRoutes(app: FastifyInstance) {
     const a = patient(req);
     const { id } = parse(idParam, req.params);
     const b = parse(z.object({ quoteVersion: z.number().int().min(1), paymentMethod: methodSchema, expectedTotalCents: z.number().int().min(0), payerCpf: cpfSchema.optional() }), req.body);
+    // Orçamento vencido antes do pagamento: nova versão e novo aceite (sem cobrar). Pedido já em pagamento não é afetado.
+    { const r0 = await ownRequest(id, a.userId);
+      if (r0.status === 'ACEITO' && !(await one(`SELECT 1 AS ok FROM service_orders WHERE request_id = ? AND status IN ('PENDING_PAYMENT','PAID')`, id))) await expireQuoteIfNeeded(r0, a.userId, req.correlationId); }
     return await idempotent(req, reply, `care-checkout:${id}`, async () => {
       const r = await one<any>('SELECT * FROM care_requests WHERE id = ? FOR UPDATE', id);
       if (!r || r.requester_id !== a.userId) throw notFound('Solicitação não encontrada.');
@@ -288,6 +335,8 @@ export async function careRoutes(app: FastifyInstance) {
           FROM care_evolutions v JOIN care_events e ON e.id = v.event_id JOIN service_orders o ON o.id = v.order_id JOIN users u ON u.id = v.specialist_id
           WHERE v.patient_id = ? AND v.status = 'ASSINADA' ORDER BY v.signed_at DESC LIMIT 100`, a.userId))
         .map((d) => ({ id: d.id, signedAt: d.signed_at, label: d.label, itemName: d.item_name, specialist: d.specialist_name, coren: d.specialist_coren, content: JSON.parse(d.content_json) })),
+      // Registros de telenfermagem assinados (mesmo prontuário; vinculados ao atendimento de origem quando houver).
+      teleNotes: await teleWalletNotes(a.userId),
     };
   });
 
@@ -381,20 +430,26 @@ export async function careRoutes(app: FastifyInstance) {
   /** Ofertas: evento, ato, requisitos e repasse integral. Sem preço ao paciente, desconto ou margem. */
   app.get('/api/care/specialist/offers', async (req) => {
     const a = await specialist(req);
-    const offers = await all<any>(`SELECT e.id, e.label, e.act_type, e.modality, e.unit_payout_cents, e.region, e.created_at, o.item_code, o.item_name,
-        r.when_pref, r.when_date, r.materials FROM care_events e JOIN service_orders o ON o.id = e.order_id LEFT JOIN care_requests r ON r.id = o.request_id
-        WHERE e.status = 'DISPONIVEL' AND o.status = 'PAID' ${demoOnly(a) ? DEMO_PATIENT_SQL : ''} ORDER BY e.created_at, e.seq LIMIT 100`);
+    // Indisponível: pausa novas ofertas (e seus alertas). Habilitações: só serviços das áreas aprovadas na candidatura.
+    const prefs = await specialistPrefs(a.userId);
+    const needs = await specialistNeeds(a.userId);
+    const offers = !prefs.available ? [] : await all<any>(`SELECT e.id, e.label, e.act_type, e.modality, e.unit_payout_cents, e.region, e.created_at, o.item_code, o.item_name,
+        r.when_pref, r.when_date, r.time_window, r.materials FROM care_events e JOIN service_orders o ON o.id = e.order_id LEFT JOIN care_requests r ON r.id = o.request_id
+        LEFT JOIN catalog_items ci ON ci.code = o.item_code
+        WHERE e.status = 'DISPONIVEL' AND o.status = 'PAID' ${demoOnly(a) ? DEMO_PATIENT_SQL : ''}
+        ${needs ? `AND (ci.need IS NULL OR ci.need IN (${needs.map(() => '?').join(',')}))` : ''} ORDER BY e.created_at, e.seq LIMIT 100`, ...(needs ?? []));
     const mine = await all<any>(`SELECT e.id, e.label, e.modality, e.unit_payout_cents, e.region, e.status, e.accepted_at, e.completed_at, e.started_at, o.item_code, o.item_name,
         (SELECT v.status FROM care_evolutions v WHERE v.event_id = e.id) AS evolution_status,
         p.status AS payout_status, (SELECT stars FROM specialist_reviews s WHERE s.event_id = e.id) AS stars
         FROM care_events e JOIN service_orders o ON o.id = e.order_id LEFT JOIN payout_entries p ON p.event_id = e.id
         WHERE e.specialist_id = ? ORDER BY e.accepted_at DESC LIMIT 100`, a.userId);
-    return { offers, mine, rule: 'Aceite livre e recusa sem penalidade. O mesmo enfermeiro não é obrigatório em todos os eventos do pacote.' };
+    return { offers, mine, available: prefs.available, rule: 'Aceite livre e recusa sem penalidade. O mesmo enfermeiro não é obrigatório em todos os eventos do pacote.' };
   });
 
   app.post('/api/care/specialist/events/:id/accept', async (req) => {
     const a = await specialist(req);
     const { id } = parse(idParam, req.params);
+    if (!(await specialistPrefs(a.userId)).available) throw conflict('SPECIALIST_UNAVAILABLE', 'Você está indisponível. Fique disponível para aceitar ofertas (a oferta é revalidada no aceite).');
     return await tx(async () => {
       const now = nowIso();
       if (demoOnly(a) && !(await one(`SELECT 1 AS ok FROM care_events e JOIN service_orders o ON o.id = e.order_id WHERE e.id = ? ${DEMO_PATIENT_SQL}`, id))) {

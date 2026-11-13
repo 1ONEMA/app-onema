@@ -1,4 +1,5 @@
 import { DISCLAIMER, historyFor } from '../lifescore/service.ts';
+import { PUBLIC_LEGAL_CODES } from '../legal.ts';
 import { careTimeline } from '../care/timeline.ts';
 import { cancelSubscription } from '../../lib/asaas.ts';
 import { cpfSchema } from '../../lib/cpf.ts';
@@ -162,7 +163,7 @@ export async function primeRoutes(app: FastifyInstance) {
   });
 
   app.get('/api/public/legal/:code', async (req) => {
-    const { code } = parse(z.object({ code: z.enum(['T1', 'T2']) }), req.params);
+    const { code } = parse(z.object({ code: z.enum(PUBLIC_LEGAL_CODES) }), req.params);
     const t = await latestText(code);
     if (!t) throw notFound('Texto não encontrado.');
     return { ...textMeta(t), body: t.body };

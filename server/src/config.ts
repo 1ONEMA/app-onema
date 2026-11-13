@@ -60,6 +60,8 @@ export const config = {
   bankChangeHoldHours: Number(process.env.BANK_CHANGE_HOLD_HOURS ?? 24),
   /** WhatsApp permanece desligado até integração oficial validada (PRIME T3). */
   whatsappEnabled: bool(process.env.WHATSAPP_ENABLED, false),
+  // Telenfermagem: PROIBIDO USO CLÍNICO REAL até aprovação formal (fornecedor, privacidade, homologação e RT).
+  teleRealUseApproved: bool(process.env.TELE_REAL_USE_APPROVED, false),
   /** Política comercial Academy: matrícula exige pedido PAGO (P-009 - confirmar). */
   academyRequirePayment: bool(process.env.ACADEMY_REQUIRE_PAYMENT, true),
   /** Taxa da Jornada de Integração (ajuste de 04/11/2026: R$ 29,90). */

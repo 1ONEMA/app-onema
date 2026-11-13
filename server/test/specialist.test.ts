@@ -7,7 +7,7 @@ let app: FastifyInstance;
 beforeEach(async () => { app = await setup(); });
 
 const CPF = '529.982.247-25'; // CPF fictício válido (dígitos verificadores)
-const FORM = { fullName: 'Ana Enfermeira Fictícia', cpf: CPF, corenNumber: '123456', corenUf: 'SP', phone: '(11) 98888-0000', regions: 'Zona Sul, Vila Mariana', needs: ['CURATIVOS', 'POS_ALTA'], availability: 'Manhãs', consent: true };
+const FORM = { fullName: 'Ana Enfermeira Fictícia', cpf: CPF, corenNumber: '123456', corenUf: 'SP', phone: '(11) 98888-0000', regions: 'Zona Sul, Vila Mariana', needs: ['CURATIVOS', 'POS_ALTA'], availability: 'Manhãs', consent: true, dataTerm: true };
 
 /** Envio multipart (arquivo + campo kind) pelo inject do Fastify. */
 async function upload(c: Client, kind: string, mime = 'application/pdf', body = Buffer.from('%PDF-1.4 documento fictício')) {

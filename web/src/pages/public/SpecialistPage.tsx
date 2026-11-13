@@ -6,6 +6,7 @@ import { dateTime, money } from '../../lib/format';
 import { Alert, Badge, Button, Empty, ErrorState, Loading } from '../../ui/ui';
 import { IconArrowRight, IconAward, IconBook, IconCheck, IconNurse, IconShield, IconStar, IconWallet } from '../../ui/icons';
 import { HeroPattern } from './HomePage';
+import { SpecialistPanel } from '../care/SpecialistPanel';
 
 const WHEN: Record<string, string> = { AGORA: 'Agora', HOJE: 'Hoje', PROXIMOS_DIAS: 'Próximos dias', AGENDAR: 'Data agendada' };
 
@@ -15,6 +16,7 @@ export function SpecialistPage() {
   const logged = !!me?.user;
   useEffect(() => { document.title = 'Área do especialista · ONEMA SAÚDE'; }, []);
   const isSpecialist = has('ESPECIALISTA');
+  if (isSpecialist) return <SpecialistArea />;
   return (
     <>
       <section className="hero-big split">
@@ -77,16 +79,10 @@ function SpecialistArea() {
   if (summary.loading && !summary.data) return <Loading />;
   if (summary.error) return <ErrorState error={summary.error} onRetry={summary.reload} />;
   const s = summary.data;
-  const sum = (st: string) => s.payouts.find((p: any) => p.status === st)?.total ?? 0;
   return (
+    <>
+    <SpecialistPanel offers={offers.data} onOffersChange={offers.reload} />
     <section id="ofertas" className="mt">
-      <div className="stats">
-        <div className="stat"><strong>{s.rating.average ?? '—'}{s.rating.average ? ' ★' : ''}</strong><span>{s.rating.count} avaliação(ões) de pacientes</span></div>
-        <div className="stat"><strong>{money(sum('RESERVADO'))}</strong><span>Repasses de atendimentos aceitos</span></div>
-        <Link to="/especialista/repasses" className="stat"><strong>{money(sum('A_LIQUIDAR') + sum('VALIDADO') + sum('PROGRAMADO') + sum('ENVIADO'))}</strong><span>Repasses em andamento · ver meus repasses e chave Pix</span></Link>
-        <Link to="/academy" className="stat"><strong><IconAward /></strong><span>ONEMA Academy · notas e certificados</span></Link>
-        {s.eligible && <Link to="/pops" className="stat"><strong><IconBook /></strong><span>Biblioteca de POPs ONEMA</span></Link>}
-      </div>
       <p className="small muted">{s.note}</p>
       {!s.eligible ? (
         <div className="caution mt">{s.credentialing === 'INAPTO'
@@ -97,6 +93,7 @@ function SpecialistArea() {
           <div className="surface">
             <h2>Ofertas disponíveis</h2>
             <p className="small muted">{offers.data.rule}</p>
+            {offers.data.available === false && <div className="caution small">Você está indisponível: novas ofertas estão pausadas.</div>}
             <Alert error={act.error} />
             {!offers.data.offers.length ? <Empty title="Nenhuma oferta no momento." /> : (
               <ul className="list">{offers.data.offers.map((o: any) => (
@@ -109,7 +106,7 @@ function SpecialistArea() {
               ))}</ul>
             )}
           </div>
-          <div className="surface">
+          <div className="surface" id="atendimentos">
             <h2>Meus atendimentos</h2>
             {!offers.data.mine.length ? <Empty title="Você ainda não aceitou atendimentos." /> : (
               <ul className="list">{offers.data.mine.map((m: any) => (
@@ -130,5 +127,6 @@ function SpecialistArea() {
         </div>
       )}
     </section>
+    </>
   );
 }

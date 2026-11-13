@@ -16,6 +16,7 @@ import { badRequest, conflict, forbidden, notFound, unprocessable } from '../../
 import { deleteObjects, getObject, putObject } from '../../lib/storage.ts';
 import { lookupHash, openField, sealField } from '../../lib/security.ts';
 import { validCpf } from '../../lib/cpf.ts';
+import { recordAcceptance } from '../legal.ts';
 import { nowIso, sha256, uid } from '../../lib/util.ts';
 import { notify } from '../prime/core.ts';
 
@@ -49,7 +50,9 @@ const appSchema = z.object({
   regions: z.string().trim().min(3, 'Informe as regiões ou bairros em que pode atender.').max(300),
   needs: z.array(z.enum(NEEDS.map((n) => n.key) as [string, ...string[]])).min(1, 'Escolha ao menos uma área de atendimento.'),
   availability: z.string().trim().max(400).optional().default(''),
-  consent: z.literal(true, { message: 'Confirme a declaração e a ciência do tratamento dos dados.' }),
+  // Ajustes 05/11/2026: duas caixas separadas, desmarcadas (veracidade do cadastro + Termo LGPD do especialista).
+  consent: z.literal(true, { message: 'Confirme que as informações e os documentos são verdadeiros.' }),
+  dataTerm: z.literal(true, { message: 'Leia e aceite o Termo de Proteção de Dados, Sigilo e Responsabilidades.' }),
 });
 
 async function docsOf(appId: string) {
@@ -91,6 +94,11 @@ export async function specialistRoutes(app: FastifyInstance) {
         await run(`INSERT INTO specialist_applications (id, user_id, full_name, cpf, cpf_hash, coren_number, coren_uf, phone, regions, needs_json, availability, status, created_at, updated_at)
              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, uid(), a.userId, b.fullName, sealField(cpf), cpfHash, b.corenNumber.toUpperCase(), b.corenUf, b.phone, b.regions, JSON.stringify(b.needs),
           b.availability, 'RASCUNHO', now, now);
+      }
+      // Aceite do Termo LGPD do especialista: versão e hash do texto vigente (só registra de novo se a versão mudou).
+      const term = await one<any>(`SELECT version FROM legal_texts WHERE code = 'TERMO_ESPECIALISTA' ORDER BY created_at DESC LIMIT 1`);
+      if (term && !(await one(`SELECT 1 AS ok FROM legal_acceptances WHERE user_id = ? AND code = 'TERMO_ESPECIALISTA' AND version = ?`, a.userId, term.version))) {
+        await recordAcceptance(a.userId, 'TERMO_ESPECIALISTA', 'CANDIDATURA_ONEMA_ONE');
       }
       await audit({ actorId: a.userId, action: 'SPECIALIST_APPLICATION_SAVED', subjectType: 'specialist_application', subjectId: a.userId, correlationId: req.correlationId });
       const row = (await one<any>('SELECT * FROM specialist_applications WHERE user_id = ?', a.userId))!;
