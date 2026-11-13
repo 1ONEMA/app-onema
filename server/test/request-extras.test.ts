@@ -27,6 +27,8 @@ describe('Solicitação: endereço, anexos, orientação de materiais e validade
     expect(req.guidance.status).toBe('SOLICITADA');
     expect(req.status).toBe('ORCADO'); // orientação não deixa o orçamento pendente
     expect((await c.post(`/api/care/requests/${req.id}/accept`, { quoteVersion: 1 })).body.error.code).toBe('ADDRESS_REQUIRED');
+    // área de atendimento: somente a cidade de São Paulo (Campinas recusado)
+    expect((await c.put(`/api/care/requests/${req.id}`, form({ address: { ...ADDR, cep: '13010-000', city: 'Campinas' } }))).status).toBe(400);
     const upd = (await c.put(`/api/care/requests/${req.id}`, form({ address: ADDR }))).body.request;
     expect(upd.address).toMatchObject({ street: 'Rua Fictícia', district: 'Vila Mariana' });
     expect(JSON.stringify(await one('SELECT address_sealed FROM care_requests WHERE id = ?', req.id))).not.toContain('Rua Fictícia');

@@ -123,7 +123,7 @@ describe('Validação documental de parceiros', () => {
     expect((await sp.get('/api/care/specialist/offers')).status).toBe(200);
     expect((await sp.get('/api/care/specialist/panel')).body).toMatchObject({ status: 'ATIVO_APTO', validation: { state: 'ATIVO' } });
     const next = (await one<any>('SELECT next_revalidation_at FROM specialist_applications WHERE id = ?', a.id)).next_revalidation_at;
-    expect(Math.round((new Date(next).getTime() - Date.now()) / 86400000)).toBe(90);
+    expect(Math.round((new Date(next).getTime() - Date.now()) / 86400000)).toBe(180);
     // mudança de UF: reabre o cadastro e bloqueia novos atendimentos até nova análise
     expect((await sp.post('/api/specialist/application/reopen', { reason: 'MUDANCA_DADOS' })).body.application.partnerState).toBe('CORRECAO_SOLICITADA');
     expect((await sp.get('/api/care/specialist/offers')).body.error.code).toBe('NOT_CREDENTIALED');
@@ -134,9 +134,10 @@ describe('Validação documental de parceiros', () => {
     await approveAll(rt, a.id);
     expect((await sp.get('/api/care/specialist/offers')).status).toBe(200);
     // revalidação: aviso 7 dias antes; vencida → suspensa e bloqueada
-    await run(`UPDATE specialist_applications SET next_revalidation_at = ? WHERE id = ?`, new Date(Date.now() + 3 * 86400000).toISOString(), a.id);
+    // 180 dias sem atendimento contados da última atividade (aqui, a aprovação): aviso a 3 dias do prazo
+    await run(`UPDATE specialist_applications SET decided_at = ? WHERE id = ?`, new Date(Date.now() - 177 * 86400000).toISOString(), a.id);
     expect(await runPartnerRevalidation()).toMatchObject({ warned: 1, suspended: 0 });
-    await run(`UPDATE specialist_applications SET next_revalidation_at = ? WHERE id = ?`, new Date(Date.now() - 1000).toISOString(), a.id);
+    await run(`UPDATE specialist_applications SET decided_at = ? WHERE id = ?`, new Date(Date.now() - 181 * 86400000).toISOString(), a.id);
     expect(await runPartnerRevalidation()).toMatchObject({ suspended: 1 });
     expect((await sp.get('/api/care/specialist/offers')).body.error.code).toBe('NOT_CREDENTIALED');
     expect((await sp.get('/api/specialist/application')).body.application).toMatchObject({ status: 'SUSPENSA', partnerState: 'SUSPENSO_REVALIDAR' });

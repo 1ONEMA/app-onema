@@ -17,7 +17,22 @@ export const PARTNER_STATE_LABEL: Record<PartnerState, string> = {
 /** Checagens que precisam estar CONFERIDAS (última conferência de cada tipo) para aprovar a documentação. */
 export const REQUIRED_CHECKS = ['PROVA_VIVA', 'IDENTIDADE', 'INSCRICAO'] as const;
 
-export const revalidationDays = () => Math.max(7, Number(process.env.PARTNER_REVALIDATION_DAYS ?? 90));
+/** Regra do RT (13/11/2026): revalidar quando o parceiro fica 180 dias sem realizar atendimentos. */
+export const revalidationDays = () => Math.max(7, Number(process.env.PARTNER_REVALIDATION_DAYS ?? 180));
+
+/** Última atividade: aprovação do cadastro ou o atendimento (presencial ou remoto) mais recente. */
+export async function lastActivityAt(userId: string, decidedAt: string | null): Promise<string | null> {
+  const r = await one<any>(`SELECT GREATEST(
+      (SELECT MAX(GREATEST(COALESCE(completed_at, ''), COALESCE(accepted_at, ''))) FROM care_events WHERE specialist_id = ?),
+      (SELECT MAX(GREATEST(COALESCE(closed_at, ''), COALESCE(accepted_at, ''))) FROM tele_episodes WHERE professional_id = ?)) AS last`, userId, userId);
+  const cands = [decidedAt, r?.last || null].filter(Boolean) as string[];
+  return cands.length ? cands.sort().at(-1)! : null;
+}
+/** Prazo de revalidação: última atividade + 180 dias. */
+export async function revalidationDueAt(app: any): Promise<string | null> {
+  const last = await lastActivityAt(app.user_id, app.decided_at);
+  return last ? new Date(new Date(last).getTime() + revalidationDays() * 86400000).toISOString() : null;
+}
 
 const overdue = (iso: string | null | undefined) => !!iso && new Date(iso).getTime() < Date.now();
 
@@ -29,7 +44,7 @@ export async function partnerState(userId: string): Promise<{ state: PartnerStat
   else if (app.status === 'ENVIADA') state = 'EM_ANALISE';
   else if (app.status === 'PENDENCIA') state = 'CORRECAO_SOLICITADA';
   else if (app.status === 'RECUSADA') state = 'REPROVADO';
-  else if (app.status === 'SUSPENSA' || overdue(app.next_revalidation_at)) state = 'SUSPENSO_REVALIDAR';
+  else if (app.status === 'SUSPENSA' || (app.status === 'APROVADA' && overdue(await revalidationDueAt(app)))) state = 'SUSPENSO_REVALIDAR';
   else if (training?.journey_state !== 'CONCLUIDA' && training?.credentialing_decision !== 'APTO') state = 'INTEGRACAO_PENDENTE';
   else if (training?.credentialing_decision === 'APTO') state = 'ATIVO';
   else state = 'DOCUMENTACAO_APROVADA';

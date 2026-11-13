@@ -41,6 +41,7 @@ import { MyPayoutsPage } from './pages/care/MyPayoutsPage';
 import { SpecialistReviewsPage } from './pages/care/SpecialistPanel';
 import { PopsLibraryPage } from './pages/pops/PopsPages';
 import { MyFollowupPage, SpecialistLifeScorePage } from './pages/lifescore/LifeScorePages';
+import { CoverageGate } from './ui/CoverageGate';
 import { PatientTeleEpisodePage, PatientTeleListPage, SpecialistTeleEpisodePage, SpecialistTeleListPage } from './pages/tele/TelePages';
 
 function RequireAuth({ children, roles }: { children: ReactNode; roles?: Role[] }) {
@@ -94,7 +95,7 @@ export default function App() {
       <Route path="/especialista/repasses" element={<RequireAuth roles={['ESPECIALISTA']}><MyPayoutsPage /></RequireAuth>} />
       <Route path="/especialista/candidatura" element={<RequireAuth><ApplicationPage /></RequireAuth>} />
       <Route path="/cuidados/:key" element={<Layout><ServicePage /></Layout>} />
-      <Route path="/solicitar" element={<Layout><RequestFlow /></Layout>} />
+      <Route path="/solicitar" element={<Layout><CoverageGate><RequestFlow /></CoverageGate></Layout>} />
       <Route path="/solicitacoes/:id" element={<RequireAuth roles={['PACIENTE']}><RequestDetailPage /></RequireAuth>} />
       <Route path="/central" element={<RequireAuth roles={['OPERADOR_CENTRAL', 'ADMIN_PRIME', 'FINANCEIRO', 'AVALIADOR_RT', 'AUDITOR']}><CentralPage /></RequireAuth>} />
       <Route path="/entrar" element={<LoginPage />} />

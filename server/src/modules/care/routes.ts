@@ -22,6 +22,7 @@ import { patientPops } from '../pops/routes.ts';
 import { notifyRole } from '../finance/payouts.ts';
 import { teleWalletNotes } from '../tele/routes.ts';
 import { partnerActive } from '../specialist/validation.ts';
+import { inServiceArea } from '../../lib/coverage.ts';
 import { careTimeline } from './timeline.ts';
 import { specialistNeeds, specialistPrefs } from './specialist-panel.ts';
 import { cpfSchema } from '../../lib/cpf.ts';
@@ -49,7 +50,8 @@ const requestSchema = z.object({
   responsibleAuthorized: z.boolean(),
   // Jornada 05/11/2026: identificação e endereço completo (exigido para atendimento domiciliar no aceite).
   address: z.object({
-    cep: z.string().trim().regex(/^\d{5}-?\d{3}$/, 'CEP inválido.'),
+    cep: z.string().trim().regex(/^\d{5}-?\d{3}$/, 'CEP inválido.')
+      .refine(inServiceArea, 'No momento a ONEMA atende somente na cidade de São Paulo.'),
     street: z.string().trim().min(3, 'Informe a rua.').max(120),
     number: z.string().trim().min(1, 'Informe o número.').max(20),
     complement: z.string().trim().max(80).optional().default(''),
