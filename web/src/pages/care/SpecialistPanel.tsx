@@ -95,7 +95,7 @@ export function SpecialistPanel({ offers, onOffersChange }: { offers: any; onOff
         </article>
       </div>
       <Alert error={save.error} />
-      <p className="small sp-links">Atalhos: <Link to="/especialista/avaliacoes">Avaliações dos atendimentos{data.rating.average ? ` (${data.rating.average} ★)` : ''}</Link> · <Link to="/pops">Biblioteca de POPs</Link> · <a href="#atendimentos">Meus atendimentos</a></p>
+      <p className="small sp-links">Atalhos: <Link to="/especialista/avaliacoes">Avaliações dos atendimentos{data.rating.average ? ` (${data.rating.average} ★)` : ''}</Link> · <Link to="/pops">Biblioteca de POPs</Link> · <Link to="/especialista/telenfermagem">Telenfermagem</Link> · <a href="#atendimentos">Meus atendimentos</a></p>
     </section>
   );
 }

@@ -80,6 +80,23 @@ export function WalletPage() {
           ))}</ul>
         )}
       </section>
+      <section className="surface">
+        <h2><IconDoc /> Teleatendimentos</h2>
+        <p className="small muted">Registros remotos assinados pela enfermeira, no mesmo prontuário. <Link to="/telenfermagem">Ver teleatendimentos</Link></p>
+        {!(data.teleNotes ?? []).length ? <p className="muted">Nenhum registro de teleatendimento.</p> : (
+          <ul className="list">{data.teleNotes.map((n: any) => (
+            <li key={n.id}>
+              <details className="evo">
+                <summary><strong>{n.kind === 'ADENDO' ? `Adendo v${n.version}` : n.modalityLabel}</strong> <span className="small muted">· {n.protocol} · {dateTime(n.signedAt)}</span></summary>
+                <dl className="kv mt">
+                  {[...EVO_SECTIONS, ['origemDados', 'Origem dos dados'], ['limitacoes', 'Limitações da avaliação remota']].map(([k, l]) => n.content[k] && <Fragment key={k}><dt>{l}</dt><dd>{n.content[k]}</dd></Fragment>)}
+                </dl>
+                <p className="small muted mb0">Assinado por {n.author}.</p>
+              </details>
+            </li>
+          ))}</ul>
+        )}
+      </section>
       {data.pops?.length > 0 && (
         <section className="surface">
           <h2><IconDoc /> Protocolos usados no seu cuidado</h2>

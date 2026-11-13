@@ -24,6 +24,7 @@ import { specialistRoutes } from './modules/specialist/routes.ts';
 import { cafeRoutes } from './modules/cafe/routes.ts';
 import { asaasWebhookRoutes } from './modules/payments/asaas-webhook.ts';
 import { visitRoutes } from './modules/care/visit.ts';
+import { teleRoutes } from './modules/tele/routes.ts';
 import { primeAdminRoutes } from './modules/prime/admin.ts';
 import { primeRoutes } from './modules/prime/routes.ts';
 
@@ -127,6 +128,7 @@ export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean 
   await app.register(cafeRoutes);
   await app.register(asaasWebhookRoutes);
   await app.register(visitRoutes);
+  await app.register(teleRoutes);
 
   app.get('/api/health', async () => ({ ok: true }));
 

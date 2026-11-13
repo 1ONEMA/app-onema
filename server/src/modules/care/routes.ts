@@ -20,6 +20,7 @@ import { newVisitCode } from './visit.ts';
 import { primeActive } from './report-share.ts';
 import { patientPops } from '../pops/routes.ts';
 import { notifyRole } from '../finance/payouts.ts';
+import { teleWalletNotes } from '../tele/routes.ts';
 import { careTimeline } from './timeline.ts';
 import { specialistNeeds, specialistPrefs } from './specialist-panel.ts';
 import { cpfSchema } from '../../lib/cpf.ts';
@@ -334,6 +335,8 @@ export async function careRoutes(app: FastifyInstance) {
           FROM care_evolutions v JOIN care_events e ON e.id = v.event_id JOIN service_orders o ON o.id = v.order_id JOIN users u ON u.id = v.specialist_id
           WHERE v.patient_id = ? AND v.status = 'ASSINADA' ORDER BY v.signed_at DESC LIMIT 100`, a.userId))
         .map((d) => ({ id: d.id, signedAt: d.signed_at, label: d.label, itemName: d.item_name, specialist: d.specialist_name, coren: d.specialist_coren, content: JSON.parse(d.content_json) })),
+      // Registros de telenfermagem assinados (mesmo prontuário; vinculados ao atendimento de origem quando houver).
+      teleNotes: await teleWalletNotes(a.userId),
     };
   });
 

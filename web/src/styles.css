@@ -845,3 +845,8 @@ h3 { font-weight: 600; letter-spacing: -0.01em; }
 .cert-sign .line { border-top: 1px solid #07345A; margin: 4px 0; }
 .cert-foot { margin-top: 8px; color: #555; }
 .cert-program { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; text-align: left; margin: 10px 0; }
+
+/* Telenfermagem: sala simulada (homologação) */
+.tele-room-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 180px; border-radius: 16px;
+  background: #0f2e33; color: #e6f4f1; text-align: center; padding: 16px; }
+.tele-room-screen strong { font-size: 2rem; font-variant-numeric: tabular-nums; }

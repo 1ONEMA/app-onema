@@ -11,7 +11,7 @@ type Evo = { relato: string; sinaisVitais: string; avaliacao: string; procedimen
 const EMPTY: Evo = { relato: '', sinaisVitais: '', avaliacao: '', procedimentos: '', orientacoes: '', plano: '', observacoes: '', pendencias: [] };
 
 /** Reconhecimento de voz do navegador (Chrome/Android e Safari/iOS). Sem suporte, a enfermeira digita ou usa o microfone do teclado. */
-function useDictation(onText: (t: string) => void) {
+export function useDictation(onText: (t: string) => void) {
   const SR: any = typeof window !== 'undefined' ? (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition : null;
   const [on, setOn] = useState(false);
   const rec = useRef<any>(null);

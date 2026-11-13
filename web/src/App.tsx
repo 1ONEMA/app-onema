@@ -41,6 +41,7 @@ import { MyPayoutsPage } from './pages/care/MyPayoutsPage';
 import { SpecialistReviewsPage } from './pages/care/SpecialistPanel';
 import { PopsLibraryPage } from './pages/pops/PopsPages';
 import { MyFollowupPage, SpecialistLifeScorePage } from './pages/lifescore/LifeScorePages';
+import { PatientTeleEpisodePage, PatientTeleListPage, SpecialistTeleEpisodePage, SpecialistTeleListPage } from './pages/tele/TelePages';
 
 function RequireAuth({ children, roles }: { children: ReactNode; roles?: Role[] }) {
   const { me, loading, error, has } = useAuth();
@@ -130,6 +131,10 @@ export default function App() {
       <Route path="/institucional/:slug" element={<Layout><InstitutionalPage /></Layout>} />
       <Route path="/politica-de-privacidade" element={<Navigate to="/institucional/privacidade" replace />} />
       <Route path="/termos-de-uso" element={<Navigate to="/institucional/termos" replace />} />
+      <Route path="/telenfermagem" element={<RequireAuth roles={['PACIENTE']}><PatientTeleListPage /></RequireAuth>} />
+      <Route path="/telenfermagem/:id" element={<RequireAuth roles={['PACIENTE']}><PatientTeleEpisodePage /></RequireAuth>} />
+      <Route path="/especialista/telenfermagem" element={<RequireAuth roles={['ESPECIALISTA']}><SpecialistTeleListPage /></RequireAuth>} />
+      <Route path="/especialista/telenfermagem/:id" element={<RequireAuth roles={['ESPECIALISTA']}><SpecialistTeleEpisodePage /></RequireAuth>} />
       <Route path="/carteira" element={<RequireAuth roles={['PACIENTE']}><WalletPage /></RequireAuth>} />
       <Route path="/carteira/compartilhamentos" element={<RequireAuth roles={['PACIENTE']}><ReportSharesPage /></RequireAuth>} />
       <Route path="*" element={<NotFound />} />
