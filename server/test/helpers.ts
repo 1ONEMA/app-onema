@@ -10,6 +10,8 @@ import { randomToken } from '../src/lib/util.ts';
 process.env.PRICING_V2_DISABLED ??= '1';
 // Biblioteca de POPs (3 MB de PDFs) carregada só no teste próprio.
 process.env.POPS_DISABLED ??= '1';
+// Banco oficial de avaliações: testado à parte (os demais testes usam as questões de demonstração).
+process.env.ACADEMY_OFFICIAL_BANK_DISABLED ??= '1';
 
 let migrated = false;
 /** Um banco PGlite em memória por arquivo de teste; cada teste começa com dados limpos + seed de demonstração. */

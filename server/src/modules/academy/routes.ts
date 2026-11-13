@@ -31,6 +31,9 @@ export function signedMediaUrl(assetId: string, ttlSec = 600, preview = false) {
   return `/api/academy/media/${assetId}?exp=${exp}&p=${p}&sig=${sig}`;
 }
 
+/** Carga horária oficial (certificado assinado pelo RT, 01/11/2026). */
+const OFFICIAL_WORKLOAD: Record<string, string> = { C01: '45 minutos', C02: '1 hora', C03: '45 minutos', C04: '50 minutos' };
+
 export async function fileChecksum(storageKey: string) {
   const buf = await getObject(storageKey);
   return buf ? sha256(buf) : null;
@@ -532,14 +535,16 @@ export async function academyRoutes(app: FastifyInstance) {
       const tpl = await one<any>(`SELECT * FROM academy_certificate_templates WHERE state = 'APPROVED' ORDER BY version DESC LIMIT 1`);
       if (!tpl) throw unprocessable('CERTIFICATE_TEMPLATE_PENDING', 'O modelo oficial do certificado ainda não foi aprovado pela ONEMA (P-008). A emissão será liberada após a aprovação.');
       const code = `ONM-${randomToken(6).replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 4)}-${randomToken(6).replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 4)}`;
+      const appl = await one<any>(`SELECT full_name, coren_number, coren_uf FROM specialist_applications WHERE user_id = ? AND status = 'APROVADA'`, a.userId);
       const snapshot = {
-        holderName: a.name,
+        holderName: appl?.full_name ?? a.name,
+        holderCoren: appl ? `COREN-${appl.coren_uf} nº ${appl.coren_number}` : null,
         journeyVersion: fresh.journey_version,
-        journeyTitle: 'Jornada de Integração ONEMA Academy',
+        journeyTitle: 'Jornada de Integração ONEMA ONE',
         completedAt: fresh.completed_at,
-        courses: journey.map((c) => ({ code: c.code, title: c.title, version: c.version, workload: c.workloadText ?? '[VALIDAR]' })),
+        courses: journey.map((c) => ({ code: c.code, title: c.title, version: c.version, workload: c.workloadText ?? OFFICIAL_WORKLOAD[c.code] ?? '[VALIDAR]' })),
         templateVersion: tpl.version,
-        statement: 'A conclusão não autoriza atendimento nem credenciamento automático.',
+        statement: 'Certificado institucional de curso livre. Não confere título de especialista ou autorização automática para atendimento.',
       };
       const id = uid();
       await run(`INSERT INTO academy_certificates (id, enrollment_id, public_code, template_id, issued_at, snapshot_json, content_hash) VALUES (?,?,?,?,?,?,?)`,
