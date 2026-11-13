@@ -19,7 +19,7 @@ import { validCpf } from '../../lib/cpf.ts';
 import { recordAcceptance } from '../legal.ts';
 import { nowIso, sha256, uid } from '../../lib/util.ts';
 import { notify } from '../prime/core.ts';
-import { PARTNER_STATE_LABEL, REQUIRED_CHECKS, partnerState, revalidationDays } from './validation.ts';
+import { PARTNER_STATE_LABEL, REQUIRED_CHECKS, partnerState, revalidationDays, revalidationDueAt } from './validation.ts';
 
 export const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] as const;
 const DOC_KINDS = ['FOTO', 'PROVA_VIVA', 'IDENTIDADE', 'COREN', 'DIPLOMA_FRENTE', 'DIPLOMA_VERSO', 'CERTIFICADO', 'COMPROVANTE_ENDERECO', 'OUTRO'] as const;
@@ -410,27 +410,33 @@ export async function specialistRoutes(app: FastifyInstance) {
 }
 
 /**
- * Revalidação periódica (job diário): avisa 7 dias antes e suspende quando o prazo vence, bloqueando novos atendimentos.
- * O intervalo (90 dias) é proposta operacional: confirmar com RT/jurídico (PARTNER_REVALIDATION_DAYS).
+ * Revalidação por inatividade (regra do RT, 13/11/2026): 180 dias sem atendimento (PARTNER_REVALIDATION_DAYS).
+ * O prazo é recalculado a cada execução a partir da última atividade; avisa 7 dias antes e suspende quando vence.
  */
 export async function runPartnerRevalidation(now = new Date()) {
   let suspended = 0, warned = 0;
-  const soon = new Date(now.getTime() + 7 * 86400000).toISOString();
-  for (const r of await all<any>(`SELECT id, user_id, next_revalidation_at FROM specialist_applications WHERE status = 'APROVADA' AND next_revalidation_at IS NOT NULL AND next_revalidation_at <= ?`, soon)) {
-    if (new Date(r.next_revalidation_at) <= now) {
+  for (const r of await all<any>(`SELECT id, user_id, decided_at, next_revalidation_at, revalidation_notified_at FROM specialist_applications WHERE status = 'APROVADA'`)) {
+    const due = await revalidationDueAt(r);
+    if (!due) continue;
+    if (due !== r.next_revalidation_at) {
+      // Atendimento novo empurra o prazo: o aviso antigo deixa de valer.
+      await run('UPDATE specialist_applications SET next_revalidation_at = ?, revalidation_notified_at = CASE WHEN ? > COALESCE(next_revalidation_at, \'\') THEN NULL ELSE revalidation_notified_at END WHERE id = ?', due, due, r.id);
+      if (r.next_revalidation_at && due > r.next_revalidation_at) r.revalidation_notified_at = null;
+    }
+    if (new Date(due) <= now) {
       const u = await run(`UPDATE specialist_applications SET status = 'SUSPENSA', suspended_reason = ?, updated_at = ? WHERE id = ? AND status = 'APROVADA'`,
-        'Revalidação periódica vencida.', now.toISOString(), r.id);
+        `Sem atendimentos há ${revalidationDays()} dias: revalidação necessária.`, now.toISOString(), r.id);
       if (u.changes) {
         suspended++;
-        await event(r.id, null, 'SUSPENSA', 'Revalidação periódica vencida (automático).', 'REVALIDACAO');
+        await event(r.id, null, 'SUSPENSA', `Sem atendimentos há ${revalidationDays()} dias (automático).`, 'REVALIDACAO');
         await audit({ actorId: null, action: 'PARTNER_REVALIDATION_OVERDUE', subjectType: 'specialist_application', subjectId: r.id });
-        await notify(r.user_id, 'ESSENCIAL', 'Revalide seu cadastro ONEMA ONE', 'O prazo de revalidação do seu cadastro venceu e novos atendimentos estão pausados. Abra "Candidatura" no app e envie para revalidação.');
+        await notify(r.user_id, 'ESSENCIAL', 'Revalide seu cadastro ONEMA ONE', `Seu cadastro ficou ${revalidationDays()} dias sem atendimentos e precisa ser revalidado. Novos atendimentos estão pausados: abra "Candidatura" no app e envie para revalidação.`);
       }
-    } else {
+    } else if (new Date(due).getTime() - now.getTime() <= 7 * 86400000 && !r.revalidation_notified_at) {
       const u = await run(`UPDATE specialist_applications SET revalidation_notified_at = ? WHERE id = ? AND revalidation_notified_at IS NULL`, now.toISOString(), r.id);
       if (u.changes) {
         warned++;
-        await notify(r.user_id, 'LEMBRETE', 'Revalidação do cadastro em breve', 'Seu cadastro ONEMA ONE precisa ser revalidado nos próximos dias. Confira seus dados e documentos em "Candidatura".');
+        await notify(r.user_id, 'LEMBRETE', 'Revalidação do cadastro em breve', 'Seu cadastro ONEMA ONE está quase completando o prazo sem atendimentos e vai precisar ser revalidado. Ao realizar um atendimento, o prazo recomeça.');
       }
     }
   }

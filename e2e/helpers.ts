@@ -35,3 +35,13 @@ export async function loginAdmin(page: Page, email: string, secrets: Map<string,
 export async function shot(page: Page, name: string, project: string) {
   await page.screenshot({ path: `${SHOTS}/${project}-${name}.png`, fullPage: true });
 }
+
+/** Área de atendimento: na primeira entrada em /solicitar, informa um CEP da cidade de São Paulo. */
+export async function passCoverage(page: Page, cep = '04101-000') {
+  const dlg = page.getByRole('dialog', { name: 'Onde será o atendimento?' });
+  if (await dlg.isVisible().catch(() => false) || await dlg.waitFor({ timeout: 1500 }).then(() => true).catch(() => false)) {
+    await dlg.getByLabel('CEP do atendimento').fill(cep);
+    await dlg.getByRole('button', { name: 'Continuar' }).click();
+    await expect(dlg).toBeHidden();
+  }
+}

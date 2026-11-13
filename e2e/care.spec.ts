@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { login, loginAdmin, shot } from './helpers';
+import { login, loginAdmin, passCoverage, shot } from './helpers';
 
 /**
  * Jornada "Solicitar cuidado" (Comando de Precificação, seção 5) e evidências de tela para o RT:
@@ -50,6 +50,13 @@ test('paciente, especialista e Central: jornada completa com evidências', async
   await shot(page, 'evid-03-saiba-mais', p);
   // Ordem aprovada: cadastro/autenticação → necessidade → materiais → orçamento
   await page.getByRole('link', { name: /Solicitar este cuidado/ }).click();
+  // Área de atendimento (cidade de São Paulo): CEP fora é recusado antes de qualquer cadastro
+  const area = page.getByRole('dialog', { name: 'Onde será o atendimento?' });
+  await area.getByLabel('CEP do atendimento').fill('13010-000');
+  await area.getByRole('button', { name: 'Continuar' }).click();
+  await expect(area.getByText('Ainda não atendemos nesse CEP.')).toBeVisible();
+  await area.getByRole('button', { name: 'Tentar outro CEP' }).click();
+  await passCoverage(page);
   await expect(page.getByRole('heading', { name: 'Entre ou crie sua conta para começar' })).toBeVisible();
   await page.getByRole('link', { name: 'Entrar' }).last().click();
   await page.getByLabel('E-mail').fill(p === 'mobile' ? 'responsavel.demo@exemplo.test' : 'paciente.demo@exemplo.test');

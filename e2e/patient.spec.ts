@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { PASS, shot } from './helpers';
+import { passCoverage, PASS, shot } from './helpers';
 
 test('paciente: cadastro, adesão PRIME, checkout com desconto, preferências, responsável e cancelamento', async ({ page }, info) => {
   const email = `e2e.${info.project.name}.${Date.now()}@exemplo.test`;
@@ -38,6 +38,7 @@ test('paciente: cadastro, adesão PRIME, checkout com desconto, preferências, r
   // Solicitar cuidado com desconto PRIME (valores logo após materiais)
   async function request(need: RegExp, offer: string) {
     await page.goto('/solicitar');
+    await passCoverage(page);
     await page.getByRole('button', { name: need }).click();
     await page.getByText(offer, { exact: true }).click();
     await page.getByRole('button', { name: /Continuar/ }).click();

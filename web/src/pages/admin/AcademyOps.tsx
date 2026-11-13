@@ -147,7 +147,7 @@ export function PartnerValidationPage() {
   return (
     <>
       <PageHeader kicker="Credenciamento · RT" title="Validação de parceiros" />
-      <p className="small muted">Ativo para atendimento somente com identidade e prova viva conferidas, inscrição confirmada no canal oficial, documentação aprovada e os quatro cursos da integração concluídos (decisão final em Credenciamento). Conferência manual nos portais oficiais — sem raspagem e sem reconhecimento facial. Revalidação a cada {data.revalidationDays} dias.</p>
+      <p className="small muted">Ativo para atendimento somente com identidade e prova viva conferidas, inscrição confirmada no canal oficial, documentação aprovada e os quatro cursos da integração concluídos (decisão final em Credenciamento). Conferência manual nos portais oficiais — sem raspagem e sem reconhecimento facial. Revalidação após {data.revalidationDays} dias sem atendimento.</p>
       <p className="small">Canais oficiais: {data.officialSources.map((o: any, i: number) => <span key={o.url}>{i ? ' · ' : ''}<a href={o.url} target="_blank" rel="noopener noreferrer">{o.name}</a></span>)}</p>
       <nav className="pills" aria-label="Fila">{(['TODOS', 'NOVO', 'REVALIDACAO'] as const).map((q) => <button key={q} type="button" className={queue === q ? 'active' : ''} onClick={() => setQueue(q)}>{q === 'TODOS' ? 'Todos' : q === 'NOVO' ? 'Novos cadastros' : 'Revalidação'}</button>)}</nav>
       <Alert error={act.error} success={msg} />
