@@ -19,7 +19,7 @@ const TONE: Record<string, string> = { CONCLUIDO: '', ASSINADO: '', AGENDADO: 'b
 const StatusBadge = ({ e }: { e: any }) => <Badge tone={TONE[e.status] ?? 'blue'}>{e.statusLabel}</Badge>;
 
 export function HomologationBanner() {
-  return <div className="callout caution small" role="note"><strong>Telenfermagem em homologação.</strong> Proibido uso clínico real: use apenas contas e dados de teste. A sala de vídeo é simulada (sem transmissão e sem gravação).</div>;
+  return <div className="callout caution small" role="note"><strong>Telenfermagem em homologação.</strong> Proibido uso clínico real: use apenas contas e dados de teste. Atendimentos sem gravação.</div>;
 }
 
 function NotesView({ notes }: { notes: any[] }) {
@@ -38,23 +38,32 @@ function NotesView({ notes }: { notes: any[] }) {
   );
 }
 
-/** Sala simulada: pede token de curta duração, entra e mostra o tempo. A entrada da enfermeira inicia o atendimento. */
+/**
+ * Sala do teleatendimento: pede o acesso pessoal (10 min), confere no servidor e abre o vídeo.
+ * Com o Daily configurado, o vídeo real abre aqui mesmo (sala privada, sem gravação); sem ele, sala simulada de homologação.
+ * A entrada da enfermeira inicia o atendimento.
+ */
 function Room({ id, onChange }: { id: string; onChange: () => void }) {
   const tok = useSubmit<any>(); const join = useSubmit<any>();
-  const [inside, setInside] = useState<string | null>(null);
+  const [inside, setInside] = useState<{ room: string; url: string | null } | null>(null);
   const [secs, setSecs] = useState(0);
   useEffect(() => { if (!inside) return; const t = window.setInterval(() => setSecs((s) => s + 1), 1000); return () => window.clearInterval(t); }, [inside]);
   async function enter() {
     const t = await tok.run('POST', `/api/tele/episodes/${id}/video-token`);
     if (!t) return;
     const j = await join.run('POST', `/api/tele/episodes/${id}/join`, { token: t.token });
-    if (j) { setInside(t.room); setSecs(0); onChange(); }
+    if (j) { setInside({ room: t.room, url: j.video?.url ?? null }); setSecs(0); onChange(); }
   }
   if (inside) {
     return (
       <div className="tele-room" role="region" aria-label="Sala de teleatendimento">
-        <div className="tele-room-screen"><span>Sala simulada · {inside}</span><strong>{String(Math.floor(secs / 60)).padStart(2, '0')}:{String(secs % 60).padStart(2, '0')}</strong><span className="small">Sem gravação</span></div>
-        <button type="button" className="btn secondary sm mt" onClick={() => setInside(null)}>Sair da sala</button>
+        {inside.url ? (
+          <iframe className="tele-video" src={inside.url} title="Vídeo do teleatendimento" allow="camera; microphone; fullscreen; display-capture; autoplay" />
+        ) : (
+          <div className="tele-room-screen"><span>Sala simulada · {inside.room}</span><strong>{String(Math.floor(secs / 60)).padStart(2, '0')}:{String(secs % 60).padStart(2, '0')}</strong><span className="small">Sem gravação</span></div>
+        )}
+        <p className="small muted mt">Atendimento sem gravação. Se a imagem ou o som falharem, saia e entre de novo; persistindo, a enfermeira registra a queda de conexão.</p>
+        <button type="button" className="btn secondary sm" onClick={() => setInside(null)}>Sair da sala</button>
       </div>
     );
   }
@@ -62,7 +71,7 @@ function Room({ id, onChange }: { id: string; onChange: () => void }) {
     <div>
       <Alert error={tok.error ?? join.error} />
       <Button className="deep" busy={tok.busy || join.busy} onClick={enter}>Entrar na sala</Button>
-      <p className="small muted mt">O acesso vale por 10 minutos e é pessoal. Não compartilhe o link nem use WhatsApp pessoal para o atendimento.</p>
+      <p className="small muted mt">Permita o uso da câmera e do microfone quando o navegador pedir. O acesso é pessoal e vale por 10 minutos. Não compartilhe o link nem use WhatsApp pessoal para o atendimento.</p>
     </div>
   );
 }

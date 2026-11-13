@@ -1,5 +1,5 @@
 /** Telenfermagem (POP-ONEMA-TELE-001) — matriz de testes T01–T20 do pacote de homologação. */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { Client, all, emailOf, idOf, loginAs, one, run, setup } from './helpers.ts';
 import { PRICING_V1 } from '../src/db/content/pricing-v1.ts';
@@ -214,5 +214,42 @@ describe('Telenfermagem (homologação)', () => {
     // conta real (fora de @exemplo.test) bloqueada
     await run(`UPDATE users SET email = 'pessoa.real@gmail.com' WHERE email = ?`, emailOf('paciente'));
     expect((await sp.post('/api/tele/episodes', { modality: 'RETORNO_ONLINE', reason: 'Reavaliar evolução da ferida.', originEventId: eventId })).body.error.code).toBe('TELE_HOMOLOGATION_ONLY');
+  });
+
+  it('vídeo real (Daily): sala privada sem gravação, acesso só depois do token ONEMA, sala encerrada no fim', async () => {
+    const s = await scheduled();
+    const calls: { method: string; url: string; body: any }[] = [];
+    const real = globalThis.fetch;
+    process.env.DAILY_API_KEY = 'chave-ficticia';
+    globalThis.fetch = vi.fn(async (url: any, init: any) => {
+      const u = String(url);
+      if (!u.startsWith('https://api.daily.co/')) return real(url, init);
+      const body = init?.body ? JSON.parse(init.body) : null;
+      calls.push({ method: init?.method ?? 'GET', url: u, body });
+      if (init?.method === 'GET') return new Response(JSON.stringify({ error: 'not-found' }), { status: 404 });
+      if (u.endsWith('/rooms')) return new Response(JSON.stringify({ name: body.name, url: `https://onema-saude.daily.co/${body.name}` }), { status: 200 });
+      if (u.endsWith('/meeting-tokens')) return new Response(JSON.stringify({ token: `tok-${body.properties.is_owner ? 'owner' : 'guest'}` }), { status: 200 });
+      return new Response('{}', { status: 200 });
+    }) as any;
+    try {
+      const t = (await s.sp.post(`/api/tele/episodes/${s.id}/video-token`)).body;
+      expect(t.provider).toBe('DAILY');
+      expect(calls).toHaveLength(0); // nada no Daily antes da conferência do token ONEMA
+      const j = (await s.sp.post(`/api/tele/episodes/${s.id}/join`, { token: t.token })).body;
+      expect(j.video.url).toMatch(/^https:\/\/onema-saude\.daily\.co\/onema-[0-9a-f]{16}\?t=tok-owner$/);
+      const room = calls.find((c) => c.url.endsWith('/rooms'))!.body;
+      expect(room).toMatchObject({ privacy: 'private' });
+      expect(JSON.stringify(room)).not.toMatch(/record/);
+      expect(room.name).not.toContain(s.id);
+      const tokenReq = calls.find((c) => c.url.endsWith('/meeting-tokens'))!.body.properties;
+      expect(tokenReq).toMatchObject({ is_owner: true, enable_recording: false });
+      const pt = (await s.patient.post(`/api/tele/episodes/${s.id}/video-token`)).body;
+      expect((await s.patient.post(`/api/tele/episodes/${s.id}/join`, { token: pt.token })).body.video.url).toMatch(/tok-guest$/);
+      await s.sp.post(`/api/tele/episodes/${s.id}/end`, { outcome: 'ENCERRADO' });
+      await new Promise((r) => setTimeout(r, 20));
+      expect(calls.some((c) => c.method === 'DELETE' && c.url.includes('/rooms/onema-'))).toBe(true);
+    } finally {
+      globalThis.fetch = real; delete process.env.DAILY_API_KEY;
+    }
   });
 });

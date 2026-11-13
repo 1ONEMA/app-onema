@@ -92,9 +92,9 @@ export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean 
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('Referrer-Policy', 'same-origin');
     reply.header('X-Frame-Options', 'DENY');
-    reply.header('Permissions-Policy', 'camera=(), microphone=(self), geolocation=(self), payment=(), usb=()');
+    reply.header('Permissions-Policy', `camera=(self "https://onema-saude.daily.co" "https://*.daily.co"), microphone=(self "https://onema-saude.daily.co" "https://*.daily.co"), display-capture=(self "https://onema-saude.daily.co" "https://*.daily.co"), fullscreen=(self "https://onema-saude.daily.co" "https://*.daily.co"), geolocation=(self), payment=(), usb=()`);
     if (!reply.hasHeader('Content-Security-Policy')) reply.header('Content-Security-Policy',
-      "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'");
+      "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; font-src 'self'; frame-src https://*.daily.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'");
     reply.header('Cross-Origin-Opener-Policy', 'same-origin');
     reply.header('Cross-Origin-Resource-Policy', 'same-origin');
     if (config.isProd || config.secureCookies) reply.header('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
