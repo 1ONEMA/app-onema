@@ -69,4 +69,21 @@ describe('Solicitação: endereço, anexos, orientação de materiais e validade
     expect(r2.quoteVersion).toBe(2);
     expect((await c.post(`/api/care/requests/${req.id}/accept`, { quoteVersion: 2 })).status).toBe(200);
   });
+
+  it('painel: indisponível pausa ofertas e bloqueia aceite; preferências independentes', async () => {
+    const c = new Client(app); await c.login(emailOf('paciente'));
+    const req = (await c.post('/api/care/requests', form({ address: ADDR }), true)).body.request;
+    await c.post(`/api/care/requests/${req.id}/accept`, { quoteVersion: 1 });
+    await c.post(`/api/care/requests/${req.id}/checkout`, { quoteVersion: 1, paymentMethod: 'SANDBOX_APROVADO', expectedTotalCents: req.quote.totalCents }, true);
+    const sp = new Client(app); await sp.login(emailOf('especialistaOne'));
+    const panel = (await sp.get('/api/care/specialist/panel')).body;
+    expect(panel).toMatchObject({ status: 'ATIVO_APTO', preferences: { available: true, soundAlerts: true, whatsappAlerts: false } });
+    const ev = (await sp.get('/api/care/specialist/offers')).body.offers[0];
+    expect((await sp.put('/api/care/specialist/preferences', { available: false })).body.preferences).toMatchObject({ available: false, soundAlerts: true });
+    expect((await sp.get('/api/care/specialist/offers')).body).toMatchObject({ offers: [], available: false });
+    expect((await sp.post(`/api/care/specialist/events/${ev.id}/accept`)).body.error.code).toBe('SPECIALIST_UNAVAILABLE');
+    expect((await sp.put('/api/care/specialist/preferences', { soundAlerts: false })).body.preferences).toMatchObject({ available: false, soundAlerts: false });
+    await sp.put('/api/care/specialist/preferences', { available: true });
+    expect((await sp.post(`/api/care/specialist/events/${ev.id}/accept`)).status).toBe(200);
+  });
 });

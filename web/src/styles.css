@@ -813,3 +813,16 @@ h3 { font-weight: 600; letter-spacing: -0.01em; }
 .h-sub { font-size: 16px; margin: 18px 0 6px; }
 
 .pre-wrap { white-space: pre-wrap; }
+
+/* Painel da especialista (ONEMA-UX-ESP-001) */
+.sp-panel { margin-top: 8px; }
+.sp-cards { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 12px; }
+@media (min-width: 760px) { .sp-cards { grid-template-columns: 1fr 1fr; } }
+.sp-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+.sp-card h2 { font-size: 18px; margin: 4px 0 0; }
+.sp-tag { display: inline-block; align-self: flex-start; background: #E8F6F3; color: #00775A; font-weight: 700; font-size: 12px; letter-spacing: .04em; padding: 4px 10px; border-radius: 999px; }
+.btn.block { display: block; width: 100%; text-align: center; margin-top: auto; }
+.sp-card details > summary { list-style: none; cursor: pointer; }
+.sp-card details > summary::-webkit-details-marker { display: none; }
+.sp-alerts { border-top: 1px solid var(--line); padding-top: 8px; display: grid; gap: 6px; }
+.sp-links { margin-top: 10px; }

@@ -18,6 +18,7 @@ import { financeRoutes } from './modules/finance/routes.ts';
 import { popRoutes } from './modules/pops/routes.ts';
 import { lifescoreRoutes } from './modules/lifescore/routes.ts';
 import { requestExtrasRoutes } from './modules/care/request-extras.ts';
+import { specialistPanelRoutes } from './modules/care/specialist-panel.ts';
 import { karyRoutes } from './modules/kary/routes.ts';
 import { specialistRoutes } from './modules/specialist/routes.ts';
 import { cafeRoutes } from './modules/cafe/routes.ts';
@@ -119,6 +120,7 @@ export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean 
   await app.register(popRoutes);
   await app.register(lifescoreRoutes);
   await app.register(requestExtrasRoutes);
+  await app.register(specialistPanelRoutes);
   await app.register(careAdminRoutes);
   await app.register(karyRoutes);
   await app.register(specialistRoutes);

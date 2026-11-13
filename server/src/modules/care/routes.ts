@@ -21,6 +21,7 @@ import { primeActive } from './report-share.ts';
 import { patientPops } from '../pops/routes.ts';
 import { notifyRole } from '../finance/payouts.ts';
 import { careTimeline } from './timeline.ts';
+import { specialistNeeds, specialistPrefs } from './specialist-panel.ts';
 import { cpfSchema } from '../../lib/cpf.ts';
 import { currentVersion, offerByCode, publicOffer } from './catalog.ts';
 import { applyPaymentEvent, buildQuote, patientOrderView, placeOrder } from './core.ts';
@@ -426,20 +427,26 @@ export async function careRoutes(app: FastifyInstance) {
   /** Ofertas: evento, ato, requisitos e repasse integral. Sem preço ao paciente, desconto ou margem. */
   app.get('/api/care/specialist/offers', async (req) => {
     const a = await specialist(req);
-    const offers = await all<any>(`SELECT e.id, e.label, e.act_type, e.modality, e.unit_payout_cents, e.region, e.created_at, o.item_code, o.item_name,
-        r.when_pref, r.when_date, r.materials FROM care_events e JOIN service_orders o ON o.id = e.order_id LEFT JOIN care_requests r ON r.id = o.request_id
-        WHERE e.status = 'DISPONIVEL' AND o.status = 'PAID' ${demoOnly(a) ? DEMO_PATIENT_SQL : ''} ORDER BY e.created_at, e.seq LIMIT 100`);
+    // Indisponível: pausa novas ofertas (e seus alertas). Habilitações: só serviços das áreas aprovadas na candidatura.
+    const prefs = await specialistPrefs(a.userId);
+    const needs = await specialistNeeds(a.userId);
+    const offers = !prefs.available ? [] : await all<any>(`SELECT e.id, e.label, e.act_type, e.modality, e.unit_payout_cents, e.region, e.created_at, o.item_code, o.item_name,
+        r.when_pref, r.when_date, r.time_window, r.materials FROM care_events e JOIN service_orders o ON o.id = e.order_id LEFT JOIN care_requests r ON r.id = o.request_id
+        LEFT JOIN catalog_items ci ON ci.code = o.item_code
+        WHERE e.status = 'DISPONIVEL' AND o.status = 'PAID' ${demoOnly(a) ? DEMO_PATIENT_SQL : ''}
+        ${needs ? `AND (ci.need IS NULL OR ci.need IN (${needs.map(() => '?').join(',')}))` : ''} ORDER BY e.created_at, e.seq LIMIT 100`, ...(needs ?? []));
     const mine = await all<any>(`SELECT e.id, e.label, e.modality, e.unit_payout_cents, e.region, e.status, e.accepted_at, e.completed_at, e.started_at, o.item_code, o.item_name,
         (SELECT v.status FROM care_evolutions v WHERE v.event_id = e.id) AS evolution_status,
         p.status AS payout_status, (SELECT stars FROM specialist_reviews s WHERE s.event_id = e.id) AS stars
         FROM care_events e JOIN service_orders o ON o.id = e.order_id LEFT JOIN payout_entries p ON p.event_id = e.id
         WHERE e.specialist_id = ? ORDER BY e.accepted_at DESC LIMIT 100`, a.userId);
-    return { offers, mine, rule: 'Aceite livre e recusa sem penalidade. O mesmo enfermeiro não é obrigatório em todos os eventos do pacote.' };
+    return { offers, mine, available: prefs.available, rule: 'Aceite livre e recusa sem penalidade. O mesmo enfermeiro não é obrigatório em todos os eventos do pacote.' };
   });
 
   app.post('/api/care/specialist/events/:id/accept', async (req) => {
     const a = await specialist(req);
     const { id } = parse(idParam, req.params);
+    if (!(await specialistPrefs(a.userId)).available) throw conflict('SPECIALIST_UNAVAILABLE', 'Você está indisponível. Fique disponível para aceitar ofertas (a oferta é revalidada no aceite).');
     return await tx(async () => {
       const now = nowIso();
       if (demoOnly(a) && !(await one(`SELECT 1 AS ok FROM care_events e JOIN service_orders o ON o.id = e.order_id WHERE e.id = ? ${DEMO_PATIENT_SQL}`, id))) {

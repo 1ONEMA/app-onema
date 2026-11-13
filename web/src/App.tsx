@@ -38,6 +38,7 @@ import { InstitutionalPage } from './pages/public/InstitutionalPage';
 import { ReportSharesPage, WalletPage } from './pages/care/WalletPage';
 import { ReportPage } from './pages/public/ReportPage';
 import { MyPayoutsPage } from './pages/care/MyPayoutsPage';
+import { SpecialistReviewsPage } from './pages/care/SpecialistPanel';
 import { PopsLibraryPage } from './pages/pops/PopsPages';
 import { MyFollowupPage, SpecialistLifeScorePage } from './pages/lifescore/LifeScorePages';
 
@@ -88,6 +89,7 @@ export default function App() {
       <Route path="/especialista/atendimentos/:id/lifescore" element={<RequireAuth roles={['ESPECIALISTA']}><SpecialistLifeScorePage /></RequireAuth>} />
       <Route path="/acompanhamento" element={<RequireAuth roles={['PACIENTE']}><MyFollowupPage /></RequireAuth>} />
       <Route path="/pops" element={<RequireAuth roles={['ESPECIALISTA', 'AVALIADOR_RT']}><PopsLibraryPage /></RequireAuth>} />
+      <Route path="/especialista/avaliacoes" element={<RequireAuth roles={['ESPECIALISTA']}><SpecialistReviewsPage /></RequireAuth>} />
       <Route path="/especialista/repasses" element={<RequireAuth roles={['ESPECIALISTA']}><MyPayoutsPage /></RequireAuth>} />
       <Route path="/especialista/candidatura" element={<RequireAuth><ApplicationPage /></RequireAuth>} />
       <Route path="/cuidados/:key" element={<Layout><ServicePage /></Layout>} />
