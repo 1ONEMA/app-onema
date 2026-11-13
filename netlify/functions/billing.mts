@@ -17,6 +17,12 @@ export default async () => {
   // Lembretes PRIME do Life Score (planos de retorno definidos pela enfermeira).
   const { runLifescoreReminders } = await import('../../server/src/modules/lifescore/service.ts');
   try { console.log('Lembretes Life Score:', JSON.stringify(await runLifescoreReminders())); } catch (e: any) { console.error('[lifescore] falha nos lembretes:', e?.message); }
+  // Revalidação periódica dos parceiros (aviso 7 dias antes; suspensão quando vence).
+  const { runPartnerRevalidation } = await import('../../server/src/modules/specialist/routes.ts');
+  try { console.log('Revalidação de parceiros:', JSON.stringify(await runPartnerRevalidation())); } catch (e: any) { console.error('[parceiros] falha na revalidação:', e?.message); }
+  // Carteira Digital: lembretes do plano de cuidados, escalonamento de alertas e falhas de canal.
+  const { runCarteiraAlerts } = await import('../../server/src/modules/carteira/engine.ts');
+  try { console.log('Alertas da Carteira:', JSON.stringify(await runCarteiraAlerts())); } catch (e: any) { console.error('[carteira] falha nos alertas:', e?.message); }
 };
 
 export const config: Config = { schedule: '@hourly' };

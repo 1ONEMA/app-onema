@@ -21,6 +21,7 @@ import { primeActive } from './report-share.ts';
 import { patientPops } from '../pops/routes.ts';
 import { notifyRole } from '../finance/payouts.ts';
 import { teleWalletNotes } from '../tele/routes.ts';
+import { partnerActive } from '../specialist/validation.ts';
 import { careTimeline } from './timeline.ts';
 import { specialistNeeds, specialistPrefs } from './specialist-panel.ts';
 import { cpfSchema } from '../../lib/cpf.ts';
@@ -401,8 +402,8 @@ export async function careRoutes(app: FastifyInstance) {
 
   // ---------- Especialista (ONEMA ONE) ----------
   /** Ofertas só para especialista com decisão humana de credenciamento APTO (após a Academy e os demais requisitos). */
-  const credentialed = async (userId: string) =>
-    (await one<any>('SELECT credentialing_decision FROM partner_training_status WHERE partner_id = ?', userId))?.credentialing_decision === 'APTO';
+  // Validação de parceiros: só "Ativo para atendimento" (documentação + prova viva aprovadas, revalidação em dia e credenciamento APTO).
+  const credentialed = (userId: string) => partnerActive(userId);
   // Ambiente publicado: contas de demonstração (senha pública) só atendem pedidos de pacientes de demonstração.
   const demoOnly = (a: { email: string }) => config.blockDemoStaff && /@exemplo\.test$/i.test(a.email);
   const DEMO_PATIENT_SQL = `AND EXISTS (SELECT 1 FROM users pu WHERE pu.id = o.patient_id AND pu.email LIKE '%@exemplo.test')`;
@@ -418,7 +419,7 @@ export async function careRoutes(app: FastifyInstance) {
     const payouts = await all<any>(`SELECT status, COUNT(*) AS n, COALESCE(SUM(amount_cents),0) AS total FROM payout_entries WHERE specialist_id = ? GROUP BY status`, a.userId);
     const training = await one<any>('SELECT journey_state, credentialing_decision FROM partner_training_status WHERE partner_id = ?', a.userId);
     return {
-      eligible: training?.credentialing_decision === 'APTO',
+      eligible: await partnerActive(a.userId),
       journeyState: training?.journey_state ?? 'NAO_INICIADA',
       credentialing: training?.credentialing_decision ?? 'PENDENTE',
       rating: { count: rating?.n ?? 0, average: rating?.avg != null ? Math.round(Number(rating.avg) * 10) / 10 : null },

@@ -4,7 +4,7 @@ import { PageHeader } from '../../ui/ui';
 import { ContentPage, VersionEditor, AssessmentEditor } from './Content';
 import { CourseVideosPage } from './CourseVideos';
 import { MediaPage, CertAdminPage } from './Media';
-import { CredentialingPage, SupportPage, ReportsPage } from './AcademyOps';
+import { CredentialingPage, SupportPage, ReportsPage, PartnerValidationPage } from './AcademyOps';
 import { FinancePage, SharesAdminPage, PrimeAdminPage } from './PrimeOps';
 import { UsersPage, AuditPage, BackupsPage } from './System';
 import { CafeAdminPage } from './CafeAdmin';
@@ -13,17 +13,20 @@ import { AdminTelePage } from '../tele/TelePages';
 import { PopsLibraryPage } from '../pops/PopsPages';
 import { LifeScoreAdminPage } from '../lifescore/LifeScorePages';
 import { useApi } from '../../lib/hooks';
+import { AdminCarteiraPage } from '../carteira/CarteiraPages';
 import { dateTime } from '../../lib/format';
 
 export const SECTIONS: { to: string; label: string; roles: Role[]; desc: string }[] = [
   { to: 'conteudo', label: 'Conteúdo Academy', roles: ['GESTOR_CONTEUDO', 'AVALIADOR_RT', 'ADMIN_ACADEMY', 'AUDITOR'], desc: 'Versões de curso, aulas, atividades, avaliações e aprovação RT.' },
   { to: 'midia', label: 'Mídia', roles: ['GESTOR_CONTEUDO', 'AVALIADOR_RT', 'ADMIN_ACADEMY', 'AUDITOR'], desc: 'Vídeos, legendas, transcrições e integridade (checksum).' },
   { to: 'certificados', label: 'Certificados', roles: ['GESTOR_CONTEUDO', 'AVALIADOR_RT', 'ADMIN_ACADEMY', 'AUDITOR'], desc: 'Modelo oficial, emitidos e revogação.' },
+  { to: 'parceiros', label: 'Validação de parceiros', roles: ['CREDENCIAMENTO', 'AVALIADOR_RT', 'ADMIN_ACADEMY', 'AUDITOR'], desc: 'Novos cadastros e revalidações: prova viva, identidade, COREN, evidências e decisões.' },
   { to: 'credenciamento', label: 'Credenciamento', roles: ['CREDENCIAMENTO', 'ADMIN_ACADEMY', 'AUDITOR'], desc: 'Projeção de capacitação e decisão humana.' },
   { to: 'suporte', label: 'Suporte Academy', roles: ['SUPORTE_ACADEMY', 'ADMIN_ACADEMY'], desc: 'Estado técnico do parceiro e chamados.' },
   { to: 'relatorios', label: 'Relatórios Academy', roles: ['ADMIN_ACADEMY', 'AUDITOR'], desc: 'Indicadores calculados a partir do banco.' },
   { to: 'financeiro', label: 'Financeiro', roles: ['FINANCEIRO', 'ADMIN_ACADEMY', 'AUDITOR'], desc: 'Pedidos, cobranças, estornos (sandbox).' },
   { to: 'lifescore', label: 'Life Score', roles: ['AVALIADOR_RT', 'OPERADOR_CENTRAL', 'ADMIN_PRIME', 'AUDITOR'], desc: 'Avaliações, preocupações de segurança, retornos, lembretes, suspensão e liberação.' },
+  { to: 'carteira', label: 'Alertas da Carteira', roles: ['AVALIADOR_RT', 'OPERADOR_CENTRAL'], desc: 'Fila de alertas e lembretes, atribuição, escalonamento, auditoria e matriz de regras.' },
   { to: 'telenfermagem', label: 'Telenfermagem', roles: ['AVALIADOR_RT', 'OPERADOR_CENTRAL'], desc: 'Homologação: triagem, ofertas, pendências e auditoria dos teleatendimentos.' },
   { to: 'pops', label: 'POPs', roles: ['AVALIADOR_RT'], desc: 'Biblioteca de POPs: conferir, liberar e suspender versões.' },
   { to: 'repasses', label: 'Repasses e reembolsos', roles: ['FINANCEIRO', 'OPERADOR_CENTRAL', 'ADMIN_PRIME', 'AVALIADOR_RT', 'AUDITOR'], desc: 'Validar atendimentos, autorizar Pix, conferir chaves, reembolsos e contestações.' },
@@ -55,12 +58,14 @@ export function AdminRoutes() {
         <Route path="midia" element={<MediaPage />} />
         <Route path="certificados" element={<CertAdminPage />} />
         <Route path="credenciamento" element={<CredentialingPage />} />
+        <Route path="parceiros" element={<PartnerValidationPage />} />
         <Route path="suporte" element={<SupportPage />} />
         <Route path="relatorios" element={<ReportsPage />} />
         <Route path="financeiro" element={<FinancePage />} />
         <Route path="repasses" element={<PayoutsPage />} />
         <Route path="pops" element={<PopsLibraryPage />} />
         <Route path="telenfermagem" element={<AdminTelePage />} />
+        <Route path="carteira" element={<AdminCarteiraPage />} />
         <Route path="lifescore" element={<LifeScoreAdminPage />} />
         <Route path="responsaveis" element={<SharesAdminPage />} />
         <Route path="prime" element={<PrimeAdminPage />} />

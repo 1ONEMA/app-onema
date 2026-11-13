@@ -5,6 +5,7 @@ import { useApi, useSubmit } from '../../lib/hooks';
 import { Alert, Badge, Button, ErrorState, Field, Loading, PageHeader, fieldError } from '../../ui/ui';
 import { IconCheck, IconShield } from '../../ui/icons';
 import { EVO_SECTIONS } from './WalletPage';
+import { CarePlanEditor } from '../carteira/CarteiraPages';
 import { PopPanel } from '../pops/PopsPages';
 
 type Evo = { relato: string; sinaisVitais: string; avaliacao: string; procedimentos: string; orientacoes: string; plano: string; observacoes: string; pendencias: string[] };
@@ -184,6 +185,7 @@ export function VisitPage() {
         <p className="small muted">Índice descritivo a partir dos 24 itens que você confirma. Não é necessário para concluir o atendimento.</p>
         <Link className="btn sm deep" to={`/especialista/atendimentos/${id}/lifescore`}>Abrir Life Score</Link>
       </section>
+      {signed && <CarePlanEditor eventId={id!} />}
       <PopPanel eventId={id!} active={['ACEITO', 'CONCLUIDO'].includes(e.status)} />
       <p className="small"><Link to="/especialista#ofertas">Voltar aos meus atendimentos</Link></p>
     </div>

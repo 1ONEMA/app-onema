@@ -45,13 +45,16 @@ test('candidatura de especialista', async ({ page }, info) => {
   const png = { name: 'foto.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') };
   await inputs.nth(0).setInputFiles(png);
   await expect(page.getByText('Enviado').first()).toBeVisible();
-  for (let i = 1; i <= 4; i++) {
+  // foto de prova viva (segurando o documento): imagem
+  await inputs.nth(1).setInputFiles(png);
+  await expect(page.getByText('Enviado')).toHaveCount(2);
+  for (let i = 2; i <= 5; i++) {
     await inputs.nth(i).setInputFiles(pdf);
     await expect(page.getByText('Enviado')).toHaveCount(i + 1);
   }
   const a11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   expect(a11y.violations.map((v) => `${v.id}: ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(' | ')}`)).toEqual([]);
   await page.getByRole('button', { name: 'Enviar para análise' }).click();
-  await expect(page.getByText('Em análise')).toBeVisible();
+  await expect(page.getByText('Em análise').first()).toBeVisible();
   await shot(page, 'evid-candidatura', p);
 });

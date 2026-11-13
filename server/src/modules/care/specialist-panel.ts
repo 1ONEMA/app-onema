@@ -11,6 +11,7 @@ import { config } from '../../config.ts';
 import { audit } from '../../lib/audit.ts';
 import { parse, requireRoles } from '../../lib/context.ts';
 import { nowIso } from '../../lib/util.ts';
+import { PARTNER_STATE_LABEL, partnerActive, partnerState } from '../specialist/validation.ts';
 
 export async function specialistPrefs(userId: string) {
   const p = await one<any>('SELECT * FROM specialist_preferences WHERE user_id = ?', userId);
@@ -36,9 +37,11 @@ export async function specialistPanelRoutes(app: FastifyInstance) {
     const app_ = await one<any>(`SELECT regions, status FROM specialist_applications WHERE user_id = ?`, a.userId);
     const needs = await specialistNeeds(a.userId);
     const rating = await one<any>('SELECT COUNT(*) AS n, AVG(stars) AS avg FROM specialist_reviews WHERE specialist_id = ?', a.userId);
-    const apt = training?.credentialing_decision === 'APTO';
+    const apt = await partnerActive(a.userId);
+    const ps = await partnerState(a.userId);
     return {
-      status: apt ? 'ATIVO_APTO' : training?.credentialing_decision === 'INAPTO' ? 'INAPTO' : 'EM_HABILITACAO',
+      status: apt ? 'ATIVO_APTO' : ps.state === 'SUSPENSO_REVALIDAR' ? 'SUSPENSO' : training?.credentialing_decision === 'NAO_APTO' ? 'INAPTO' : 'EM_HABILITACAO',
+      validation: { state: ps.state, label: PARTNER_STATE_LABEL[ps.state], nextRevalidationAt: ps.application?.next_revalidation_at ?? null },
       academy: { journeyState: training?.journey_state ?? 'NAO_INICIADA', certificates: Number(certs) },
       finance: { toReceiveCents: sum(['A_LIQUIDAR', 'VALIDADO', 'PROGRAMADO', 'ENVIADO', 'ENVIO_INCERTO', 'SALDO_INSUFICIENTE', 'FALHA']), reservedCents: sum(['RESERVADO']),
         paidCents: sum(['CONFIRMADO']), pix: dest ? { masked: dest.masked_key, verified: dest.status === 'VERIFICADA' } : null },

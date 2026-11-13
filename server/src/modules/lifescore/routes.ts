@@ -16,6 +16,7 @@ import { notify } from '../prime/core.ts';
 import { notifyRole } from '../finance/payouts.ts';
 import { primeActive } from '../care/report-share.ts';
 import { LIFESCORE_BUILD, model, modelHash } from './core.ts';
+import { partnerActive } from '../specialist/validation.ts';
 import {
   DISCLAIMER, RESPONSE_CODES, cancelReminders, currentRelease, historyFor, modelView, newDraft, registerRelease, resultView, revokeRelease,
   runEvaluation, scheduleReminders, setPlanStatus, setSuspension, settingsState, syncScheduling,
@@ -37,8 +38,7 @@ export async function lifescoreRoutes(app: FastifyInstance) {
   // ---------------- Especialista ----------------
   async function ownEvent(req: any, id: string) {
     const a = requireRoles(req, ['ESPECIALISTA']);
-    const t = await one<any>('SELECT credentialing_decision FROM partner_training_status WHERE partner_id = ?', a.userId);
-    if (t?.credentialing_decision !== 'APTO') throw forbidden('Disponível para especialistas credenciadas.', 'NOT_CREDENTIALED');
+    if (!await partnerActive(a.userId)) throw forbidden('Disponível para especialistas credenciadas.', 'NOT_CREDENTIALED');
     // Só atendimentos vigentes da própria profissional (cancelado/estornado não dá acesso ao histórico do paciente).
     const e = await one<any>(`SELECT e.id, e.status, e.modality, e.order_id, o.patient_id FROM care_events e JOIN service_orders o ON o.id = e.order_id
       WHERE e.id = ? AND e.specialist_id = ? AND e.status IN ('ACEITO','CONCLUIDO')`, id, a.userId);

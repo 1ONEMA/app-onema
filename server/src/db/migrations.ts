@@ -1411,4 +1411,170 @@ CREATE TRIGGER tele_note_locked BEFORE UPDATE ON tele_notes FOR EACH ROW EXECUTE
 CREATE TRIGGER tele_note_no_delete BEFORE DELETE ON tele_notes FOR EACH ROW EXECUTE FUNCTION onema_forbid('tele note is immutable');
 ALTER TABLE tele_notes ENABLE ROW LEVEL SECURITY;
 ` },
+  { name: '022_validacao_parceiros', sql: `
+-- 022: Validação documental de parceiros (guia v1.0, 12/10/2026): prova viva, categoria e UFs de atuação, versões de documentos
+-- preservadas, conferências humanas append-only com evidência interna (print da consulta COREN/COFEN, só RT/autorizados),
+-- histórico de decisões, suspensão e revalidação periódica.
+ALTER TABLE specialist_applications DROP CONSTRAINT IF EXISTS specialist_applications_status_check;
+ALTER TABLE specialist_applications ADD CONSTRAINT specialist_applications_status_check
+  CHECK (status IN ('RASCUNHO','ENVIADA','PENDENCIA','APROVADA','RECUSADA','SUSPENSA'));
+ALTER TABLE specialist_applications ADD COLUMN professional_category TEXT;
+ALTER TABLE specialist_applications ADD COLUMN states_json TEXT;
+ALTER TABLE specialist_applications ADD COLUMN review_reason TEXT NOT NULL DEFAULT 'INICIAL';
+ALTER TABLE specialist_applications ADD COLUMN next_revalidation_at TEXT;
+ALTER TABLE specialist_applications ADD COLUMN revalidation_notified_at TEXT;
+ALTER TABLE specialist_applications ADD COLUMN suspended_reason TEXT;
+
+ALTER TABLE specialist_documents DROP CONSTRAINT IF EXISTS specialist_documents_kind_check;
+ALTER TABLE specialist_documents ADD CONSTRAINT specialist_documents_kind_check
+  CHECK (kind IN ('FOTO','PROVA_VIVA','IDENTIDADE','COREN','DIPLOMA_FRENTE','DIPLOMA_VERSO','CERTIFICADO','COMPROVANTE_ENDERECO','OUTRO'));
+ALTER TABLE specialist_documents ADD COLUMN superseded_at TEXT;
+ALTER TABLE specialist_documents ADD COLUMN removed_at TEXT;
+
+CREATE TABLE partner_verifications (
+  id TEXT PRIMARY KEY,
+  application_id TEXT NOT NULL REFERENCES specialist_applications(id),
+  check_kind TEXT NOT NULL CHECK (check_kind IN ('PROVA_VIVA','IDENTIDADE','INSCRICAO','CATEGORIA','AUTENTICIDADE')),
+  result TEXT NOT NULL CHECK (result IN ('CONFERIDA','PENDENTE','DIVERGENTE','INDISPONIVEL','NAO_ENCONTRADA','NAO_AUTENTICAVEL')),
+  source TEXT,
+  source_url TEXT,
+  coren_number TEXT,
+  coren_uf TEXT,
+  consulted_at TEXT NOT NULL,
+  note TEXT,
+  review_reason TEXT NOT NULL,
+  actor_id TEXT NOT NULL REFERENCES users(id),
+  created_at TEXT NOT NULL
+);
+CREATE INDEX ix_partner_verifications_app ON partner_verifications(application_id, created_at);
+CREATE TRIGGER trg_partner_verifications_append BEFORE UPDATE OR DELETE ON partner_verifications FOR EACH ROW EXECUTE FUNCTION onema_append_only();
+ALTER TABLE partner_verifications ENABLE ROW LEVEL SECURITY;
+
+-- Evidência interna (print da consulta oficial): vinculada à conferência; nunca exposta ao parceiro.
+CREATE TABLE partner_verification_evidence (
+  id TEXT PRIMARY KEY,
+  verification_id TEXT NOT NULL REFERENCES partner_verifications(id),
+  application_id TEXT NOT NULL REFERENCES specialist_applications(id),
+  filename TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  storage_key TEXT NOT NULL,
+  uploaded_by TEXT NOT NULL REFERENCES users(id),
+  created_at TEXT NOT NULL
+);
+CREATE INDEX ix_partner_evidence_verification ON partner_verification_evidence(verification_id);
+CREATE TRIGGER trg_partner_evidence_append BEFORE UPDATE OR DELETE ON partner_verification_evidence FOR EACH ROW EXECUTE FUNCTION onema_append_only();
+ALTER TABLE partner_verification_evidence ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE partner_application_events (
+  id TEXT PRIMARY KEY,
+  application_id TEXT NOT NULL REFERENCES specialist_applications(id),
+  actor_id TEXT REFERENCES users(id),
+  action TEXT NOT NULL,
+  note TEXT,
+  review_reason TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX ix_partner_events_app ON partner_application_events(application_id, created_at);
+CREATE TRIGGER trg_partner_events_append BEFORE UPDATE OR DELETE ON partner_application_events FOR EACH ROW EXECUTE FUNCTION onema_append_only();
+ALTER TABLE partner_application_events ENABLE ROW LEVEL SECURITY;
+` },
+  { name: '023_carteira_plano_alertas', sql: `
+-- 023: Carteira Digital (especificação v1.0 aprovada pelo RT para homologação): plano de cuidados a partir de instrução
+-- profissional validada, motor de alertas configurável (regras versionadas; clínicas só com aprovação do RT),
+-- fila com ciclo de vida, escalonamento, deduplicação, entregas por canal e trilha append-only.
+CREATE TABLE care_plan_items (
+  id TEXT PRIMARY KEY,
+  patient_id TEXT NOT NULL REFERENCES users(id),
+  created_by TEXT NOT NULL REFERENCES users(id),
+  source_event_id TEXT NOT NULL REFERENCES care_events(id),
+  previous_item_id TEXT REFERENCES care_plan_items(id),
+  title TEXT NOT NULL,
+  instructions TEXT NOT NULL,
+  due_at TEXT NOT NULL,
+  recurrence_days INTEGER,
+  ask_followup INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL CHECK (status IN ('ATIVO','CONCLUIDO','CANCELADO')),
+  completed_at TEXT,
+  followup_answer TEXT,
+  followup_note TEXT,
+  cancel_reason TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX ix_care_plan_patient ON care_plan_items(patient_id, status, due_at);
+ALTER TABLE care_plan_items ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE alert_rules (
+  code TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('LEMBRETE','CLINICO','ADMINISTRATIVO','TECNICO')),
+  title TEXT NOT NULL,
+  source_protocol TEXT,
+  trigger_desc TEXT NOT NULL,
+  recipient TEXT NOT NULL CHECK (recipient IN ('PACIENTE','ENFERMEIRO','RT','OPERACAO','TECNICA')),
+  message TEXT NOT NULL,
+  priority TEXT NOT NULL CHECK (priority IN ('BAIXA','MEDIA','ALTA')),
+  owner_role TEXT NOT NULL,
+  substitute_role TEXT,
+  coverage TEXT,
+  ack_hours INTEGER,
+  action_hours INTEGER,
+  escalate_to TEXT,
+  channels_json TEXT NOT NULL,
+  dedupe_desc TEXT NOT NULL,
+  test_evidence TEXT,
+  fictitious INTEGER NOT NULL DEFAULT 1,
+  status TEXT NOT NULL CHECK (status IN ('RASCUNHO','APROVADA','SUSPENSA')),
+  approved_by TEXT REFERENCES users(id),
+  approved_at TEXT,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (code, version)
+);
+ALTER TABLE alert_rules ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE care_alerts (
+  id TEXT PRIMARY KEY,
+  rule_code TEXT NOT NULL,
+  rule_version INTEGER NOT NULL,
+  category TEXT NOT NULL,
+  priority TEXT NOT NULL,
+  patient_id TEXT REFERENCES users(id),
+  subject_type TEXT,
+  subject_id TEXT,
+  dedupe_key TEXT NOT NULL UNIQUE,
+  recipient TEXT NOT NULL,
+  owner_role TEXT NOT NULL,
+  assigned_to TEXT REFERENCES users(id),
+  status TEXT NOT NULL CHECK (status IN ('PENDENTE','RECONHECIDO','EM_TRATAMENTO','RESOLVIDO','ENCERRADO')),
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  ack_due_at TEXT,
+  action_due_at TEXT,
+  escalation_level INTEGER NOT NULL DEFAULT 0,
+  rev INTEGER NOT NULL DEFAULT 1,
+  resolution_note TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  closed_at TEXT
+);
+CREATE INDEX ix_care_alerts_status ON care_alerts(status, priority, created_at);
+CREATE INDEX ix_care_alerts_patient ON care_alerts(patient_id, created_at);
+CREATE INDEX ix_care_alerts_assigned ON care_alerts(assigned_to, status);
+ALTER TABLE care_alerts ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE care_alert_events (
+  id TEXT PRIMARY KEY,
+  alert_id TEXT NOT NULL REFERENCES care_alerts(id),
+  actor_id TEXT REFERENCES users(id),
+  action TEXT NOT NULL,
+  channel TEXT,
+  note TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX ix_care_alert_events ON care_alert_events(alert_id, created_at);
+CREATE TRIGGER trg_care_alert_events_append BEFORE UPDATE OR DELETE ON care_alert_events FOR EACH ROW EXECUTE FUNCTION onema_append_only();
+ALTER TABLE care_alert_events ENABLE ROW LEVEL SECURITY;
+` },
 ];

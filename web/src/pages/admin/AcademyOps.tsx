@@ -13,7 +13,7 @@ export function CredentialingPage() {
   return (
     <>
       <PageHeader kicker="ONEMA ONE" title="Credenciamento"><p>A Academy atualiza somente a projeção de capacitação. Pagamento ou conclusão nunca geram aptidão automática: a decisão é humana e registrada.</p></PageHeader>
-      <ApplicationsSection />
+      <p className="small muted">A validação documental (identidade, prova viva e COREN) fica em <a href="/admin/parceiros">Validação de parceiros</a>. Aqui fica a decisão final de credenciamento, depois da Academy.</p>
       <h2 className="mt">Capacitação e decisão final</h2>
       {loading ? <Loading /> : error ? <ErrorState error={error} onRetry={reload} /> : (
         <section className="surface">
@@ -103,48 +103,108 @@ export function ReportsPage() {
 }
 
 const APP_STATUS: Record<string, { label: string; tone: string }> = {
-  ENVIADA: { label: 'Aguardando análise', tone: 'orange' }, PENDENCIA: { label: 'Pendência com a candidata', tone: 'orange' },
-  APROVADA: { label: 'Aprovada · Academy liberada', tone: '' }, RECUSADA: { label: 'Recusada', tone: 'red' },
+  ENVIADA: { label: 'Aguardando análise', tone: 'orange' }, PENDENCIA: { label: 'Correção solicitada', tone: 'orange' },
+  APROVADA: { label: 'Documentação aprovada', tone: '' }, RECUSADA: { label: 'Reprovada', tone: 'red' }, SUSPENSA: { label: 'Suspensa / revalidar', tone: 'red' },
 };
-const DOC_LABEL: Record<string, string> = { FOTO: 'Foto', IDENTIDADE: 'Identidade', COREN: 'COREN', DIPLOMA_FRENTE: 'Diploma (frente)', DIPLOMA_VERSO: 'Diploma (verso)', CERTIFICADO: 'Certificado', COMPROVANTE_ENDERECO: 'Comprovante de endereço', OUTRO: 'Outro' };
+const DOC_LABEL: Record<string, string> = { FOTO: 'Foto', PROVA_VIVA: 'Prova viva', IDENTIDADE: 'Identidade', COREN: 'COREN', DIPLOMA_FRENTE: 'Diploma (frente)', DIPLOMA_VERSO: 'Diploma (verso)', CERTIFICADO: 'Certificado', COMPROVANTE_ENDERECO: 'Comprovante de endereço', OUTRO: 'Outro' };
+const CHECK_LABEL: Record<string, string> = { PROVA_VIVA: 'Prova viva (conferência visual humana)', IDENTIDADE: 'Identidade', INSCRICAO: 'Inscrição COREN/COFEN', CATEGORIA: 'Categoria profissional', AUTENTICIDADE: 'Autenticidade documental' };
+const RESULT_LABEL: Record<string, string> = { CONFERIDA: 'Conferida', PENDENTE: 'Pendente', DIVERGENTE: 'Divergente', INDISPONIVEL: 'Consulta indisponível', NAO_ENCONTRADA: 'Inscrição não encontrada', NAO_AUTENTICAVEL: 'Não autenticável' };
+const CAT_LABEL: Record<string, string> = { ENFERMEIRO: 'Enfermeiro(a)', TECNICO_ENFERMAGEM: 'Técnico(a) de enfermagem' };
 
-/** Candidaturas ONEMA ONE: conferência de identidade, COREN e documentos (decisão humana). */
-function ApplicationsSection() {
+/**
+ * Validação documental de parceiros: fila de novos cadastros e revalidações, conferências humanas (prova viva, identidade,
+ * inscrição), evidência interna da consulta oficial (só RT/autorizados) e decisões com justificativa.
+ */
+export function PartnerValidationPage() {
   const { has } = useAuth();
   const { data, error, loading, reload } = useApi<any>('/api/admin/specialist-applications');
-  const decide = useSubmit<any>();
+  const act = useSubmit<any>();
   const [sel, setSel] = useState<any>(null);
-  const [f, setF] = useState({ decision: 'APROVADA', note: '', identityAndCorenVerified: false });
+  const [queue, setQueue] = useState<'TODOS' | 'NOVO' | 'REVALIDACAO'>('TODOS');
+  const [chk, setChk] = useState({ checkKind: 'PROVA_VIVA', result: 'CONFERIDA', source: '', sourceUrl: '', note: '' });
+  const [dec, setDec] = useState({ decision: 'APROVADA', note: '' });
+  const [evFile, setEvFile] = useState<Record<string, File | null>>({});
+  const [msg, setMsg] = useState<string | null>(null);
   if (loading && !data) return <Loading />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
+  const canDecide = has('CREDENCIAMENTO', 'AVALIADOR_RT', 'ADMIN_ACADEMY');
+  const canAttach = has('AVALIADOR_RT', 'CREDENCIAMENTO');
+  const list = data.applications.filter((a: any) => queue === 'TODOS' || a.queue === queue);
+  const cur = sel ? data.applications.find((a: any) => a.id === sel) : null;
+  async function addCheck() {
+    if (await act.run('POST', `/api/admin/specialist-applications/${cur.id}/verifications`, { ...chk, sourceUrl: chk.sourceUrl || undefined, source: chk.source || undefined })) {
+      setMsg('Conferência registrada.'); setChk({ ...chk, note: '' }); reload();
+    }
+  }
+  async function attach(vid: string) {
+    const file = evFile[vid]; if (!file) return;
+    const fd = new FormData(); fd.append('file', file);
+    if (await act.run('POST', `/api/admin/specialist-applications/${cur.id}/verifications/${vid}/evidence`, fd)) { setMsg('Captura anexada à conferência.'); setEvFile({ ...evFile, [vid]: null }); reload(); }
+  }
+  async function decide() {
+    if (await act.run('POST', `/api/admin/specialist-applications/${cur.id}/decision`, dec)) { setMsg('Decisão registrada.'); setDec({ decision: 'APROVADA', note: '' }); reload(); }
+  }
   return (
-    <section className="surface">
-      <h2>Candidaturas ONEMA ONE</h2>
-      <p className="small muted">Confira identidade, situação do COREN no conselho regional e documentos antes de aprovar. A aprovação libera a ONEMA Academy; as ofertas de atendimento só começam após a decisão final de credenciamento (abaixo).</p>
-      {!data.applications.length ? <Empty title="Nenhuma candidatura enviada." /> : (
-        <ul className="list">{data.applications.map((a: any) => (
+    <>
+      <PageHeader kicker="Credenciamento · RT" title="Validação de parceiros" />
+      <p className="small muted">Ativo para atendimento somente com identidade e prova viva conferidas, inscrição confirmada no canal oficial, documentação aprovada e os quatro cursos da integração concluídos (decisão final em Credenciamento). Conferência manual nos portais oficiais — sem raspagem e sem reconhecimento facial. Revalidação a cada {data.revalidationDays} dias.</p>
+      <p className="small">Canais oficiais: {data.officialSources.map((o: any, i: number) => <span key={o.url}>{i ? ' · ' : ''}<a href={o.url} target="_blank" rel="noopener noreferrer">{o.name}</a></span>)}</p>
+      <nav className="pills" aria-label="Fila">{(['TODOS', 'NOVO', 'REVALIDACAO'] as const).map((q) => <button key={q} type="button" className={queue === q ? 'active' : ''} onClick={() => setQueue(q)}>{q === 'TODOS' ? 'Todos' : q === 'NOVO' ? 'Novos cadastros' : 'Revalidação'}</button>)}</nav>
+      <Alert error={act.error} success={msg} />
+      {!list.length ? <Empty title="Nenhum cadastro nesta fila." /> : (
+        <ul className="list">{list.map((a: any) => (
           <li key={a.id}>
-            <div className="row between"><strong>{a.fullName}</strong><Badge tone={APP_STATUS[a.status]?.tone ?? 'dark'}>{APP_STATUS[a.status]?.label ?? a.status}</Badge></div>
-            <div className="small muted">CPF {a.cpf} · COREN-{a.corenUf} {a.corenNumber} · {a.phone} · {a.email} · enviada em {dateTime(a.submittedAt)}</div>
-            <div className="small">Regiões: {a.regions}. Áreas: {a.needs.join(', ')}.{a.availability ? ` Disponibilidade: ${a.availability}.` : ''}</div>
-            <div className="row small mt">{a.documents.map((d: any) => (
-              has('CREDENCIAMENTO', 'ADMIN_ACADEMY')
-                ? <a key={d.id} href={`/api/admin/specialist-applications/${a.id}/documents/${d.id}`} target="_blank" rel="noopener noreferrer" className="badge blue">{DOC_LABEL[d.kind]} · {d.filename}</a>
-                : <span key={d.id} className="badge dark">{DOC_LABEL[d.kind]}</span>
-            ))}</div>
-            {a.decisionNote && <div className="small muted">Última decisão: {a.decisionNote}</div>}
-            {has('CREDENCIAMENTO', 'ADMIN_ACADEMY') && a.status === 'ENVIADA' && <Button className="sm secondary mt" onClick={() => { setSel(a); setF({ decision: 'APROVADA', note: '', identityAndCorenVerified: false }); }}>Analisar</Button>}
+            <div className="row between"><button type="button" className="linklike" onClick={() => { setSel(sel === a.id ? null : a.id); setMsg(null); }}><strong>{a.fullName}</strong></button>
+              <span><Badge tone={APP_STATUS[a.status]?.tone ?? 'dark'}>{APP_STATUS[a.status]?.label ?? a.status}</Badge> <Badge tone="blue">{a.partnerStateLabel}</Badge></span></div>
+            <div className="small muted">{CAT_LABEL[a.professionalCategory] ?? 'Categoria não informada'} · COREN-{a.corenUf} {a.corenNumber} · atua em {a.states.join(', ') || '—'} · {a.reviewReason === 'INICIAL' ? 'cadastro novo' : `revisão: ${a.reviewReason}`}{a.nextRevalidationAt ? ` · revalidar até ${date(a.nextRevalidationAt)}` : ''}</div>
+            <div className="row small">{a.requiredChecks.map((c: any) => <Badge key={c.kind} tone={c.result === 'CONFERIDA' ? '' : c.result === 'PENDENTE' ? 'orange' : 'red'}>{CHECK_LABEL[c.kind].split(' (')[0]}: {RESULT_LABEL[c.result]}</Badge>)}</div>
+            {sel === a.id && (
+              <div className="mt flow">
+                <div className="small">CPF {a.cpf} · {a.phone} · {a.email} · regiões: {a.regions} · áreas: {a.needs.join(', ')}</div>
+                <h3>Documentos (versões preservadas)</h3>
+                <div className="row small">{a.documents.map((d: any) => (
+                  <a key={d.id} href={`/api/admin/specialist-applications/${a.id}/documents/${d.id}`} target="_blank" rel="noopener noreferrer" className={`badge ${d.superseded_at || d.removed_at ? 'dark' : 'blue'}`}>
+                    {DOC_LABEL[d.kind]} · {dateTime(d.created_at)}{d.superseded_at ? ' (substituído)' : d.removed_at ? ' (removido)' : ''}</a>
+                ))}</div>
+                <h3>Conferências</h3>
+                {!a.checks.length ? <p className="small muted">Nenhuma conferência registrada.</p> : (
+                  <ul className="list small">{a.checks.map((c: any) => (
+                    <li key={c.id}><strong>{CHECK_LABEL[c.kind]}</strong>: {RESULT_LABEL[c.result]} · {dateTime(c.consultedAt)} · {c.actor}{c.source ? ` · ${c.source}` : ''}{c.sourceUrl ? <> · <a href={c.sourceUrl} target="_blank" rel="noopener noreferrer">URL</a></> : ''}{c.corenNumber ? ` · COREN-${c.corenUf} ${c.corenNumber}` : ''}
+                      {c.note && <div className="muted">{c.note}</div>}
+                      {c.evidence.map((e: any) => <div key={e.id}><a href={`/api/admin/specialist-applications/${a.id}/evidence/${e.id}`} target="_blank" rel="noopener noreferrer">Captura da consulta · {e.filename}</a> · {e.uploaded_by} · {dateTime(e.created_at)}</div>)}
+                      {canAttach && c.kind === 'INSCRICAO' && (
+                        <div className="row"><input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" aria-label="Captura da consulta oficial" onChange={(e) => setEvFile({ ...evFile, [c.id]: e.target.files?.[0] ?? null })} />
+                          <Button className="sm secondary" busy={act.busy} disabled={!evFile[c.id]} onClick={() => attach(c.id)}>Anexar captura</Button></div>
+                      )}
+                    </li>
+                  ))}</ul>
+                )}
+                {canDecide && (<>
+                  <h3>Registrar conferência</h3>
+                  <div className="form-grid">
+                    <Field label="Verificação"><select value={chk.checkKind} onChange={(e) => setChk({ ...chk, checkKind: e.target.value })}>{Object.entries(CHECK_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
+                    <Field label="Resultado"><select value={chk.result} onChange={(e) => setChk({ ...chk, result: e.target.value })}>{Object.entries(RESULT_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
+                    <Field label="Fonte consultada" hint="Ex.: COFEN — Consulta de profissionais"><input value={chk.source} onChange={(e) => setChk({ ...chk, source: e.target.value })} /></Field>
+                    <Field label="URL consultada"><input type="url" value={chk.sourceUrl} onChange={(e) => setChk({ ...chk, sourceUrl: e.target.value })} /></Field>
+                  </div>
+                  <Field label="Observação / justificativa" hint="Obrigatória quando o resultado não for &quot;conferida&quot;."><textarea rows={2} value={chk.note} onChange={(e) => setChk({ ...chk, note: e.target.value })} /></Field>
+                  <Button className="sm secondary" busy={act.busy} onClick={addCheck}>Registrar conferência</Button>
+                  {['ENVIADA', 'APROVADA'].includes(a.status) && (<>
+                    <h3>Decisão</h3>
+                    <Field label="Decisão"><select value={dec.decision} onChange={(e) => setDec({ ...dec, decision: e.target.value })}>
+                      {a.status === 'ENVIADA' ? <><option value="APROVADA">Aprovar documentação</option><option value="PENDENCIA">Solicitar correção</option><option value="RECUSADA">Reprovar</option></>
+                        : <option value="SUSPENSA">Suspender (revalidar)</option>}</select></Field>
+                    <Field label="Justificativa" hint="O parceiro vê esta mensagem em correção, reprovação ou suspensão."><textarea value={dec.note} onChange={(e) => setDec({ ...dec, note: e.target.value })} /></Field>
+                    <Button className="deep" busy={act.busy} onClick={decide}>Registrar decisão</Button>
+                  </>)}
+                </>)}
+                <h3>Histórico</h3>
+                <ul className="small">{a.history.map((h: any, i: number) => <li key={i}>{dateTime(h.created_at)} · {h.action} · {h.actor ?? 'Sistema'}{h.note ? ` — ${h.note}` : ''}</li>)}</ul>
+              </div>
+            )}
           </li>
         ))}</ul>
       )}
-      <Dialog open={!!sel} title={`Candidatura · ${sel?.fullName}`} onClose={() => setSel(null)}>
-        <Field label="Decisão"><select value={f.decision} onChange={(e) => setF({ ...f, decision: e.target.value })}>
-          <option value="APROVADA">Aprovar (liberar a Academy)</option><option value="PENDENCIA">Pedir ajuste à candidata</option><option value="RECUSADA">Recusar</option></select></Field>
-        <Field label="Justificativa" hint="A candidata verá este texto em caso de pendência ou recusa."><textarea value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} /></Field>
-        <label className="choice"><input type="checkbox" checked={f.identityAndCorenVerified} onChange={(e) => setF({ ...f, identityAndCorenVerified: e.target.checked })} /><span>Conferi identidade, COREN ativo e documentos.</span></label>
-        <Alert error={decide.error} />
-        <Button className="deep" busy={decide.busy} onClick={async () => { if (await decide.run('POST', `/api/admin/specialist-applications/${sel.id}/decision`, f)) { setSel(null); reload(); } }}>Registrar decisão</Button>
-      </Dialog>
-    </section>
+    </>
   );
 }
