@@ -178,6 +178,7 @@ export function VisitPage() {
           </>
         )}
       </section>
+      <VisitInfo eventId={id!} visit={data.visit} />
       <section className="flow-card mt">
         <h2>Life Score <span className="small muted">(opcional)</span></h2>
         <p className="small muted">Índice descritivo a partir dos 24 itens que você confirma. Não é necessário para concluir o atendimento.</p>
@@ -186,5 +187,44 @@ export function VisitPage() {
       <PopPanel eventId={id!} active={['ACEITO', 'CONCLUIDO'].includes(e.status)} />
       <p className="small"><Link to="/especialista#ofertas">Voltar aos meus atendimentos</Link></p>
     </div>
+  );
+}
+
+const TW: Record<string, string> = { MANHA: 'manhã (8h–12h)', TARDE: 'tarde (12h–18h)', NOITE: 'noite (18h–21h)', QUALQUER: 'qualquer horário' };
+/** Dados do paciente para a visita, pedido médico/exames (somente leitura) e orientação de materiais. */
+function VisitInfo({ eventId, visit }: { eventId: string; visit: any }) {
+  const docs = useApi<any>(`/api/care/specialist/events/${eventId}/documents`);
+  const send = useSubmit<any>();
+  const [text, setText] = useState('');
+  if (!visit) return null;
+  const g = docs.data?.guidance;
+  const ad = visit.address;
+  return (
+    <section className="flow-card mt">
+      <h2>Paciente e local</h2>
+      <dl className="kv small">
+        <dt>Paciente</dt><dd>{visit.patientName}</dd>
+        <dt>Telefone</dt><dd><a href={`tel:${String(visit.phone).replace(/[^0-9+]/g, '')}`}>{visit.phone}</a></dd>
+        <dt>Endereço</dt><dd>{ad ? `${ad.street}, ${ad.number}${ad.complement ? ` – ${ad.complement}` : ''} · ${ad.district} · ${ad.city} · CEP ${ad.cep}${ad.reference ? ` · ref.: ${ad.reference}` : ''}` : visit.location}</dd>
+        <dt>Preferência</dt><dd>{visit.whenDate ? visit.whenDate.split('-').reverse().join('/') : visit.whenPref?.toLowerCase().replace('_', ' ')}{visit.timeWindow ? ` · ${TW[visit.timeWindow]}` : ''}</dd>
+        {visit.notes && <><dt>Observação</dt><dd>{visit.notes}</dd></>}
+      </dl>
+      <h3>Pedido médico e exames</h3>
+      {!docs.data ? <Loading lines={1} /> : !docs.data.documents.length ? <p className="small muted">Nenhum anexo do paciente.</p> : (
+        <ul className="list small">{docs.data.documents.map((d: any) => <li key={d.id}><a href={`/api/care/specialist/events/${eventId}/documents/${d.id}`} target="_blank" rel="noopener noreferrer">{d.filename}</a> · {d.kind === 'EXAME' ? 'exame' : 'pedido médico'} (somente leitura)</li>)}</ul>
+      )}
+      {g && g.status !== 'NAO_APLICAVEL' && (
+        <>
+          <h3>Orientação de materiais</h3>
+          <p className="small">{g.status === 'SOLICITADA' ? 'O paciente pediu orientação: envie a lista de materiais e links para compra.' : g.status === 'ENVIADA' ? `Orientação enviada em ${new Date(g.at).toLocaleString('pt-BR')}. Aguardando o paciente confirmar.` : 'O paciente confirmou que providenciou os materiais.'}</p>
+          {g.text && <p className="small pre-wrap">{g.text}</p>}
+          {g.status !== 'MATERIAIS_CONFIRMADOS' && <>
+            <Field label={g.text ? 'Atualizar orientação' : 'Lista de materiais e links'}><textarea rows={3} value={text} maxLength={3000} onChange={(e) => setText(e.target.value)} placeholder="Ex.: 10 gazes estéreis, soro fisiológico 0,9% 250 ml, luvas de procedimento. Links: …" /></Field>
+            <Alert error={send.error} />
+            <Button className="sm deep" busy={send.busy} disabled={text.trim().length < 10} onClick={async () => { const r = await send.run('POST', '/api/care/requests/' + docs.data.requestId + '/guidance', { text }); if (r) { setText(''); docs.reload(); } }}>Enviar orientação ao paciente</Button>
+          </>}
+        </>
+      )}
+    </section>
   );
 }

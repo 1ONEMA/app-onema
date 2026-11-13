@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { openKary } from './Kary';
 import { Logo } from './Brand';
+import { LegalLink } from './LegalDialog';
 
 /** Rodapé institucional (modelo do site de referência do cliente). */
 export function Footer() {
@@ -22,9 +23,9 @@ export function Footer() {
         </nav>
         <nav aria-label="Institucional">
           <h2>Institucional</h2>
-          <Link to="/institucional/privacidade">Política de Privacidade</Link>
-          <Link to="/institucional/termos">Termos de Uso</Link>
-          <Link to="/institucional/lgpd">LGPD</Link>
+          <LegalLink kind="privacidade" className="linklike-light footer-link">Política de Privacidade</LegalLink>
+          <LegalLink kind="termos" className="linklike-light footer-link">Termos de Uso</LegalLink>
+          <LegalLink kind="lgpd" className="linklike-light footer-link">LGPD</LegalLink>
           <Link to="/plataforma#aplicativo">Aplicativo ONEMA</Link>
         </nav>
         <div>

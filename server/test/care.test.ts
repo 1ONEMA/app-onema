@@ -32,7 +32,7 @@ function form(itemCode: string, extra: Record<string, unknown> = {}) {
   return {
     need: NEED_OF[itemCode], itemCode, infoText: 'Teste de homologação (fictício)', materials: 'SIM', materialsDetail: '', materialsSupplyRequested: false,
     patientName: 'Paciente Fictício', phone: '(11) 99999-0000', location: 'Vila Mariana', whenPref: 'PROXIMOS_DIAS', whenDate: null, notes: '',
-    forSelf: true, responsibleAuthorized: false, ...extra,
+    forSelf: true, responsibleAuthorized: false, address: { cep: '04101-000', street: 'Rua Fictícia', number: '100', complement: '', district: 'Vila Mariana', city: 'São Paulo', reference: '' }, timeWindow: 'MANHA', ...extra,
   };
 }
 /** Especialista inicia com o código do paciente, assina a evolução e conclui o atendimento. */

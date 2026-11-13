@@ -799,3 +799,17 @@ h3 { font-weight: 600; letter-spacing: -0.01em; }
 .ls-item .row input[type=text] { flex: 1; min-width: 160px; }
 .ls-score { font-size: 40px; font-weight: 700; color: var(--deep); margin: 4px 0; }
 .ls-score.sm { font-size: 28px; }
+
+/* Documentos legais em janela flutuante, letra menor */
+.legal-dialog { max-height: 70vh; overflow-y: auto; font-size: 13px; line-height: 1.5; }
+.legal-dialog h2, .legal-dialog h3 { font-size: 14px; margin: 12px 0 4px; }
+.legal-dialog table { font-size: 12px; }
+.legal-dialog .inst-body { padding: 0; }
+.site-footer nav .footer-link { display: block; text-align: left; color: #DCE6FF; font-size: 12.5px; margin: 0 0 10px; padding: 0; }
+.site-footer nav .footer-link:hover { color: #fff; text-decoration: underline; }
+
+/* Solicitação: Voltar/Limpar em todas as etapas, subtítulos dos blocos */
+.flow-tools { display: flex; gap: 8px; justify-content: flex-end; margin: -4px 0 10px; }
+.h-sub { font-size: 16px; margin: 18px 0 6px; }
+
+.pre-wrap { white-space: pre-wrap; }

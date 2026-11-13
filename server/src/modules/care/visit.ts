@@ -8,6 +8,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { one, run, tx } from '../../db/db.ts';
 import { audit } from '../../lib/audit.ts';
+import { openField } from '../../lib/security.ts';
 import { parse, requireRoles } from '../../lib/context.ts';
 import { AppError, conflict, forbidden, notFound, unprocessable } from '../../lib/errors.ts';
 import { rateLimit, safeEqual } from '../../lib/security.ts';
@@ -84,8 +85,13 @@ export async function visitRoutes(app: FastifyInstance) {
     const { id } = parse(idParam, req.params);
     const e = await myEvent(id, a.userId);
     const v = await one<any>('SELECT * FROM care_evolutions WHERE event_id = ?', id);
+    // Endereço completo, contato e janela só para a especialista que aceitou (antes do aceite, a oferta mostra apenas a região).
+    const r = await one<any>(`SELECT r.patient_name, r.phone, r.location, r.address_sealed, r.when_pref, r.when_date, r.time_window, r.notes FROM care_requests r
+      JOIN service_orders o ON o.request_id = r.id WHERE o.id = ?`, e.order_id);
+    const visit = r && ['ACEITO', 'CONCLUIDO'].includes(e.status) ? { patientName: r.patient_name, phone: r.phone, location: r.location,
+      address: r.address_sealed ? JSON.parse(openField(r.address_sealed)) : null, whenPref: r.when_pref, whenDate: r.when_date, timeWindow: r.time_window, notes: r.notes } : null;
     return { event: { id: e.id, label: e.label, itemName: e.item_name, modality: e.modality, status: e.status, startedAt: e.started_at,
-        patientSignedAt: e.patient_signed_at, patientSignatureName: e.patient_signature_name, completedAt: e.completed_at },
+        patientSignedAt: e.patient_signed_at, patientSignatureName: e.patient_signature_name, completedAt: e.completed_at }, visit,
       evolution: evolutionView(v), aiEnabled: evolutionAiEnabled() };
   });
 

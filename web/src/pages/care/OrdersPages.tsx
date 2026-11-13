@@ -186,6 +186,7 @@ export function RequestDetailPage() {
           <p className="small muted">A Central ONEMA confirma a agenda com um especialista validado. O mesmo enfermeiro não é obrigatório em todos os atendimentos de um pacote.</p>
         </section>
       </div>
+      <GuidanceCard request={r} onDone={reload} />
       {o && ['PAID', 'REFUNDED'].includes(o.status) && <RefundCard orderId={o.id} paid={o.status === 'PAID'} onDone={reload} />}
       <section className="surface mt">
         <h2>Linha do tempo do atendimento</h2>
@@ -230,6 +231,23 @@ function RefundCard({ orderId, paid, onDone }: { orderId: string; paid: boolean;
           <div className="row"><Button className="deep" busy={send.busy} onClick={submit}>Confirmar pedido de reembolso</Button><button type="button" className="btn secondary" onClick={() => setOpen(false)}>Voltar</button></div>
         </div>
       ) : <p className="mt mb0"><button type="button" className="linklike" onClick={() => setOpen(true)}>Cancelar e pedir reembolso</button></p>)}
+    </section>
+  );
+}
+
+/** Orientação de materiais: pedida, enviada (lista e links) e confirmada pelo paciente — estados separados. */
+function GuidanceCard({ request: r, onDone }: { request: any; onDone: () => void }) {
+  const send = useSubmit<any>();
+  const g = r.guidance;
+  if (!g || g.status === 'NAO_APLICAVEL') return null;
+  return (
+    <section className="surface mt">
+      <h2>Materiais para o atendimento</h2>
+      {g.status === 'SOLICITADA' && <p className="mb0">Você pediu orientação sobre materiais. Um enfermeiro da ONEMA vai enviar a lista e links para compra aqui no app, antes da visita.</p>}
+      {g.text && <><p className="small muted mb0">Orientação enviada em {dateTime(g.at)}:</p><p className="pre-wrap">{g.text}</p></>}
+      {g.status === 'ENVIADA' && <Button className="sm green" busy={send.busy} onClick={async () => { if (await send.run('POST', `/api/care/requests/${r.id}/materials-confirmed`, {})) onDone(); }}>Já providenciei os materiais</Button>}
+      {g.status === 'MATERIAIS_CONFIRMADOS' && <p className="small success mb0"><IconCheck size={14} /> Você confirmou que providenciou os materiais em {dateTime(g.materialsConfirmedAt)}.</p>}
+      <Alert error={send.error} />
     </section>
   );
 }

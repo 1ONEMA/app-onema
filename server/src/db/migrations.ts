@@ -1266,4 +1266,44 @@ ALTER TABLE lifescore_safety_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lifescore_reminders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lifescore_releases ENABLE ROW LEVEL SECURITY;
 ` },
+  { name: '020_jornada_painel', sql: `
+-- 020a: Jornada de solicitação (ONEMA-JOR-001, 05/11/2026): endereço completo (selado), identificação do paciente,
+-- janela de horário, orientação de materiais (sem cotação) e anexos (pedido médico/exame).
+ALTER TABLE care_requests ADD COLUMN address_sealed TEXT;
+ALTER TABLE care_requests ADD COLUMN patient_birth_date TEXT;
+ALTER TABLE care_requests ADD COLUMN time_window TEXT;
+ALTER TABLE care_requests ADD COLUMN relationship TEXT;
+ALTER TABLE care_requests ADD COLUMN guidance_status TEXT NOT NULL DEFAULT 'NAO_APLICAVEL';
+ALTER TABLE care_requests ADD COLUMN guidance_text TEXT;
+ALTER TABLE care_requests ADD COLUMN guidance_by TEXT REFERENCES users(id);
+ALTER TABLE care_requests ADD COLUMN guidance_at TEXT;
+ALTER TABLE care_requests ADD COLUMN materials_confirmed_at TEXT;
+CREATE TABLE care_request_documents (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL REFERENCES care_requests(id),
+  uploaded_by TEXT NOT NULL REFERENCES users(id),
+  kind TEXT NOT NULL CHECK (kind IN ('PEDIDO_MEDICO','EXAME','OUTRO')),
+  filename TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  storage_key TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  deleted_at TEXT
+);
+CREATE INDEX ix_care_request_documents ON care_request_documents(request_id);
+ALTER TABLE care_request_documents ENABLE ROW LEVEL SECURITY;
+
+-- 020b: Painel da especialista (ONEMA-UX-ESP-001): disponibilidade e preferências de alerta.
+CREATE TABLE specialist_preferences (
+  user_id TEXT PRIMARY KEY REFERENCES users(id),
+  available INTEGER NOT NULL DEFAULT 1,
+  available_changed_at TEXT,
+  sound_alerts INTEGER NOT NULL DEFAULT 1,
+  whatsapp_alerts INTEGER NOT NULL DEFAULT 0,
+  whatsapp_phone TEXT,
+  updated_at TEXT NOT NULL
+);
+ALTER TABLE specialist_preferences ENABLE ROW LEVEL SECURITY;
+` },
 ];

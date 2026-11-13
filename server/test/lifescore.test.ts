@@ -60,7 +60,7 @@ const NEED_OF = Object.fromEntries(PRICING_V1.map((d) => [d.code, d.need]));
 async function accepted(patientKey: 'paciente' | 'responsavel' = 'paciente') {
   const c = new Client(app); await c.login(emailOf(patientKey));
   const form = { need: NEED_OF['CAT-01'], itemCode: 'CAT-01', infoText: '', materials: 'SIM', materialsDetail: '', materialsSupplyRequested: false,
-    patientName: 'Paciente Fictício', phone: '(11) 99999-0000', location: 'Vila Mariana', whenPref: 'PROXIMOS_DIAS', whenDate: null, notes: '', forSelf: true, responsibleAuthorized: false };
+    patientName: 'Paciente Fictício', phone: '(11) 99999-0000', location: 'Vila Mariana', whenPref: 'PROXIMOS_DIAS', whenDate: null, notes: '', forSelf: true, responsibleAuthorized: false, address: { cep: '04101-000', street: 'Rua Fictícia', number: '100', complement: '', district: 'Vila Mariana', city: 'São Paulo', reference: '' }, timeWindow: 'MANHA' };
   const req = (await c.post('/api/care/requests', form, true)).body.request;
   await c.post(`/api/care/requests/${req.id}/accept`, { quoteVersion: req.quoteVersion });
   await c.post(`/api/care/requests/${req.id}/checkout`, { quoteVersion: req.quoteVersion, paymentMethod: 'SANDBOX_APROVADO', expectedTotalCents: req.quote.totalCents }, true);
