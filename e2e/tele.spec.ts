@@ -10,7 +10,7 @@ test('telenfermagem: jornada completa em homologação', async ({ browser }, inf
   const p = info.project.name;
 
   const rt = await (await browser.newContext()).newPage();
-  await loginAdmin(rt, 'rt.demo@exemplo.test', secrets);
+  await loginAdmin(rt, 'operador.demo@exemplo.test', secrets);
   await rt.goto('/admin/telenfermagem');
   await expect(rt.getByText('Telenfermagem em homologação.')).toBeVisible();
   await rt.getByLabel('E-mail do paciente').fill('paciente.demo@exemplo.test');
