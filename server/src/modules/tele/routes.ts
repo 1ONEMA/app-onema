@@ -21,6 +21,7 @@ import { hmac, rateLimit } from '../../lib/security.ts';
 import { addHours, nowIso, protocol, randomToken, sha256, stableJson, uid } from '../../lib/util.ts';
 import { notify } from '../prime/core.ts';
 import { partnerActive } from '../specialist/validation.ts';
+import { closeRoom, dailyEnabled, ensureRoom, meetingToken } from '../../lib/daily.ts';
 import { evolutionAiEnabled, FAILURE_TEXT, organizeDictation } from '../care/evolution-ai.ts';
 import {
   EMPTY_TELE_NOTE, JOIN_EARLY_MS, MODALITIES, MODALITY_LABEL, NO_SHOW_POLICY, OFFER_HOURS, RETURN_WINDOW_DAYS, STATUS_LABEL, TELE_CONSENT_PURPOSE,
@@ -28,6 +29,8 @@ import {
 } from './core.ts';
 
 const idParam = z.object({ id: z.string().uuid() });
+/** Nome opaco da sala (não revela paciente nem episódio). */
+const roomName = (episodeId: string) => `onema-${sha256(`${episodeId}:${config.appSecret}`).slice(0, 16)}`;
 const STAFF = ['OPERADOR_CENTRAL', 'AVALIADOR_RT'] as const;
 const isStaff = (a: { roles: string[] }) => a.roles.some((r) => (STAFF as readonly string[]).includes(r));
 const synthetic = (email: string) => /@exemplo\.test$/i.test(email);
@@ -315,8 +318,8 @@ export async function teleRoutes(app: FastifyInstance) {
     const expiresAt = new Date(Date.now() + TOKEN_TTL_MS).toISOString();
     await run('INSERT INTO tele_room_tokens (id, episode_id, user_id, token_hash, expires_at, created_at) VALUES (?,?,?,?,?,?)', uid(), id, a.userId, hmac(`tele-room:${token}`), expiresAt, now);
     await audit({ actorId: a.userId, action: 'TELE_TOKEN_ISSUED', subjectType: 'tele_episode', subjectId: id, correlationId: req.correlationId, meta: { access } });
-    // Provedor audiovisual ainda não definido: sala SIMULADA de homologação (sem mídia, sem gravação).
-    return { token, expiresAt, provider: 'SIMULADO', recording: false, room: `onema-${sha256(id).slice(0, 12)}` };
+    // Daily (DAILY_API_KEY) ou sala SIMULADA de homologação. Em ambos: sem gravação.
+    return { token, expiresAt, provider: dailyEnabled() ? 'DAILY' : 'SIMULADO', recording: false, room: roomName(id) };
   });
 
   /** Entrada na sala: token válido, não expirado, do próprio usuário e do episódio. A entrada da profissional inicia o atendimento. */
@@ -333,8 +336,21 @@ export async function teleRoutes(app: FastifyInstance) {
     if (access === 'PROFISSIONAL' && e.status === 'AGENDADO') {
       await setStatus(e, 'EM_ATENDIMENTO', { call_started_at: nowIso() }, a.userId, req.correlationId);
     }
-    await audit({ actorId: a.userId, action: 'TELE_ROOM_JOINED', subjectType: 'tele_episode', subjectId: id, correlationId: req.correlationId, meta: { access } });
-    return { ok: true, status: access === 'PROFISSIONAL' && e.status === 'AGENDADO' ? 'EM_ATENDIMENTO' : e.status };
+    // Vídeo real: o acesso ao Daily só é emitido depois da conferência do token ONEMA (pessoal, do episódio, não expirado).
+    let video: { provider: string; url: string | null } = { provider: 'SIMULADO', url: null };
+    if (dailyEnabled()) {
+      try {
+        const start = e.scheduled_at ? new Date(e.scheduled_at).getTime() : Date.now();
+        const room = await ensureRoom(roomName(id), Math.floor(Math.max(Date.now(), start) / 1000) + 3 * 3600);
+        const dt = await meetingToken(room.name, a.name || (access === 'PROFISSIONAL' ? 'Enfermeira ONEMA' : 'Paciente'), access === 'PROFISSIONAL', Math.floor(Date.now() / 1000) + 15 * 60);
+        video = { provider: 'DAILY', url: `${room.url}?t=${encodeURIComponent(dt)}` };
+      } catch (err: any) {
+        req.log.error({ correlationId: req.correlationId, status: err?.status, info: err?.info }, 'Daily: falha ao abrir a sala');
+        throw new AppError(502, 'VIDEO_UNAVAILABLE', 'Não foi possível abrir a sala de vídeo agora. Tente de novo em instantes; se persistir, registre falha técnica.');
+      }
+    }
+    await audit({ actorId: a.userId, action: 'TELE_ROOM_JOINED', subjectType: 'tele_episode', subjectId: id, correlationId: req.correlationId, meta: { access, provider: video.provider } });
+    return { ok: true, status: access === 'PROFISSIONAL' && e.status === 'AGENDADO' ? 'EM_ATENDIMENTO' : e.status, video };
   });
 
   /**
@@ -347,6 +363,7 @@ export async function teleRoutes(app: FastifyInstance) {
     return await tx(async () => {
       const { a, e } = await load(req, id, ['PROFISSIONAL'], true);
       const now = nowIso();
+      if (dailyEnabled()) closeRoom(roomName(id)).catch((err) => req.log.warn({ status: err?.status }, 'Daily: falha ao encerrar a sala'));
       if (b.outcome === 'ENCERRADO') {
         if (e.status !== 'EM_ATENDIMENTO') throw conflict('TELE_STATE_CONFLICT', 'Só é possível encerrar um atendimento em andamento.');
         await setStatus(e, 'AGUARDANDO_REGISTRO', { call_ended_at: now }, a.userId, req.correlationId);
