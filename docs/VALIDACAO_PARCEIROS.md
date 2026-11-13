@@ -1,0 +1,7 @@
+# Validação documental de parceiros (guia ONEMA v1.0, 12/10/2026)
+
+- **Parceiro** (`/especialista/candidatura`): categoria profissional, COREN/UF, estados de atuação, documentos (inclui **foto de prova viva** segurando o mesmo documento), aviso de finalidade/acesso/retenção, status em linguagem simples, histórico. Não vê conferências nem evidências.
+- **Equipe interna** (`/admin/parceiros`, CREDENCIAMENTO / AVALIADOR_RT / ADMIN_ACADEMY; AUDITOR só leitura): fila Novos/Revalidação, documentos com versões preservadas, conferências append-only (prova viva, identidade, inscrição, categoria, autenticidade) com fonte, URL, data/hora, responsável e justificativa; **print da consulta COREN/COFEN** anexado só por RT/Credenciamento, vinculado à conferência; decisões aprovar / solicitar correção / reprovar / suspender.
+- **Regra de liberação (servidor)**: ativo para atendimento só com documentação aprovada (prova viva, identidade e inscrição *conferidas*), revalidação em dia, Academy concluída e credenciamento APTO. Bloqueia ofertas, aceite, visita, telenfermagem e Life Score.
+- **Revalidação**: a cada `PARTNER_REVALIDATION_DAYS` (padrão 90 — confirmar com RT/jurídico); aviso 7 dias antes; suspensão automática ao vencer (job horário). Mudança de nome/categoria/COREN/UF reabre o cadastro.
+- Sem raspagem de portais e sem reconhecimento facial. Testes: `server/test/partner-validation.test.ts`.

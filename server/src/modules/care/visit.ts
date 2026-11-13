@@ -16,13 +16,13 @@ import { nowIso, uid } from '../../lib/util.ts';
 import { notify } from '../prime/core.ts';
 import { EMPTY_EVOLUTION, EVOLUTION_MODEL, EvolutionSchema, FAILURE_TEXT, type OrganizeFailure, evolutionAiEnabled, organizeDictation } from './evolution-ai.ts';
 import { runInBackground } from '../../lib/background.ts';
+import { partnerActive } from '../specialist/validation.ts';
 
 const idParam = z.object({ id: z.string().uuid() });
 
 async function credentialedSpecialist(req: any) {
   const a = requireRoles(req, ['ESPECIALISTA']);
-  const t = await one<any>('SELECT credentialing_decision FROM partner_training_status WHERE partner_id = ?', a.userId);
-  if (t?.credentialing_decision !== 'APTO') throw forbidden('Seu perfil ainda não foi credenciado pela Central ONEMA.', 'NOT_CREDENTIALED');
+  if (!await partnerActive(a.userId)) throw forbidden('Seu perfil ainda não foi credenciado pela Central ONEMA.', 'NOT_CREDENTIALED');
   return a;
 }
 

@@ -49,7 +49,9 @@ export function SpecialistPanel({ offers, onOffersChange }: { offers: any; onOff
   return (
     <section className="sp-panel" aria-label="Painel da especialista">
       <div className="row between"><h1 className="display-light mb0">Meu painel</h1>
-        <Badge tone={data.status === 'ATIVO_APTO' ? '' : 'orange'}>{data.status === 'ATIVO_APTO' ? 'Ativo e apto' : data.status === 'INAPTO' ? 'Credenciamento não aprovado' : 'Em habilitação'}</Badge></div>
+        <Badge tone={data.status === 'ATIVO_APTO' ? '' : data.status === 'SUSPENSO' ? 'red' : 'orange'}>{data.status === 'ATIVO_APTO' ? 'Ativo e apto' : data.status === 'INAPTO' ? 'Credenciamento não aprovado' : data.validation?.label ?? 'Em habilitação'}</Badge></div>
+      {data.status !== 'ATIVO_APTO' && data.validation && <p className="small caution">Cadastro: <strong>{data.validation.label}</strong>. Novos atendimentos ficam bloqueados até a liberação. <Link to="/especialista/candidatura">Ver meu cadastro</Link></p>}
+      {data.status === 'ATIVO_APTO' && data.validation?.nextRevalidationAt && <p className="small muted">Próxima revalidação do cadastro: {new Date(data.validation.nextRevalidationAt).toLocaleDateString('pt-BR')}.</p>}
       <div className="sp-cards">
         <article className="sp-card">
           <div className="sp-tag">1 · ONEMA ACADEMY</div>

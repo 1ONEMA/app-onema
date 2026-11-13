@@ -7,7 +7,7 @@ let app: FastifyInstance;
 beforeEach(async () => { app = await setup(); });
 
 const CPF = '529.982.247-25'; // CPF fictício válido (dígitos verificadores)
-const FORM = { fullName: 'Ana Enfermeira Fictícia', cpf: CPF, corenNumber: '123456', corenUf: 'SP', phone: '(11) 98888-0000', regions: 'Zona Sul, Vila Mariana', needs: ['CURATIVOS', 'POS_ALTA'], availability: 'Manhãs', consent: true, dataTerm: true };
+const FORM = { fullName: 'Ana Enfermeira Fictícia', cpf: CPF, corenNumber: '123456', corenUf: 'SP', professionalCategory: 'ENFERMEIRO', states: ['SP'], phone: '(11) 98888-0000', regions: 'Zona Sul, Vila Mariana', needs: ['CURATIVOS', 'POS_ALTA'], availability: 'Manhãs', consent: true, dataTerm: true };
 
 /** Envio multipart (arquivo + campo kind) pelo inject do Fastify. */
 async function upload(c: Client, kind: string, mime = 'application/pdf', body = Buffer.from('%PDF-1.4 documento fictício')) {
@@ -37,7 +37,7 @@ describe('Candidatura ONEMA ONE', () => {
     expect((await c.put('/api/specialist/application', { ...FORM, consent: false })).status).toBe(400);
     const saved = await c.put('/api/specialist/application', FORM);
     expect(saved.status).toBe(200);
-    expect(saved.body.application).toMatchObject({ status: 'RASCUNHO', cpfMasked: '***.982.247-**', missingDocuments: ['FOTO', 'IDENTIDADE', 'COREN', 'DIPLOMA_FRENTE', 'DIPLOMA_VERSO'] });
+    expect(saved.body.application).toMatchObject({ status: 'RASCUNHO', cpfMasked: '***.982.247-**', missingDocuments: ['FOTO', 'PROVA_VIVA', 'IDENTIDADE', 'COREN', 'DIPLOMA_FRENTE', 'DIPLOMA_VERSO'] });
     expect(JSON.stringify(saved.body)).not.toContain('52998224725');
     // CPF criptografado no banco (nem o número nem o formato aparecem); salvar de novo sem redigitar mantém o CPF
     const stored = await one<any>(`SELECT cpf, cpf_hash FROM specialist_applications`);
@@ -52,7 +52,7 @@ describe('Candidatura ONEMA ONE', () => {
     expect((await upload(c, 'IDENTIDADE', 'application/pdf', Buffer.from('<html><script>alert(1)</script></html>'))).body.error.code).toBe('FILE_TYPE');
     expect([400, 413]).toContain((await upload(c, 'IDENTIDADE', 'application/pdf', Buffer.alloc(5 * 1024 * 1024 + 10))).status);
     expect((await upload(c, 'IDENTIDADE')).status).toBe(200);
-    for (const k of ['FOTO', 'DIPLOMA_FRENTE', 'DIPLOMA_VERSO', 'CERTIFICADO', 'CERTIFICADO']) expect((await upload(c, k)).status).toBe(200);
+    for (const k of ['FOTO', 'PROVA_VIVA', 'DIPLOMA_FRENTE', 'DIPLOMA_VERSO', 'CERTIFICADO', 'CERTIFICADO']) expect((await upload(c, k)).status).toBe(200);
     expect((await upload(c, 'COREN', 'image/png', Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]))).body.application.missingDocuments).toEqual([]);
     expect((await c.get('/api/specialist/application')).body.application.documents.filter((d: any) => d.kind === 'CERTIFICADO')).toHaveLength(2);
     const sent = await c.post('/api/specialist/application/submit');
@@ -74,13 +74,16 @@ describe('Candidatura ONEMA ONE', () => {
     expect(doc.status).toBe(200);
     expect(String(doc.headers['content-security-policy'])).toContain('sandbox');
     expect((await one<any>(`SELECT COUNT(*) AS n FROM audit_events WHERE action = 'SPECIALIST_DOCUMENT_VIEWED'`)).n).toBe(1);
-    expect((await cred.post(`/api/admin/specialist-applications/${app1.id}/decision`, { decision: 'APROVADA', note: 'Documentos conferidos.', identityAndCorenVerified: false })).body.error.code).toBe('VERIFICATION_REQUIRED');
+    expect((await cred.post(`/api/admin/specialist-applications/${app1.id}/decision`, { decision: 'APROVADA', note: 'Documentos conferidos.' })).body.error.code).toBe('VERIFICATION_REQUIRED');
     // pendência → candidata ajusta e reenvia → aprovação
     await cred.post(`/api/admin/specialist-applications/${app1.id}/decision`, { decision: 'PENDENCIA', note: 'Envie o COREN frente e verso.', identityAndCorenVerified: false });
     expect((await c.get('/api/specialist/application')).body.application).toMatchObject({ status: 'PENDENCIA', decisionNote: 'Envie o COREN frente e verso.' });
     await upload(c, 'COREN');
     await c.post('/api/specialist/application/submit');
-    expect((await cred.post(`/api/admin/specialist-applications/${app1.id}/decision`, { decision: 'APROVADA', note: 'Identidade e COREN ativo conferidos.', identityAndCorenVerified: true })).status).toBe(200);
+    for (const checkKind of ['PROVA_VIVA', 'IDENTIDADE', 'INSCRICAO']) {
+      expect((await cred.post(`/api/admin/specialist-applications/${app1.id}/verifications`, { checkKind, result: 'CONFERIDA', source: 'COFEN — Consulta de profissionais', sourceUrl: 'https://www.cofen.gov.br/' })).status).toBe(200);
+    }
+    expect((await cred.post(`/api/admin/specialist-applications/${app1.id}/decision`, { decision: 'APROVADA', note: 'Identidade e COREN ativo conferidos.' })).status).toBe(200);
     const u = await one<any>(`SELECT u.academy_eligible, (SELECT COUNT(*) FROM user_roles r WHERE r.user_id = u.id AND r.role = 'ESPECIALISTA') AS esp FROM users u WHERE email = 'ana.candidata@exemplo.test'`);
     expect([u.academy_eligible, u.esp]).toEqual([1, 1]);
     // Nova sessão com o perfil novo: Academy liberada, ofertas ainda não (credenciamento final é após a Academy)

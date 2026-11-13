@@ -7,6 +7,7 @@ import { dateTime } from '../../lib/format';
 import { Alert, Badge, Empty, ErrorState, Loading } from '../../ui/ui';
 import { IconCalendar, IconCheck, IconDoc, IconHeart, IconStar } from '../../ui/icons';
 import { REQ_STATUS } from './OrdersPages';
+import { PatientPlanSection } from '../carteira/CarteiraPages';
 import { MyFollowupCard } from '../lifescore/LifeScorePages';
 
 const WHEN: Record<string, string> = { AGORA: 'Agora', HOJE: 'Hoje', PROXIMOS_DIAS: 'Nos próximos dias', AGENDAR: 'Data agendada' };
@@ -62,6 +63,7 @@ export function WalletPage() {
           )}
         </section>
       </div>
+      <PatientPlanSection />
       <section className="surface">
         <h2><IconDoc /> Evoluções de enfermagem</h2>
         <p className="small muted">Registros assinados pela especialista ao final de cada atendimento.</p>

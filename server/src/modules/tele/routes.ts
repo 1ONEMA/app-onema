@@ -20,6 +20,7 @@ import { AppError, badRequest, conflict, forbidden, notFound, unprocessable } fr
 import { hmac, rateLimit } from '../../lib/security.ts';
 import { addHours, nowIso, protocol, randomToken, sha256, stableJson, uid } from '../../lib/util.ts';
 import { notify } from '../prime/core.ts';
+import { partnerActive } from '../specialist/validation.ts';
 import { evolutionAiEnabled, FAILURE_TEXT, organizeDictation } from '../care/evolution-ai.ts';
 import {
   EMPTY_TELE_NOTE, JOIN_EARLY_MS, MODALITIES, MODALITY_LABEL, NO_SHOW_POLICY, OFFER_HOURS, RETURN_WINDOW_DAYS, STATUS_LABEL, TELE_CONSENT_PURPOSE,
@@ -32,7 +33,7 @@ const isStaff = (a: { roles: string[] }) => a.roles.some((r) => (STAFF as readon
 const synthetic = (email: string) => /@exemplo\.test$/i.test(email);
 
 async function credentialed(userId: string) {
-  return (await one<any>('SELECT credentialing_decision FROM partner_training_status WHERE partner_id = ?', userId))?.credentialing_decision === 'APTO';
+  return await partnerActive(userId);
 }
 
 /** Homologação: sem aprovação formal, só pacientes sintéticos. */

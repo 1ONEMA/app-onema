@@ -742,6 +742,10 @@ export async function academyAdminRoutes(app: FastifyInstance) {
       if (body.decision === 'APTO') {
         if (p.journey_state !== 'CONCLUIDA') throw conflict('ACADEMY_INCOMPLETE', 'Jornada Academy não concluída: o credenciamento permanece pendente.');
         if (!body.otherGatesConfirmed) throw unprocessable('OTHER_GATES_REQUIRED', 'Confirme que os demais requisitos de credenciamento foram verificados (P-010).');
+        // Cursos e documentação são controles separados: concluir a Academy não libera sem a validação documental aprovada.
+        const sa = await one<any>('SELECT status FROM specialist_applications WHERE user_id = ?', id);
+        const demo = /@exemplo\.test$/i.test((await one<any>('SELECT email FROM users WHERE id = ?', id))?.email ?? '');
+        if (sa ? sa.status !== 'APROVADA' : !demo) throw conflict('DOCUMENTATION_NOT_APPROVED', 'A validação documental (identidade, prova viva e COREN) ainda não está aprovada.');
       }
       await run('UPDATE partner_training_status SET credentialing_decision = ?, decided_by = ?, decided_at = ?, decision_note = ?, updated_at = ? WHERE partner_id = ?',
         body.decision, a.userId, nowIso(), body.note, nowIso(), id);

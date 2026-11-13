@@ -6,6 +6,7 @@ import { dateTime, money } from '../../lib/format';
 import { Alert, Badge, Button, Empty, ErrorState, Loading } from '../../ui/ui';
 import { IconArrowRight, IconAward, IconBook, IconCheck, IconNurse, IconShield, IconStar, IconWallet } from '../../ui/icons';
 import { HeroPattern } from './HomePage';
+import { SpecialistAlertsSection } from '../carteira/CarteiraPages';
 import { SpecialistPanel } from '../care/SpecialistPanel';
 
 const WHEN: Record<string, string> = { AGORA: 'Agora', HOJE: 'Hoje', PROXIMOS_DIAS: 'Próximos dias', AGENDAR: 'Data agendada' };
@@ -82,6 +83,7 @@ function SpecialistArea() {
   return (
     <>
     <SpecialistPanel offers={offers.data} onOffersChange={offers.reload} />
+    <SpecialistAlertsSection />
     <section id="ofertas" className="mt">
       <p className="small muted">{s.note}</p>
       {!s.eligible ? (
