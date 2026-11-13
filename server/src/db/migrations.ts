@@ -1577,4 +1577,11 @@ CREATE INDEX ix_care_alert_events ON care_alert_events(alert_id, created_at);
 CREATE TRIGGER trg_care_alert_events_append BEFORE UPDATE OR DELETE ON care_alert_events FOR EACH ROW EXECUTE FUNCTION onema_append_only();
 ALTER TABLE care_alert_events ENABLE ROW LEVEL SECURITY;
 ` },
+  { name: '024_atendimento_online', sql: `
+-- 024: atendimentos online do catálogo (monitoramento, orientação on-line e atos remotos dos pacotes) pela sala de vídeo
+-- da Telenfermagem: horário combinado, início (entrada da enfermeira) e fim da chamada.
+ALTER TABLE care_events ADD COLUMN call_scheduled_at TEXT;
+ALTER TABLE care_events ADD COLUMN call_started_at TEXT;
+ALTER TABLE care_events ADD COLUMN call_ended_at TEXT;
+` },
 ];

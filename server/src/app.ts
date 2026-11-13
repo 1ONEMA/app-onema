@@ -26,6 +26,7 @@ import { asaasWebhookRoutes } from './modules/payments/asaas-webhook.ts';
 import { visitRoutes } from './modules/care/visit.ts';
 import { teleRoutes } from './modules/tele/routes.ts';
 import { carteiraRoutes } from './modules/carteira/routes.ts';
+import { onlineCallRoutes } from './modules/care/online-call.ts';
 import { primeAdminRoutes } from './modules/prime/admin.ts';
 import { primeRoutes } from './modules/prime/routes.ts';
 
@@ -131,6 +132,7 @@ export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean 
   await app.register(visitRoutes);
   await app.register(teleRoutes);
   await app.register(carteiraRoutes);
+  await app.register(onlineCallRoutes);
 
   app.get('/api/health', async () => ({ ok: true }));
 

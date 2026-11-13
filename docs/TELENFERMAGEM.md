@@ -19,3 +19,9 @@ Coberta em `server/test/tele.test.ts` (API) e `e2e/tele.spec.ts` (jornada na tel
 
 ## Pendências para produção
 Fornecedor WebRTC (contrato, DPA, residência de dados), assinatura eletrônica aplicável, SLA, retenção, tabela de preços real e integração de cobrança, consentimento revisado pelo jurídico, aprovação formal do RT.
+
+## Atendimento online do catálogo (RT, 13/11/2026)
+- Todo atendimento remoto do catálogo (Monitoramento, Orientação on-line e atos remotos dos pacotes) usa a mesma sala de vídeo.
+- A enfermeira combina o horário na tela do atendimento; paciente e enfermeira recebem e-mail com o link (Resend) e aviso no app.
+- Duração máxima `TELE_MAX_MINUTES` (padrão 30): o relógio começa quando a enfermeira entra; a sala do Daily expira e desconecta todos.
+- Episódios de Telenfermagem cobrados usam o valor vigente da Orientação on-line (CONT-01) do catálogo.

@@ -91,7 +91,8 @@ export async function visitRoutes(app: FastifyInstance) {
     const visit = r && ['ACEITO', 'CONCLUIDO'].includes(e.status) ? { patientName: r.patient_name, phone: r.phone, location: r.location,
       address: r.address_sealed ? JSON.parse(openField(r.address_sealed)) : null, whenPref: r.when_pref, whenDate: r.when_date, timeWindow: r.time_window, notes: r.notes } : null;
     return { event: { id: e.id, label: e.label, itemName: e.item_name, modality: e.modality, status: e.status, startedAt: e.started_at,
-        patientSignedAt: e.patient_signed_at, patientSignatureName: e.patient_signature_name, completedAt: e.completed_at }, visit,
+        patientSignedAt: e.patient_signed_at, patientSignatureName: e.patient_signature_name, completedAt: e.completed_at,
+        callScheduledAt: e.call_scheduled_at, callStartedAt: e.call_started_at, callEndedAt: e.call_ended_at }, visit,
       evolution: evolutionView(v), aiEnabled: evolutionAiEnabled() };
   });
 

@@ -193,7 +193,7 @@ export async function careRoutes(app: FastifyInstance) {
     const r = await ownRequest(id, a.userId);
     const orders = await all<any>('SELECT * FROM service_orders WHERE request_id = ? ORDER BY created_at DESC', id);
     const current = orders.find((o) => o.status !== 'FAILED') ?? orders[0];
-    const events = current ? await all<any>(`SELECT e.id, e.seq, e.label, e.modality, e.status, e.completed_at, e.started_at, u.name AS specialist_name,
+    const events = current ? await all<any>(`SELECT e.id, e.seq, e.label, e.modality, e.status, e.completed_at, e.started_at, e.call_scheduled_at, e.call_started_at, e.call_ended_at, u.name AS specialist_name,
         CASE WHEN e.status = 'ACEITO' AND e.started_at IS NULL AND e.modality = 'PRESENCIAL' THEN e.visit_code END AS visit_code,
         (SELECT sa.coren_number || '-' || sa.coren_uf FROM specialist_applications sa WHERE sa.user_id = e.specialist_id AND sa.status = 'APROVADA') AS specialist_coren,
         e.patient_signed_at, e.patient_signature_name, (SELECT v.content_json FROM care_evolutions v WHERE v.event_id = e.id AND v.status = 'ASSINADA') AS evolution_json,

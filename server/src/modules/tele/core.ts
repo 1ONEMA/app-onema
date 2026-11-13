@@ -15,18 +15,19 @@ export const MODALITY_LABEL: Record<(typeof MODALITIES)[number], string> = {
 };
 
 /**
- * Regra comercial versionada (produto + protocolo). Valores de HOMOLOGAÇÃO — a tabela real depende de aprovação.
- * Retorno online dentro da janela de um atendimento presencial concluído é incluído; os demais são cobrados,
- * sempre informados ao paciente antes da confirmação. Nenhuma cobrança é gerada automaticamente neste módulo.
+ * Regra comercial (RT, 13/11/2026): a Telenfermagem segue o escopo e os valores do atendimento online do catálogo.
+ * Retorno online dentro da janela de um atendimento presencial concluído é incluído; os demais são cobrados pelo valor
+ * vigente da "Orientação on-line" (CONT-01, uma interação remota), sempre informado ao paciente antes da confirmação.
+ * Nenhuma cobrança é gerada automaticamente neste módulo.
  */
-export const TELE_PRICES: Record<(typeof MODALITIES)[number], number> = { RETORNO_ONLINE: 7990, MONITORAMENTO: 5990, CONSULTA_REMOTA: 9990 };
+export const ONLINE_CATALOG_CODE = 'CONT-01';
 export const RETURN_WINDOW_DAYS = 30;
-export function pricingDecision(modality: (typeof MODALITIES)[number], origin: { completedAt: string | null } | null, at = Date.now()) {
+export function pricingDecision(modality: (typeof MODALITIES)[number], origin: { completedAt: string | null } | null, onlinePriceCents: number, at = Date.now()) {
   if (modality === 'RETORNO_ONLINE' && origin?.completedAt && at - new Date(origin.completedAt).getTime() <= RETURN_WINDOW_DAYS * 86400000) {
     return { rule: 'INCLUIDO' as const, priceCents: 0, reason: `Retorno incluído: até ${RETURN_WINDOW_DAYS} dias após o atendimento presencial de origem (${TELE_PROTOCOL_VERSION}).` };
   }
-  return { rule: 'COBRADO' as const, priceCents: TELE_PRICES[modality],
-    reason: modality === 'RETORNO_ONLINE' ? `Retorno fora da janela de ${RETURN_WINDOW_DAYS} dias ou sem atendimento de origem concluído.` : 'Serviço remoto avulso.' };
+  return { rule: 'COBRADO' as const, priceCents: onlinePriceCents,
+    reason: `${modality === 'RETORNO_ONLINE' ? `Retorno fora da janela de ${RETURN_WINDOW_DAYS} dias ou sem atendimento de origem concluído. ` : ''}Valor do atendimento online do catálogo (Orientação on-line).` };
 }
 
 export const OFFER_HOURS = 12;          // prazo da oferta antes de redistribuir
