@@ -64,6 +64,14 @@ export async function payoutBlockers(p: any) {
  * Duas aprovações só valem se forem de pessoas independentes: nenhuma delas pode ter concedido perfil à outra
  * (impede que um administrador crie um "segundo aprovador" para si mesmo).
  */
+/**
+ * Operação com uma pessoa (decisão registrada do ADMIN_PRIME): enquanto a ONEMA tem uma só pessoa na operação,
+ * a mesma conta pode validar e autorizar (e fazer as duas aprovações). Pagar o próprio repasse continua proibido.
+ */
+export async function singleOperatorMode(): Promise<boolean> {
+  return (await one<any>(`SELECT value FROM system_settings WHERE key = 'finance_single_operator'`))?.value === '1';
+}
+
 export async function independentApprovers(a: string | null, b: string) {
   if (!a || a === b) return false;
   return !(await one(`SELECT 1 AS ok FROM user_roles WHERE (user_id = ? AND granted_by = ?) OR (user_id = ? AND granted_by = ?)`, a, b, b, a));
@@ -106,7 +114,8 @@ export async function authorizePayout(id: string, actorId: string, correlationId
     const p = await one<any>('SELECT * FROM payout_entries WHERE id = ? FOR UPDATE', id);
     if (!p) throw notFound('Repasse não encontrado.');
     if (p.status !== 'VALIDADO') throw conflict('PAYOUT_NOT_VALIDATED', 'Somente repasses validados podem ser autorizados.');
-    if (p.validated_by === actorId) throw forbidden('Quem validou o atendimento não pode autorizar o pagamento (segregação de funções).', 'SEGREGATION_OF_DUTIES');
+    const single = await singleOperatorMode();
+    if (p.validated_by === actorId && !single) throw forbidden('Quem validou o atendimento não pode autorizar o pagamento (segregação de funções). Se a operação tem uma só pessoa, peça ao administrador para ativar "Operação com uma pessoa" em Repasses.', 'SEGREGATION_OF_DUTIES');
     if (p.specialist_id === actorId) throw forbidden('Você não pode autorizar o seu próprio repasse.', 'SEGREGATION_OF_DUTIES');
     const blockers = await payoutBlockers(p);
     const dest = p.specialist_id ? await currentDestination(p.specialist_id) : null;
@@ -114,7 +123,7 @@ export async function authorizePayout(id: string, actorId: string, correlationId
     if (!dest || dest.status !== 'VERIFICADA') blockers.push('Chave Pix da especialista não verificada.');
     else if (dest.available_from > now) blockers.push(`Chave Pix alterada recentemente: liberada a partir de ${new Date(dest.available_from).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.`);
     if (blockers.length) throw unprocessable('PAYOUT_BLOCKED', `Não é possível autorizar: ${blockers.join(' ')}`, blockers);
-    const needsTwo = p.amount_cents > config.payoutDualApprovalCents;
+    const needsTwo = p.amount_cents > config.payoutDualApprovalCents && !single;
     if (needsTwo && !p.authorized_by) {
       await run('UPDATE payout_entries SET authorized_by = ?, authorized_at = ?, updated_at = ? WHERE id = ?', actorId, now, now, id);
       await audit({ actorId, action: 'PAYOUT_FIRST_APPROVAL', subjectType: 'payout', subjectId: id, correlationId });
@@ -126,7 +135,7 @@ export async function authorizePayout(id: string, actorId: string, correlationId
     await run(`UPDATE payout_entries SET status = 'PROGRAMADO', authorized_by = COALESCE(authorized_by, ?), authorized_at = COALESCE(authorized_at, ?), second_approver_id = ?,
         bank_destination_id = ?, updated_at = ? WHERE id = ?`,
       actorId, now, needsTwo ? actorId : null, dest!.id, now, id);
-    await audit({ actorId, action: 'PAYOUT_AUTHORIZED', subjectType: 'payout', subjectId: id, correlationId, meta: { mode: transfersMode(), dualApproval: needsTwo } });
+    await audit({ actorId, action: 'PAYOUT_AUTHORIZED', subjectType: 'payout', subjectId: id, correlationId, meta: { mode: transfersMode(), dualApproval: needsTwo, singleOperator: single } });
     return { pending: null };
   });
   if (ready.pending) return { status: 'VALIDADO', pending: ready.pending };

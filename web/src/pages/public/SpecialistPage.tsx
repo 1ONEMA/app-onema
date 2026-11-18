@@ -103,7 +103,10 @@ function SpecialistArea() {
                   <div className="row between"><strong>{o.label}</strong><strong className="green-text">{money(o.unit_payout_cents)}</strong></div>
                   <div className="small muted">{o.item_code} · {o.item_name} · {o.modality === 'REMOTO' ? 'remoto' : 'presencial'} · {o.region ?? 'região a confirmar'} · {WHEN[o.when_pref] ?? ''}{o.when_date ? ` ${o.when_date.split('-').reverse().join('/')}` : ''}</div>
                   <div className="small muted">Materiais: {o.materials === 'SIM' ? 'paciente possui' : o.materials === 'NAO' ? 'paciente não possui' : 'a confirmar'}</div>
-                  <Button className="sm deep mt" busy={act.busy} onClick={() => run(`/api/care/specialist/events/${o.id}/accept`)}>Aceitar atendimento</Button>
+                  <div className="row mt">
+                    <Button className="sm deep" busy={act.busy} onClick={() => run(`/api/care/specialist/events/${o.id}/accept`)}>Aceitar atendimento</Button>
+                    <button type="button" className="btn sm secondary" disabled={act.busy} onClick={() => { if (window.confirm('Recusar esta oferta? Ela deixa de aparecer para você e segue para outras especialistas. Não há penalidade.')) run(`/api/care/specialist/events/${o.id}/decline`); }}>Recusar</button>
+                  </div>
                 </li>
               ))}</ul>
             )}

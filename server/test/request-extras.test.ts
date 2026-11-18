@@ -81,6 +81,13 @@ describe('Solicitação: endereço, anexos, orientação de materiais e validade
     const panel = (await sp.get('/api/care/specialist/panel')).body;
     expect(panel).toMatchObject({ status: 'ATIVO_APTO', preferences: { available: true, soundAlerts: true, whatsappAlerts: false } });
     const ev = (await sp.get('/api/care/specialist/offers')).body.offers[0];
+    // recusa sem penalidade: some só para quem recusou
+    const outra = new Client(app); await outra.login(emailOf('especialista'));
+    await run(`INSERT INTO partner_training_status (partner_id, journey_state, credentialing_decision, updated_at) VALUES (?, 'CONCLUIDA', 'APTO', ?) ON CONFLICT (partner_id) DO UPDATE SET credentialing_decision = 'APTO'`,
+      (await one<any>('SELECT id FROM users WHERE email = ?', emailOf('especialista'))).id, new Date().toISOString());
+    expect((await outra.post(`/api/care/specialist/events/${ev.id}/decline`, {})).status).toBe(200);
+    expect((await outra.get('/api/care/specialist/offers')).body.offers.map((o: any) => o.id)).not.toContain(ev.id);
+    expect((await sp.get('/api/care/specialist/offers')).body.offers.map((o: any) => o.id)).toContain(ev.id);
     expect((await sp.put('/api/care/specialist/preferences', { available: false })).body.preferences).toMatchObject({ available: false, soundAlerts: true });
     expect((await sp.get('/api/care/specialist/offers')).body).toMatchObject({ offers: [], available: false });
     expect((await sp.post(`/api/care/specialist/events/${ev.id}/accept`)).body.error.code).toBe('SPECIALIST_UNAVAILABLE');

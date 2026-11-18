@@ -1589,4 +1589,15 @@ ALTER TABLE care_events ADD COLUMN call_ended_at TEXT;
 -- pela própria especialista depois da aprovação (versões anteriores preservadas).
 ALTER TABLE specialist_applications ADD COLUMN address_sealed TEXT;
 ` },
+  { name: '026_recusa_oferta', sql: `
+-- 026: recusa de oferta pela especialista (sem penalidade): a oferta some só para quem recusou e segue para a rede.
+CREATE TABLE specialist_offer_declines (
+  event_id TEXT NOT NULL REFERENCES care_events(id),
+  specialist_id TEXT NOT NULL REFERENCES users(id),
+  reason TEXT,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (event_id, specialist_id)
+);
+ALTER TABLE specialist_offer_declines ENABLE ROW LEVEL SECURITY;
+` },
 ];

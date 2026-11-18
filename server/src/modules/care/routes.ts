@@ -440,13 +440,26 @@ export async function careRoutes(app: FastifyInstance) {
         r.when_pref, r.when_date, r.time_window, r.materials FROM care_events e JOIN service_orders o ON o.id = e.order_id LEFT JOIN care_requests r ON r.id = o.request_id
         LEFT JOIN catalog_items ci ON ci.code = o.item_code
         WHERE e.status = 'DISPONIVEL' AND o.status = 'PAID' ${demoOnly(a) ? DEMO_PATIENT_SQL : ''}
-        ${needs ? `AND (ci.need IS NULL OR ci.need IN (${needs.map(() => '?').join(',')}))` : ''} ORDER BY e.created_at, e.seq LIMIT 100`, ...(needs ?? []));
+        AND NOT EXISTS (SELECT 1 FROM specialist_offer_declines dcl WHERE dcl.event_id = e.id AND dcl.specialist_id = ?)
+        ${needs ? `AND (ci.need IS NULL OR ci.need IN (${needs.map(() => '?').join(',')}))` : ''} ORDER BY e.created_at, e.seq LIMIT 100`, a.userId, ...(needs ?? []));
     const mine = await all<any>(`SELECT e.id, e.label, e.modality, e.unit_payout_cents, e.region, e.status, e.accepted_at, e.completed_at, e.started_at, o.item_code, o.item_name,
         (SELECT v.status FROM care_evolutions v WHERE v.event_id = e.id) AS evolution_status,
         p.status AS payout_status, (SELECT stars FROM specialist_reviews s WHERE s.event_id = e.id) AS stars
         FROM care_events e JOIN service_orders o ON o.id = e.order_id LEFT JOIN payout_entries p ON p.event_id = e.id
         WHERE e.specialist_id = ? ORDER BY e.accepted_at DESC LIMIT 100`, a.userId);
     return { offers, mine, available: prefs.available, rule: 'Aceite livre e recusa sem penalidade. O mesmo enfermeiro não é obrigatório em todos os eventos do pacote.' };
+  });
+
+  /** Recusa livre e sem penalidade: a oferta deixa de aparecer só para quem recusou; continua disponível para a rede. */
+  app.post('/api/care/specialist/events/:id/decline', async (req) => {
+    const a = await specialist(req);
+    const { id } = parse(idParam, req.params);
+    const { reason } = parse(z.object({ reason: z.string().trim().max(300).optional() }), req.body ?? {});
+    const e = await one<any>('SELECT status FROM care_events WHERE id = ?', id);
+    if (!e || e.status !== 'DISPONIVEL') throw conflict('OFFER_UNAVAILABLE', 'Esta oferta não está mais disponível.');
+    await run('INSERT INTO specialist_offer_declines (event_id, specialist_id, reason, created_at) VALUES (?,?,?,?) ON CONFLICT DO NOTHING', id, a.userId, reason || null, nowIso());
+    await audit({ actorId: a.userId, action: 'OFFER_DECLINED', subjectType: 'care_event', subjectId: id, correlationId: req.correlationId });
+    return { ok: true };
   });
 
   app.post('/api/care/specialist/events/:id/accept', async (req) => {
