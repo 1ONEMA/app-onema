@@ -9,6 +9,7 @@ import { dateTime, money } from '../../lib/format';
 import { Alert, Badge, Button, Empty, ErrorState, Field, Loading, PageHeader, fieldError } from '../../ui/ui';
 import { EVO_SECTIONS } from '../care/WalletPage';
 import { useDictation } from '../care/VisitPage';
+import { VideoCall } from '../../ui/VideoCall';
 
 const NOTE_SECTIONS = [...EVO_SECTIONS, ['origemDados', 'Origem dos dados'], ['limitacoes', 'Limitações da avaliação remota']] as const;
 type Note = Record<string, any>;
@@ -38,42 +39,17 @@ function NotesView({ notes }: { notes: any[] }) {
   );
 }
 
-/**
- * Sala do teleatendimento: pede o acesso pessoal (10 min), confere no servidor e abre o vídeo.
- * Com o Daily configurado, o vídeo real abre aqui mesmo (sala privada, sem gravação); sem ele, sala simulada de homologação.
- * A entrada da enfermeira inicia o atendimento.
- */
+/** Sala do teleatendimento: acesso pessoal de 10 min conferido no servidor; a entrada da enfermeira inicia o atendimento. */
 function Room({ id, onChange }: { id: string; onChange: () => void }) {
   const tok = useSubmit<any>(); const join = useSubmit<any>();
-  const [inside, setInside] = useState<{ room: string; url: string | null } | null>(null);
-  const [secs, setSecs] = useState(0);
-  useEffect(() => { if (!inside) return; const t = window.setInterval(() => setSecs((s) => s + 1), 1000); return () => window.clearInterval(t); }, [inside]);
-  async function enter() {
+  return <VideoCall busy={tok.busy || join.busy} error={tok.error ?? join.error} onLeave={onChange} enter={async () => {
     const t = await tok.run('POST', `/api/tele/episodes/${id}/video-token`);
-    if (!t) return;
+    if (!t) return null;
     const j = await join.run('POST', `/api/tele/episodes/${id}/join`, { token: t.token });
-    if (j) { setInside({ room: t.room, url: j.video?.url ?? null }); setSecs(0); onChange(); }
-  }
-  if (inside) {
-    return (
-      <div className="tele-room" role="region" aria-label="Sala de teleatendimento">
-        {inside.url ? (
-          <iframe className="tele-video" src={inside.url} title="Vídeo do teleatendimento" allow="camera; microphone; fullscreen; display-capture; autoplay" />
-        ) : (
-          <div className="tele-room-screen"><span>Sala simulada · {inside.room}</span><strong>{String(Math.floor(secs / 60)).padStart(2, '0')}:{String(secs % 60).padStart(2, '0')}</strong><span className="small">Sem gravação</span></div>
-        )}
-        <p className="small muted mt">Atendimento sem gravação. Se a imagem ou o som falharem, saia e entre de novo; persistindo, a enfermeira registra a queda de conexão.</p>
-        <button type="button" className="btn secondary sm" onClick={() => setInside(null)}>Sair da sala</button>
-      </div>
-    );
-  }
-  return (
-    <div>
-      <Alert error={tok.error ?? join.error} />
-      <Button className="deep" busy={tok.busy || join.busy} onClick={enter}>Entrar na sala</Button>
-      <p className="small muted mt">Permita o uso da câmera e do microfone quando o navegador pedir. O acesso é pessoal e vale por 10 minutos. Não compartilhe o link nem use WhatsApp pessoal para o atendimento.</p>
-    </div>
-  );
+    if (!j) return null;
+    onChange();
+    return j.video;
+  }} />;
 }
 
 // ---------------- Paciente ----------------

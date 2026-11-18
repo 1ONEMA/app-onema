@@ -19,7 +19,7 @@ import { sendEmail } from '../../lib/email.ts';
 import { openField } from '../../lib/security.ts';
 import { notify } from '../prime/core.ts';
 import {
-  PAYOUT_LABEL, applyTransferStatus, authorizePayout, independentApprovers, currentDestination, maskPixKey, notifyRole, payoutBlockers, resolveOccurrence,
+  PAYOUT_LABEL, applyTransferStatus, authorizePayout, independentApprovers, singleOperatorMode, currentDestination, maskPixKey, notifyRole, payoutBlockers, resolveOccurrence,
   resolveUncertain, sendTransfer, validatePayout,
 } from './payouts.ts';
 import { REFUND_LABEL, decideRefund, refundView, requestRefund } from './refunds.ts';
@@ -223,6 +223,20 @@ export async function financeRoutes(app: FastifyInstance) {
   });
 
   /** Conferência da chave Pix. Troca de chave exige segunda aprovação de outra pessoa (FINANCEIRO ou ADMIN_PRIME). */
+  /** Operação com uma pessoa: liga/desliga com justificativa (ADMIN_PRIME), tudo auditado. */
+  app.get('/api/admin/finance/settings', async (req) => {
+    requireRoles(req, ['FINANCEIRO', 'ADMIN_PRIME', 'OPERADOR_CENTRAL', 'AVALIADOR_RT', 'AUDITOR']);
+    const r = await one<any>(`SELECT value, created_at FROM system_settings WHERE key = 'finance_single_operator'`);
+    return { singleOperator: r?.value === '1', dualApprovalAboveCents: config.payoutDualApprovalCents };
+  });
+  app.put('/api/admin/finance/settings/single-operator', async (req) => {
+    const a = requireRoles(req, ['ADMIN_PRIME']);
+    const b = parse(z.object({ enabled: z.boolean(), note: z.string().trim().min(10, 'Registre a justificativa (mínimo 10 caracteres).').max(500) }), req.body);
+    await run(`INSERT INTO system_settings (key, value, created_at) VALUES ('finance_single_operator', ?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, b.enabled ? '1' : '0', nowIso());
+    await audit({ actorId: a.userId, action: b.enabled ? 'FINANCE_SINGLE_OPERATOR_ON' : 'FINANCE_SINGLE_OPERATOR_OFF', subjectType: 'system', subjectId: 'finance_single_operator', correlationId: req.correlationId, meta: { note: b.note } });
+    return { singleOperator: b.enabled };
+  });
+
   app.post('/api/admin/finance/bank-destinations/:id/verify', async (req) => {
     const a = requireRoles(req, ['FINANCEIRO', 'ADMIN_PRIME']);
     const { id } = parse(idParam, req.params);
@@ -236,8 +250,9 @@ export async function financeRoutes(app: FastifyInstance) {
         await run(`UPDATE bank_destinations SET status = 'RECUSADA', verified_by = ?, decision_note = ?, verified_at = ?, updated_at = ? WHERE id = ?`, a.userId, b.note, now, now, id);
         await notify(d.specialist_id, 'ESSENCIAL', 'Chave Pix não confirmada', `A Central não confirmou sua chave Pix: ${b.note}. Cadastre uma chave em seu nome (de preferência o seu CPF).`);
       } else if (!d.verified_by) {
-        if (!a.roles.includes('FINANCEIRO')) throw forbidden('A primeira conferência é do Financeiro.');
-        if (d.is_change) {
+        const single = await singleOperatorMode();
+        if (!a.roles.includes('FINANCEIRO') && !single) throw forbidden('A primeira conferência é do Financeiro.');
+        if (d.is_change && !single) {
           await run('UPDATE bank_destinations SET verified_by = ?, decision_note = ?, updated_at = ? WHERE id = ?', a.userId, b.note, now, id);
           await notifyRole(['ADMIN_PRIME'], 'Troca de chave Pix: segunda aprovação', 'Uma troca de chave Pix foi conferida pelo Financeiro e aguarda a sua aprovação.');
           await audit({ actorId: a.userId, action: 'BANK_DESTINATION_FIRST_APPROVAL', subjectType: 'bank_destination', subjectId: id, correlationId: req.correlationId });
@@ -245,7 +260,7 @@ export async function financeRoutes(app: FastifyInstance) {
         }
         await run(`UPDATE bank_destinations SET status = 'VERIFICADA', verified_by = ?, decision_note = ?, verified_at = ?, updated_at = ? WHERE id = ?`, a.userId, b.note, now, now, id);
       } else {
-        if (!(await independentApprovers(d.verified_by, a.userId))) throw forbidden('A segunda aprovação precisa ser de outra pessoa, independente de quem fez a primeira.', 'SEGREGATION_OF_DUTIES');
+        if (!(await singleOperatorMode()) && !(await independentApprovers(d.verified_by, a.userId))) throw forbidden('A segunda aprovação precisa ser de outra pessoa, independente de quem fez a primeira.', 'SEGREGATION_OF_DUTIES');
         await run(`UPDATE bank_destinations SET status = 'VERIFICADA', second_approver_id = ?, verified_at = ?, decision_note = ?, updated_at = ? WHERE id = ?`, a.userId, now, `${d.decision_note ?? ''} | ${b.note}`.slice(0, 500), now, id);
       }
       await audit({ actorId: a.userId, action: b.approve ? 'BANK_DESTINATION_VERIFIED' : 'BANK_DESTINATION_REJECTED', subjectType: 'bank_destination', subjectId: id, correlationId: req.correlationId });

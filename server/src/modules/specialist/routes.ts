@@ -26,7 +26,26 @@ const DOC_KINDS = ['FOTO', 'PROVA_VIVA', 'IDENTIDADE', 'COREN', 'DIPLOMA_FRENTE'
 /** Obrigatórios para enviar a candidatura (ajustes após testes, 04/11/2026). Certificados e comprovante são opcionais. */
 // Validação de parceiros (12/10/2026): foto de prova viva (segurando o mesmo documento ao lado do rosto) também é obrigatória.
 export const REQUIRED_DOCS = ['FOTO', 'PROVA_VIVA', 'IDENTIDADE', 'COREN', 'DIPLOMA_FRENTE', 'DIPLOMA_VERSO'] as const;
-export const CATEGORIES = ['ENFERMEIRO', 'TECNICO_ENFERMAGEM'] as const;
+// Rede ONEMA ONE: somente Enfermeiras(os) (RT, 16/11/2026). Cadastros antigos com outra categoria aparecem sinalizados na análise.
+export const CATEGORIES = ['ENFERMEIRO'] as const;
+/** Declaração eletrônica de veracidade (texto do RT, 16/11/2026). Aceite obrigatório, registrado com versão e hash. */
+export const DECLARATION = {
+  code: 'DECLARACAO_VERACIDADE_ESPECIALISTA', version: 'v1.0 (16/11/2026)', title: 'Declaração de Veracidade',
+  paragraphs: [
+    'Declaro, sob minha responsabilidade, que as informações pessoais, profissionais e de endereço fornecidas à ONEMA SAÚDE são verdadeiras, completas e atualizadas.',
+    'Comprometo-me a comunicar eventuais alterações e estou ciente de que informações falsas ou inconsistentes poderão resultar em medidas de verificação, suspensão ou encerramento da parceria, conforme os termos aplicáveis.',
+  ],
+};
+const addressSchema = z.object({
+  cep: z.string().trim().regex(/^\d{5}-?\d{3}$/, 'CEP inválido.'),
+  street: z.string().trim().min(3, 'Informe o logradouro.').max(120),
+  number: z.string().trim().max(20).optional().default(''),
+  noNumber: z.boolean().optional().default(false),
+  complement: z.string().trim().max(80).optional().default(''),
+  district: z.string().trim().min(2, 'Informe o bairro.').max(80),
+  city: z.string().trim().min(2, 'Informe a cidade.').max(80),
+  uf: z.enum(UFS),
+}).refine((a) => a.noNumber || a.number.length > 0, { message: 'Informe o número ou marque "sem número".', path: ['number'] });
 const DOC_LABEL: Record<string, string> = {
   FOTO: 'foto', PROVA_VIVA: 'foto de prova viva (você segurando o documento)', IDENTIDADE: 'identidade com CPF', COREN: 'carteira do COREN', DIPLOMA_FRENTE: 'diploma (frente)', DIPLOMA_VERSO: 'diploma (verso)',
 };
@@ -49,14 +68,15 @@ const appSchema = z.object({
   cpf: z.string().trim().refine(validCpf, 'CPF inválido.').transform((v) => v.replace(/\D/g, '')).optional(),
   corenNumber: z.string().trim().regex(/^[0-9]{3,9}(-?[A-Z]{2,4})?$/i, 'Informe o número do COREN (somente números, com a categoria se houver).'),
   corenUf: z.enum(UFS),
-  professionalCategory: z.enum(CATEGORIES, { message: 'Informe a categoria profissional.' }),
+  professionalCategory: z.enum(CATEGORIES, { message: 'A rede ONEMA ONE é formada somente por Enfermeiras(os).' }).default('ENFERMEIRO'),
+  address: addressSchema,
   states: z.array(z.enum(UFS)).min(1, 'Informe ao menos um estado em que pretende atender.').max(27),
   phone: z.string().trim().regex(/^[0-9()+\-\s]{10,20}$/, 'Informe um telefone com DDD.'),
   regions: z.string().trim().min(3, 'Informe as regiões ou bairros em que pode atender.').max(300),
   needs: z.array(z.enum(NEEDS.map((n) => n.key) as [string, ...string[]])).min(1, 'Escolha ao menos uma área de atendimento.'),
   availability: z.string().trim().max(400).optional().default(''),
   // Ajustes 05/11/2026: duas caixas separadas, desmarcadas (veracidade do cadastro + Termo LGPD do especialista).
-  consent: z.literal(true, { message: 'Confirme que as informações e os documentos são verdadeiros.' }),
+  consent: z.literal(true, { message: 'Leia e aceite a Declaração de Veracidade para continuar.' }),
   dataTerm: z.literal(true, { message: 'Leia e aceite o Termo de Proteção de Dados, Sigilo e Responsabilidades.' }),
 });
 
@@ -78,6 +98,7 @@ async function ownView(a: any, docs: any[]) {
   return {
     id: a.id, status: a.status, fullName: a.full_name, cpfMasked: maskCpf(openField(a.cpf)), corenNumber: a.coren_number, corenUf: a.coren_uf, phone: a.phone,
     professionalCategory: a.professional_category, states: a.states_json ? JSON.parse(a.states_json) : [],
+    address: a.address_sealed ? JSON.parse(openField(a.address_sealed)) : null,
     regions: a.regions, needs: JSON.parse(a.needs_json), availability: a.availability, submittedAt: a.submitted_at, decisionNote: a.decision_note,
     decidedAt: a.decided_at, documents: docs, missingDocuments: REQUIRED_DOCS.filter((k) => !docs.some((d) => d.kind === k)),
     partnerState: ps.state, partnerStateLabel: PARTNER_STATE_LABEL[ps.state], reviewReason: a.review_reason, nextRevalidationAt: a.next_revalidation_at,
@@ -90,7 +111,7 @@ export async function specialistRoutes(app: FastifyInstance) {
   app.get('/api/specialist/application', async (req) => {
     const a = requireUser(req);
     const row = await one<any>('SELECT * FROM specialist_applications WHERE user_id = ?', a.userId);
-    return { application: row ? await ownView(row, await docsOf(row.id)) : null, needs: NEEDS.map((n) => ({ key: n.key, title: n.title })), ufs: UFS, privacyNotice: PRIVACY_NOTICE };
+    return { application: row ? await ownView(row, await docsOf(row.id)) : null, needs: NEEDS.map((n) => ({ key: n.key, title: n.title })), ufs: UFS, privacyNotice: PRIVACY_NOTICE, declaration: DECLARATION };
   });
 
   app.put('/api/specialist/application', async (req) => {
@@ -107,12 +128,17 @@ export async function specialistRoutes(app: FastifyInstance) {
         throw conflict('CPF_IN_USE', 'Já existe uma candidatura com este CPF. Fale com a Central ONEMA.');
       }
       if (cur) {
-        await run(`UPDATE specialist_applications SET full_name = ?, cpf = ?, cpf_hash = ?, coren_number = ?, coren_uf = ?, professional_category = ?, states_json = ?, phone = ?, regions = ?, needs_json = ?, availability = ?, updated_at = ? WHERE id = ?`,
-          b.fullName, sealField(cpf), cpfHash, b.corenNumber.toUpperCase(), b.corenUf, b.professionalCategory, JSON.stringify(b.states), b.phone, b.regions, JSON.stringify(b.needs), b.availability, now, cur.id);
+        await run(`UPDATE specialist_applications SET full_name = ?, cpf = ?, cpf_hash = ?, coren_number = ?, coren_uf = ?, professional_category = ?, states_json = ?, phone = ?, regions = ?, needs_json = ?, availability = ?, address_sealed = ?, updated_at = ? WHERE id = ?`,
+          b.fullName, sealField(cpf), cpfHash, b.corenNumber.toUpperCase(), b.corenUf, b.professionalCategory, JSON.stringify(b.states), b.phone, b.regions, JSON.stringify(b.needs), b.availability, sealField(JSON.stringify(b.address)), now, cur.id);
       } else {
-        await run(`INSERT INTO specialist_applications (id, user_id, full_name, cpf, cpf_hash, coren_number, coren_uf, professional_category, states_json, phone, regions, needs_json, availability, status, created_at, updated_at)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, uid(), a.userId, b.fullName, sealField(cpf), cpfHash, b.corenNumber.toUpperCase(), b.corenUf, b.professionalCategory, JSON.stringify(b.states),
-          b.phone, b.regions, JSON.stringify(b.needs), b.availability, 'RASCUNHO', now, now);
+        await run(`INSERT INTO specialist_applications (id, user_id, full_name, cpf, cpf_hash, coren_number, coren_uf, professional_category, states_json, phone, regions, needs_json, availability, address_sealed, status, created_at, updated_at)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, uid(), a.userId, b.fullName, sealField(cpf), cpfHash, b.corenNumber.toUpperCase(), b.corenUf, b.professionalCategory, JSON.stringify(b.states),
+          b.phone, b.regions, JSON.stringify(b.needs), b.availability, sealField(JSON.stringify(b.address)), 'RASCUNHO', now, now);
+      }
+      // Declaração de veracidade: usuário, data/hora, versão e hash do texto aceito (uma vez por versão).
+      if (!(await one(`SELECT 1 AS ok FROM legal_acceptances WHERE user_id = ? AND code = ? AND version = ?`, a.userId, DECLARATION.code, DECLARATION.version))) {
+        await run('INSERT INTO legal_acceptances (id, user_id, code, version, content_hash, context, accepted_at) VALUES (?,?,?,?,?,?,?)', uid(), a.userId, DECLARATION.code,
+          DECLARATION.version, sha256(DECLARATION.paragraphs.join('\n')), 'CANDIDATURA_ONEMA_ONE', now);
       }
       // Aceite do Termo LGPD do especialista: versão e hash do texto vigente (só registra de novo se a versão mudou).
       const term = await one<any>(`SELECT version FROM legal_texts WHERE code = 'TERMO_ESPECIALISTA' ORDER BY created_at DESC LIMIT 1`);
@@ -182,6 +208,8 @@ export async function specialistRoutes(app: FastifyInstance) {
       const missing = REQUIRED_DOCS.filter((k) => !docs.some((d) => d.kind === k));
       if (missing.length) throw unprocessable('DOCUMENTS_REQUIRED', `Envie os documentos obrigatórios: ${missing.map((m) => DOC_LABEL[m]).join(', ')}.`);
       const now = nowIso();
+      if (!row.address_sealed) throw unprocessable('ADDRESS_REQUIRED', 'Informe o endereço residencial completo e salve os dados.');
+      if (row.professional_category !== 'ENFERMEIRO') throw unprocessable('CATEGORY_NOT_ALLOWED', 'A rede ONEMA ONE é formada somente por Enfermeiras(os).');
       if (!row.professional_category || !row.states_json) throw unprocessable('PROFESSIONAL_DATA_REQUIRED', 'Informe a categoria profissional e os estados em que pretende atender e salve os dados.');
       await run(`UPDATE specialist_applications SET status = 'ENVIADA', submitted_at = ?, updated_at = ? WHERE id = ?`, now, now, row.id);
       await event(row.id, a.userId, 'ENVIADA', null, row.review_reason);
@@ -210,6 +238,38 @@ export async function specialistRoutes(app: FastifyInstance) {
       const r2 = (await one<any>('SELECT * FROM specialist_applications WHERE id = ?', row.id))!;
       return { application: await ownView(r2, await docsOf(row.id)) };
     });
+  });
+
+  /** Foto de perfil: a própria especialista vê e troca quando quiser (a anterior fica preservada como versão). */
+  app.get('/api/specialist/photo', async (req, reply) => {
+    const a = requireUser(req);
+    const d = await one<any>(`SELECT d.* FROM specialist_documents d JOIN specialist_applications sa ON sa.id = d.application_id
+      WHERE sa.user_id = ? AND d.kind = 'FOTO' AND d.superseded_at IS NULL AND d.removed_at IS NULL ORDER BY d.created_at DESC LIMIT 1`, a.userId);
+    if (!d || !d.mime.startsWith('image/')) throw notFound('Foto não enviada.');
+    const buf = await getObject(d.storage_key);
+    if (!buf || sha256(buf) !== d.sha256) throw notFound('Foto não disponível.');
+    reply.header('Content-Type', d.mime); reply.header('Cache-Control', 'private, no-store');
+    return reply.send(buf);
+  });
+  app.put('/api/specialist/photo', async (req) => {
+    const a = requireUser(req);
+    const row = await one<any>('SELECT * FROM specialist_applications WHERE user_id = ?', a.userId);
+    if (!row || row.status === 'RECUSADA') throw unprocessable('APPLICATION_REQUIRED', 'Preencha sua candidatura antes de enviar a foto.');
+    let file: { filename: string; buf: Buffer } | null = null;
+    for await (const p of req.parts({ limits: { fileSize: MAX_DOC_BYTES + 1, files: 1 } })) if (p.type === 'file') file = { filename: p.filename, buf: await p.toBuffer() };
+    if (!file || !file.buf.length) throw badRequest('FILE_REQUIRED', 'Selecione uma foto.');
+    if (file.buf.length > MAX_DOC_BYTES) throw badRequest('FILE_TOO_LARGE', 'A foto deve ter no máximo 5 MB.');
+    const mime = sniffDocMime(file.buf);
+    if (!mime || !mime.startsWith('image/')) throw badRequest('FILE_TYPE', 'Envie a foto em JPG, PNG ou WEBP.');
+    const id = uid(), key = `specialist-doc-${id}`, now = nowIso();
+    await putObject(key, file.buf);
+    await tx(async () => {
+      await run(`UPDATE specialist_documents SET superseded_at = ? WHERE application_id = ? AND kind = 'FOTO' AND superseded_at IS NULL AND removed_at IS NULL`, now, row.id);
+      await run(`INSERT INTO specialist_documents (id, application_id, kind, filename, mime, size_bytes, sha256, storage_key, created_at) VALUES (?,?,'FOTO',?,?,?,?,?,?)`,
+        id, row.id, path.basename(file!.filename).slice(0, 150), mime, file!.buf.length, sha256(file!.buf), key, now);
+    });
+    await audit({ actorId: a.userId, action: 'SPECIALIST_PHOTO_CHANGED', subjectType: 'specialist_application', subjectId: row.id, correlationId: req.correlationId });
+    return { ok: true, updatedAt: now };
   });
 
   // ---------- Credenciamento ----------
@@ -256,6 +316,8 @@ export async function specialistRoutes(app: FastifyInstance) {
       out.push({
         id: r.id, userId: r.user_id, email: r.email, status: r.status, fullName: r.full_name, cpf: fullCpf ? openField(r.cpf) : maskCpf(openField(r.cpf)),
         corenNumber: r.coren_number, corenUf: r.coren_uf, professionalCategory: r.professional_category, states: r.states_json ? JSON.parse(r.states_json) : [],
+        categoryIncompatible: !!r.professional_category && r.professional_category !== 'ENFERMEIRO',
+        address: r.address_sealed && a.roles.some((x) => ['CREDENCIAMENTO', 'AVALIADOR_RT', 'ADMIN_ACADEMY'].includes(x)) ? JSON.parse(openField(r.address_sealed)) : null,
         phone: r.phone, regions: r.regions, needs: JSON.parse(r.needs_json), availability: r.availability,
         submittedAt: r.submitted_at, decisionNote: r.decision_note, decidedAt: r.decided_at, reviewReason: r.review_reason, nextRevalidationAt: r.next_revalidation_at,
         suspendedReason: r.suspended_reason, partnerState: ps.state, partnerStateLabel: PARTNER_STATE_LABEL[ps.state],
@@ -380,6 +442,7 @@ export async function specialistRoutes(app: FastifyInstance) {
         if (missing.length) throw unprocessable('VERIFICATION_REQUIRED', 'Registre como "conferida" a prova viva, a identidade e a inscrição no COREN antes de aprovar.', { missing });
         const docs = await docsOf(id);
         if (REQUIRED_DOCS.some((k) => !docs.some((d) => d.kind === k))) throw unprocessable('DOCUMENTS_REQUIRED', 'Faltam documentos obrigatórios no cadastro.');
+        if (row.professional_category && row.professional_category !== 'ENFERMEIRO') throw unprocessable('CATEGORY_NOT_ALLOWED', 'A rede ONEMA ONE é formada somente por Enfermeiras(os). Solicite correção ou reprove o cadastro.');
       }
       const now = nowIso();
       const next = b.decision === 'APROVADA' ? new Date(Date.now() + revalidationDays() * 86400000).toISOString() : row.next_revalidation_at;

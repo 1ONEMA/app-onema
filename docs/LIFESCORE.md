@@ -1,29 +1,12 @@
-# ONEMA Life Score v1.6 — integração no app
+# ONEMA Life Score — modelo OLS-8-HOM-0.1 (especificação v0.4)
 
-Base: pacote `ONEMA_LifeScore_v1_6_Pacote_Desenvolvimento.zip` e "Comando de integração, telas e homologação" (Marcos Alves, RT, 09/11/2026).
-Modelo ativo **OLS-DESC-ITEM24-1.0**, tabela de 24 itens sem alterações (SHA-256 `c14a255e…d4fa90`, conferido em teste).
-Índice **descritivo** de 0 a 100 a partir das respostas confirmadas pela enfermeira. Não é percentual de saúde, diagnóstico, risco ou prognóstico.
+Homologação. Índice descritivo 0–100; não é percentual de saúde, risco ou prognóstico; não define conduta, urgência ou retorno.
 
-## O que foi implementado
-- **Núcleo** (`server/src/modules/lifescore/core.ts`): porte fiel de `core.mjs`/`release.mjs`. Bateria oficial: FIC01 = 100,00; FIC02 = 63,75; FIC03 = não calculável com prioridade preservada; FIC01 com D07-I04 em L3 = 99,06.
-- **Especialista** (atendimento › Life Score): 24 itens com descrições L0–L4, "não avaliado", "qualidade inadequada", "recusado", "desconhecido" e "não se aplica" (só D03-I02, D03-I03, D04-I03, com justificativa). Evolução do atendimento visível como fonte; nada preenchido automaticamente. "Salvar rascunho" ≠ "Finalizar e publicar". Prévia com número e domínios. Interpretação profissional, resumo ao paciente e plano (retorno com data — atalhos 30/60/90 dias ou data livre, sem pré-seleção; sem retorno; definir depois com justificativa). Encerrar sem score com justificativa. Controle de concorrência e publicação idempotente.
-- **Preocupação de segurança**: botão próprio, salva na hora (independe do formulário e do score) e avisa RT e Central.
-- **Paciente**: card "Meu acompanhamento" na Carteira e página com domínios, histórico, comparação só entre avaliações equivalentes, próximo passo e "Solicitar atendimento". Antes da primeira avaliação: "Seu acompanhamento estará disponível após uma avaliação de enfermagem finalizada." Rascunho e prévia nunca aparecem.
-- **Responsável autorizado** (permissão "Documentos"): vê o mesmo acompanhamento publicado.
-- **Central/RT** (Gestão › Life Score): filtros (situação, paciente/profissional, período), em andamento/publicadas/pendentes há +24 h, retornos, preocupações de segurança abertas com registro de tratamento, lembretes e falhas. Operação/Admin/Auditor veem só estados; o conteúdo clínico é do RT (acesso auditado).
-- **Retificação**: nova versão com motivo; a original fica no histórico como "retificada". Publicada é imutável no banco.
-- **Lembretes PRIME**: até 3 contatos (D-7, D e D+7) às 9h de São Paulo; sem retroativos; no próprio dia após 9h usa o próximo horário (até 18h). Rechecagem antes de cada envio: PRIME ativo, lembretes ativos nas preferências, plano vigente, sem pedido pago depois do plano e sem recusa. Mensagem discreta, sem pontuação. Até 3 retentativas técnicas em 24 h. Estados: programado, em processamento, enviado, falhou, pulado, cancelado.
-- **Suspensão** (RT): cálculo e/ou lembretes, com justificativa. Avaliações anteriores continuam acessíveis; assistência e preocupações seguem.
-
-## Liberação operacional (antes de usar com pacientes reais)
-- Contas fictícias (`@exemplo.test`) rodam em **homologação** e calculam normalmente.
-- Pacientes reais só têm número calculado depois que o RT registra a **liberação operacional** (Gestão › Life Score › Registrar liberação), com a referência do relatório de homologação e da aprovação do RT. O registro é assinado no servidor (HMAC) e vale para este modelo e esta versão do módulo; pode ser revogado.
-
-## Decisões de implementação para o RT confirmar
-- **Lembretes**: segui o Comando de 09/11 (D-7, D, D+7 às 9h). O pacote v1.6 descrevia D-3, D, D+3 às 10h.
-- **Comparação**: "episódio" = acompanhamento contínuo do paciente na ONEMA; contexto de medida = domiciliar ou remoto; conjunto de tarefas = 24 itens v1. Comparação numérica só com mesma composição de itens aplicáveis e mesmo contexto.
-- **Agendamento** que encerra os lembretes = pedido pago após a publicação do plano.
-- Canais: notificação no app e e-mail (se configurado). WhatsApp segue desligado.
-
-## Homologação sugerida (Marcos)
-U01–U16 do pacote com contas fictícias: paciente, responsável, especialista, RT e operador. Registrar ID, resultado esperado/obtido, evidência e versão. Propor ativação controlada nos primeiros 30 atendimentos.
+- **Modelo** (`server/src/modules/lifescore/model8.ts`): 4 domínios × 2 itens (C 30, A 20, S 30, K 20). R3 = 1, R2 = 2/3, R1 = 1/3, R0 = 0; contribuição = peso ÷ 2 × fração; domínio = média das frações × 100. Precisão interna; exibição com 2 casas.
+- **Bloqueios**: não avaliado, desconhecido, recusa, informação inadequada, contexto ausente (tarefa A1, atividades A2, objetos S1, ferida S2, executor K1) e R0 sem fundamento bloqueiam o global (nunca zero). Domínios completos aparecem como parciais.
+- **Revisão**: R0 em C1/C2/S1/S2 destaca pendência para revisão profissional, sem diagnóstico automático.
+- **Segurança**: registro independente (descrição, prioridade imediata/prioritária/rotina, ação, responsável, situação), salvo sem score.
+- **Telas**: especialista (domínio 1 de 4, sem pré-seleção, legenda recolhível só nas telas profissionais, revisar e publicar com confirmação), paciente (card "Meu acompanhamento" com o texto institucional exato; "Seu próximo cuidado" com Solicitar atendimento, Lembrar depois, Já agendei, Não quero retornar), RT (Gestão › Life Score: filtros, continuidade, providências, registros de teste esperado × observado, liberação separada).
+- **Guardian**: −7/0/+7 às 9h (São Paulo), máx. 3 contatos, só PRIME e canal autorizado; contratação confirmada não é sobrescrita; limite sem resposta vira pendência operacional.
+- **Modelo anterior (24 itens)**: arquivado; registros antigos (se houver) aparecem separados, sem recálculo. A Gestão mostra a contagem.
+- Testes: `server/test/lifescore.test.ts` (gabaritos SIM8-01 a SIM8-08 e fluxos).

@@ -2,6 +2,7 @@ import { PendingPayment } from '../../ui/AsaasPay';
 import { EVO_SECTIONS } from './WalletPage';
 import { Fragment, useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { VideoCall } from '../../ui/VideoCall';
 import { useApi, useSubmit } from '../../lib/hooks';
 import { dateTime, label, money } from '../../lib/format';
 import { Alert, Badge, Button, Empty, ErrorState, Field, Loading, PageHeader, fieldError } from '../../ui/ui';
@@ -168,6 +169,7 @@ export function RequestDetailPage() {
                       onError={(ev) => { (ev.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                   )}
                   {e.specialist_coren && <div className="small muted">COREN {e.specialist_coren} · especialista validada pela Central ONEMA</div>}
+                  {e.modality === 'REMOTO' && e.status === 'ACEITO' && <PatientOnlineCall e={e} />}
                   {e.visit_code && (
                     <div className="visit-code" role="status">
                       <span className="small">Código de início da visita</span>
@@ -249,5 +251,18 @@ function GuidanceCard({ request: r, onDone }: { request: any; onDone: () => void
       {g.status === 'MATERIAIS_CONFIRMADOS' && <p className="small success mb0"><IconCheck size={14} /> Você confirmou que providenciou os materiais em {dateTime(g.materialsConfirmedAt)}.</p>}
       <Alert error={send.error} />
     </section>
+  );
+}
+
+/** Paciente: atendimento online (sala de vídeo da Telenfermagem, até 30 min, sem gravação). */
+function PatientOnlineCall({ e }: { e: any }) {
+  const call = useSubmit<any>();
+  if (e.call_ended_at) return <p className="small muted">Atendimento online realizado.</p>;
+  if (!e.call_scheduled_at) return <p className="small muted">Atendimento online: a enfermeira vai combinar o horário e você recebe o link por e-mail e aqui no app.</p>;
+  return (
+    <div className="mt">
+      <p className="small">Atendimento online marcado para <strong>{dateTime(e.call_scheduled_at)}</strong>. A sala abre 30 minutos antes.</p>
+      <VideoCall busy={call.busy} error={call.error} enter={async () => { const r = await call.run('POST', `/api/care/events/${e.id}/call`); return r ? r.video : null; }} />
+    </div>
   );
 }

@@ -36,11 +36,12 @@ export function ApplicationPage() {
   const [upErr, setUpErr] = useState<ApiError | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
   const reopen = useSubmit<any>();
-  const [f, setF] = useState({ fullName: '', cpf: '', corenNumber: '', corenUf: 'SP', professionalCategory: 'ENFERMEIRO', states: ['SP'] as string[], phone: '', regions: '', needs: [] as string[], availability: '', consent: false, dataTerm: false });
+  const [f, setF] = useState({ fullName: '', cpf: '', corenNumber: '', corenUf: 'SP', professionalCategory: 'ENFERMEIRO', states: ['SP'] as string[],
+    address: { cep: '', street: '', number: '', noNumber: false, complement: '', district: '', city: 'São Paulo', uf: 'SP' }, phone: '', regions: '', needs: [] as string[], availability: '', consent: false, dataTerm: false });
   useEffect(() => { document.title = 'Candidatura ONEMA ONE · ONEMA SAÚDE'; }, []);
   useEffect(() => {
     const a = data?.application;
-    if (a) setF((x) => ({ ...x, fullName: a.fullName, corenNumber: a.corenNumber, corenUf: a.corenUf, professionalCategory: a.professionalCategory ?? 'ENFERMEIRO', states: a.states?.length ? a.states : [a.corenUf], phone: a.phone, regions: a.regions, needs: a.needs, availability: a.availability ?? '' }));
+    if (a) setF((x) => ({ ...x, fullName: a.fullName, corenNumber: a.corenNumber, corenUf: a.corenUf, professionalCategory: 'ENFERMEIRO', address: a.address ?? x.address, states: a.states?.length ? a.states : [a.corenUf], phone: a.phone, regions: a.regions, needs: a.needs, availability: a.availability ?? '' }));
   }, [data?.application?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (loading && !data) return <Loading />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -95,13 +96,25 @@ export function ApplicationPage() {
               <input type="text" inputMode="numeric" autoComplete="off" value={f.cpf} onChange={(e) => setF({ ...f, cpf: e.target.value })} placeholder="000.000.000-00" /></Field>
             <Field label="Número do COREN" error={fieldError(save.error, 'corenNumber')}><input type="text" value={f.corenNumber} onChange={(e) => setF({ ...f, corenNumber: e.target.value })} placeholder="Ex.: 123456" /></Field>
             <Field label="UF do COREN"><select value={f.corenUf} onChange={(e) => setF({ ...f, corenUf: e.target.value })}>{data.ufs.map((u: string) => <option key={u}>{u}</option>)}</select></Field>
-            <Field label="Categoria profissional" error={fieldError(save.error, 'professionalCategory')}><select value={f.professionalCategory} onChange={(e) => setF({ ...f, professionalCategory: e.target.value })}>
-              <option value="ENFERMEIRO">Enfermeiro(a)</option><option value="TECNICO_ENFERMAGEM">Técnico(a) de enfermagem</option></select></Field>
+            <Field label="Categoria profissional" hint="A rede ONEMA ONE é formada somente por Enfermeiras(os)."><input type="text" value="Enfermeiro(a)" readOnly aria-readonly="true" /></Field>
             <Field label="Estados em que pretende atender" hint="Segure Ctrl (ou toque) para escolher mais de um." error={fieldError(save.error, 'states')}>
               <select multiple size={4} value={f.states} onChange={(e) => setF({ ...f, states: Array.from(e.target.selectedOptions).map((o) => o.value) })}>{data.ufs.map((u: string) => <option key={u}>{u}</option>)}</select></Field>
             <Field label="Telefone (WhatsApp)" error={fieldError(save.error, 'phone')}><input type="tel" autoComplete="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="(11) 99999-9999" /></Field>
             <Field label="Regiões e bairros em que pode atender" error={fieldError(save.error, 'regions')}><input type="text" value={f.regions} onChange={(e) => setF({ ...f, regions: e.target.value })} placeholder="Ex.: Zona Sul, Vila Mariana, Moema" /></Field>
           </div>
+          <fieldset className="address-grid">
+            <legend className="field-legend">Endereço residencial</legend>
+            <div className="form-grid">
+              <Field label="CEP" error={fieldError(save.error, 'address.cep')}><input type="text" inputMode="numeric" autoComplete="postal-code" maxLength={9} value={f.address.cep} onChange={(e) => setF({ ...f, address: { ...f.address, cep: e.target.value } })} placeholder="00000-000" /></Field>
+              <Field label="Logradouro (rua, avenida)" error={fieldError(save.error, 'address.street')}><input type="text" autoComplete="address-line1" value={f.address.street} onChange={(e) => setF({ ...f, address: { ...f.address, street: e.target.value } })} /></Field>
+              <Field label="Número" error={fieldError(save.error, 'address.number')}><input type="text" disabled={f.address.noNumber} value={f.address.noNumber ? '' : f.address.number} onChange={(e) => setF({ ...f, address: { ...f.address, number: e.target.value } })} /></Field>
+              <Field label="Complemento (opcional)"><input type="text" autoComplete="address-line2" value={f.address.complement} onChange={(e) => setF({ ...f, address: { ...f.address, complement: e.target.value } })} /></Field>
+              <Field label="Bairro" error={fieldError(save.error, 'address.district')}><input type="text" value={f.address.district} onChange={(e) => setF({ ...f, address: { ...f.address, district: e.target.value } })} /></Field>
+              <Field label="Cidade" error={fieldError(save.error, 'address.city')}><input type="text" autoComplete="address-level2" value={f.address.city} onChange={(e) => setF({ ...f, address: { ...f.address, city: e.target.value } })} /></Field>
+              <Field label="UF"><select value={f.address.uf} onChange={(e) => setF({ ...f, address: { ...f.address, uf: e.target.value } })}>{data.ufs.map((u: string) => <option key={u}>{u}</option>)}</select></Field>
+            </div>
+            <label className="choice"><input type="checkbox" checked={f.address.noNumber} onChange={(e) => setF({ ...f, address: { ...f.address, noNumber: e.target.checked, number: e.target.checked ? '' : f.address.number } })} /><span>Sem número</span></label>
+          </fieldset>
           <fieldset className="checks-grid">
             <legend className="field-legend">Áreas de atendimento {fieldError(save.error, 'needs') && <span className="err small">— {fieldError(save.error, 'needs')}</span>}</legend>
             {data.needs.map((n: any) => (
@@ -109,8 +122,13 @@ export function ApplicationPage() {
             ))}
           </fieldset>
           <Field label="Disponibilidade (opcional)"><input type="text" value={f.availability} onChange={(e) => setF({ ...f, availability: e.target.value })} placeholder="Ex.: manhãs em dias úteis" /></Field>
-          <label className="choice mandatory"><input type="checkbox" checked={f.consent} onChange={(e) => setF({ ...f, consent: e.target.checked })} />
-            <span><strong>Veracidade do cadastro.</strong> Declaro que as informações e os documentos apresentados são verdadeiros e comprometo-me a mantê-los atualizados.</span></label>
+          <div className="declaration" role="group" aria-labelledby="decl-title">
+            <h3 id="decl-title">{data.declaration.title}</h3>
+            <p className="small muted mb0">Confira seus dados antes de concluir o cadastro.</p>
+            <div className="declaration-box">{data.declaration.paragraphs.map((t: string, i: number) => <p key={i}>{t}</p>)}</div>
+            <label className="choice mandatory"><input type="checkbox" checked={f.consent} onChange={(e) => setF({ ...f, consent: e.target.checked })} />
+              <span>Li e concordo com a Declaração Eletrônica de Veracidade.</span></label>
+          </div>
           <label className="choice mandatory"><input type="checkbox" checked={f.dataTerm} onChange={(e) => setF({ ...f, dataTerm: e.target.checked })} />
             <span><strong>Proteção de dados e sigilo.</strong> Li o <LegalLink kind="termo-especialista">Termo de Proteção de Dados, Sigilo e Responsabilidades</LegalLink> do Especialista ONEMA ONE e assumo os deveres de confidencialidade e uso seguro nele previstos. Estou ciente de como exercer meus direitos sobre meus dados pessoais.</span></label>
           <p className="small"><LegalLink kind="privacidade">Consultar a Política de Privacidade</LegalLink></p>

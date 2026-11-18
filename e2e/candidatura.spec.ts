@@ -30,7 +30,13 @@ test('candidatura de especialista', async ({ page }, info) => {
   await page.getByLabel('Telefone (WhatsApp)').fill('(11) 98888-0000');
   await page.getByLabel('Regiões e bairros em que pode atender').fill('Zona Sul');
   await page.locator('.checks-grid input[type=checkbox]').first().check();
-  await page.getByText(/Declaro que as informações e os documentos apresentados são verdadeiros/).click();
+  // Endereço residencial (obrigatório) e Declaração de Veracidade (RT, 16/11/2026)
+  await page.getByLabel('CEP').fill('04101-000');
+  await page.getByLabel('Logradouro (rua, avenida)').fill('Rua Fictícia');
+  await page.getByLabel('Número', { exact: true }).fill('100');
+  await page.getByLabel('Bairro', { exact: true }).fill('Vila Mariana');
+  await expect(page.getByText('Declaro, sob minha responsabilidade, que as informações pessoais, profissionais e de endereço')).toBeVisible();
+  await page.getByText('Li e concordo com a Declaração Eletrônica de Veracidade.').click();
   // o Termo abre em janela flutuante sem sair da tela
   await page.getByRole('button', { name: 'Termo de Proteção de Dados, Sigilo e Responsabilidades' }).click();
   await expect(page.getByRole('dialog')).toContainText('OBJETO E ABRANGÊNCIA');

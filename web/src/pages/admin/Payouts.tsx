@@ -41,6 +41,7 @@ export function PayoutsPage() {
           Modo atual: <strong>{data.mode === 'ASAAS' ? 'transferência pelo Asaas' : 'manual (Financeiro paga e registra o comprovante)'}</strong>.
           Repasses acima de {money(data.dualApprovalCents)} exigem segunda aprovação.</p>
       </PageHeader>
+      <SingleOperator isAdm={isAdm} />
       <nav className="pills" aria-label="Seções">
         {(['repasses', 'chaves', 'reembolsos', 'ocorrencias'] as const).map((t) => (
           <button key={t} type="button" className={tab === t ? 'active' : ''} aria-pressed={tab === t} onClick={() => setTab(t)}>
@@ -141,5 +142,26 @@ export function PayoutsPage() {
         </section>
       )}
     </>
+  );
+}
+
+/** Operação com uma pessoa: permite que a mesma conta valide e autorize (registrado e auditado). */
+function SingleOperator({ isAdm }: { isAdm: boolean }) {
+  const { data, reload } = useApi<any>('/api/admin/finance/settings');
+  const act = useSubmit<any>();
+  if (!data) return null;
+  async function toggle() {
+    const note = window.prompt(data.singleOperator ? 'Justificativa para voltar à segregação de funções:' : 'Justificativa (ex.: "operação conduzida apenas pelo RT nesta fase"):');
+    if (!note || note.trim().length < 10) return;
+    if (await act.run('PUT', '/api/admin/finance/settings/single-operator', { enabled: !data.singleOperator, note: note.trim() })) reload();
+  }
+  return (
+    <div className={`small ${data.singleOperator ? 'caution' : 'muted'}`}>
+      {data.singleOperator ? <><strong>Operação com uma pessoa ativa:</strong> a mesma conta pode validar e autorizar os repasses (cada ação fica registrada na auditoria). Ninguém aprova o próprio repasse.</>
+        : <>Segregação de funções ativa: quem valida não autoriza o mesmo repasse.</>}
+      {isAdm ? <> <Button className="sm secondary" busy={act.busy} onClick={toggle}>{data.singleOperator ? 'Voltar à segregação' : 'Ativar operação com uma pessoa'}</Button></>
+        : !data.singleOperator && <> Se só há uma pessoa operando, o Administrador PRIME pode ativar a "operação com uma pessoa".</>}
+      <Alert error={act.error} />
+    </div>
   );
 }

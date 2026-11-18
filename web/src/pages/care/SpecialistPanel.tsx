@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApi, useSubmit } from '../../lib/hooks';
 import { money } from '../../lib/format';
+import { api } from '../../lib/api';
+import { prepareUpload } from '../../lib/files';
 import { Alert, Badge, Button, ErrorState, Loading } from '../../ui/ui';
 
 const JOURNEY: Record<string, string> = { NAO_INICIADA: 'Jornada de integração não iniciada', EM_ANDAMENTO: 'Jornada de integração em andamento', CONCLUIDA: 'Jornada de integração concluída' };
@@ -48,6 +50,7 @@ export function SpecialistPanel({ offers, onOffersChange }: { offers: any; onOff
   const first = offers?.offers?.[0];
   return (
     <section className="sp-panel" aria-label="Painel da especialista">
+      <ProfilePhoto />
       <div className="row between"><h1 className="display-light mb0">Meu painel</h1>
         <Badge tone={data.status === 'ATIVO_APTO' ? '' : data.status === 'SUSPENSO' ? 'red' : 'orange'}>{data.status === 'ATIVO_APTO' ? 'Ativo e apto' : data.status === 'INAPTO' ? 'Credenciamento não aprovado' : data.validation?.label ?? 'Em habilitação'}</Badge></div>
       {data.status !== 'ATIVO_APTO' && data.validation && <p className="small caution">Cadastro: <strong>{data.validation.label}</strong>. Novos atendimentos ficam bloqueados até a liberação. <Link to="/especialista/candidatura">Ver meu cadastro</Link></p>}
@@ -117,6 +120,29 @@ export function SpecialistReviewsPage() {
           {r.comment && <p className="small mb0">“{r.comment}”</p>}<div className="small muted">{new Date(r.created_at).toLocaleDateString('pt-BR')}</div></li>
       ))}</ul>
       <p><Link to="/especialista">Voltar ao painel</Link></p>
+    </div>
+  );
+}
+
+/** Foto do perfil: aparece sempre no painel e a própria especialista troca quando quiser. */
+function ProfilePhoto() {
+  const [v, setV] = useState(Date.now());
+  const [missing, setMissing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  async function change(file?: File) {
+    if (!file) return;
+    setBusy(true); setErr(null);
+    try { const fd = new FormData(); fd.append('file', await prepareUpload(file)); await api('PUT', '/api/specialist/photo', fd); setMissing(false); setV(Date.now()); }
+    catch (e: any) { setErr(e?.message ?? 'Não foi possível trocar a foto.'); } finally { setBusy(false); }
+  }
+  return (
+    <div className="row sp-photo-row">
+      {!missing ? <img className="sp-photo lg" src={`/api/specialist/photo?v=${v}`} alt="Sua foto de perfil" width={72} height={72} onError={() => setMissing(true)} />
+        : <span className="sp-photo lg placeholder" aria-hidden="true">?</span>}
+      <label className="btn sm secondary upload-btn">{busy ? 'Enviando…' : missing ? 'Enviar foto' : 'Alterar foto'}
+        <input type="file" accept="image/jpeg,image/png,image/webp,image/heic" className="sr-only" onChange={(e) => { change(e.target.files?.[0]); e.target.value = ''; }} /></label>
+      {err && <span className="small danger" role="alert">{err}</span>}
     </div>
   );
 }

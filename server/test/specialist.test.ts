@@ -7,7 +7,7 @@ let app: FastifyInstance;
 beforeEach(async () => { app = await setup(); });
 
 const CPF = '529.982.247-25'; // CPF fictício válido (dígitos verificadores)
-const FORM = { fullName: 'Ana Enfermeira Fictícia', cpf: CPF, corenNumber: '123456', corenUf: 'SP', professionalCategory: 'ENFERMEIRO', states: ['SP'], phone: '(11) 98888-0000', regions: 'Zona Sul, Vila Mariana', needs: ['CURATIVOS', 'POS_ALTA'], availability: 'Manhãs', consent: true, dataTerm: true };
+const FORM = { fullName: 'Ana Enfermeira Fictícia', cpf: CPF, corenNumber: '123456', corenUf: 'SP', professionalCategory: 'ENFERMEIRO', states: ['SP'], address: { cep: '04101-000', street: 'Rua Fictícia', number: '10', complement: '', district: 'Vila Mariana', city: 'São Paulo', uf: 'SP' },  phone: '(11) 98888-0000', regions: 'Zona Sul, Vila Mariana', needs: ['CURATIVOS', 'POS_ALTA'], availability: 'Manhãs', consent: true, dataTerm: true };
 
 /** Envio multipart (arquivo + campo kind) pelo inject do Fastify. */
 async function upload(c: Client, kind: string, mime = 'application/pdf', body = Buffer.from('%PDF-1.4 documento fictício')) {
@@ -35,7 +35,16 @@ describe('Candidatura ONEMA ONE', () => {
     const c = await newUser('ana.candidata@exemplo.test');
     expect((await c.put('/api/specialist/application', { ...FORM, cpf: '123.456.789-00' })).status).toBe(400);
     expect((await c.put('/api/specialist/application', { ...FORM, consent: false })).status).toBe(400);
+    // A01/A02: somente Enfermeiras(os); endereço residencial obrigatório (aceita "sem número")
+    expect((await c.put('/api/specialist/application', { ...FORM, professionalCategory: 'TECNICO_ENFERMAGEM' })).status).toBe(400);
+    expect((await c.put('/api/specialist/application', { ...FORM, address: undefined })).status).toBe(400);
+    expect((await c.put('/api/specialist/application', { ...FORM, address: { ...FORM.address, number: '' } })).status).toBe(400);
+    expect((await c.put('/api/specialist/application', { ...FORM, address: { ...FORM.address, number: '', noNumber: true } })).status).toBe(200);
     const saved = await c.put('/api/specialist/application', FORM);
+    // A03: declaração de veracidade registrada com versão e hash
+    expect(await one<any>(`SELECT version, content_hash FROM legal_acceptances WHERE code = 'DECLARACAO_VERACIDADE_ESPECIALISTA'`)).toMatchObject({ version: 'v1.0 (16/11/2026)' });
+    expect(saved.body.application.address).toMatchObject({ street: 'Rua Fictícia', district: 'Vila Mariana' });
+    expect(JSON.stringify(await one('SELECT address_sealed FROM specialist_applications'))).not.toContain('Rua Fictícia');
     expect(saved.status).toBe(200);
     expect(saved.body.application).toMatchObject({ status: 'RASCUNHO', cpfMasked: '***.982.247-**', missingDocuments: ['FOTO', 'PROVA_VIVA', 'IDENTIDADE', 'COREN', 'DIPLOMA_FRENTE', 'DIPLOMA_VERSO'] });
     expect(JSON.stringify(saved.body)).not.toContain('52998224725');

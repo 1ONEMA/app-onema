@@ -21,16 +21,16 @@ import { hmac, rateLimit } from '../../lib/security.ts';
 import { addHours, nowIso, protocol, randomToken, sha256, stableJson, uid } from '../../lib/util.ts';
 import { notify } from '../prime/core.ts';
 import { partnerActive } from '../specialist/validation.ts';
-import { closeRoom, dailyEnabled, ensureRoom, meetingToken } from '../../lib/daily.ts';
+import { dailyEnabled } from '../../lib/daily.ts';
+import { closeVideo, maxCallMinutes, openVideo, roomName } from './video.ts';
+import { emailUser } from '../../lib/user-email.ts';
 import { evolutionAiEnabled, FAILURE_TEXT, organizeDictation } from '../care/evolution-ai.ts';
 import {
   EMPTY_TELE_NOTE, JOIN_EARLY_MS, MODALITIES, MODALITY_LABEL, NO_SHOW_POLICY, OFFER_HOURS, RETURN_WINDOW_DAYS, STATUS_LABEL, TELE_CONSENT_PURPOSE,
-  TELE_CONSENT_VERSION, TELE_PROTOCOL_VERSION, TeleNoteSchema, TOKEN_TTL_MS, URGENCY_GUIDANCE, pricingDecision,
+  TELE_CONSENT_VERSION, TELE_PROTOCOL_VERSION, TeleNoteSchema, TOKEN_TTL_MS, URGENCY_GUIDANCE, pricingDecision, ONLINE_CATALOG_CODE,
 } from './core.ts';
 
 const idParam = z.object({ id: z.string().uuid() });
-/** Nome opaco da sala (não revela paciente nem episódio). */
-const roomName = (episodeId: string) => `onema-${sha256(`${episodeId}:${config.appSecret}`).slice(0, 16)}`;
 const STAFF = ['OPERADOR_CENTRAL', 'AVALIADOR_RT'] as const;
 const isStaff = (a: { roles: string[] }) => a.roles.some((r) => (STAFF as readonly string[]).includes(r));
 const synthetic = (email: string) => /@exemplo\.test$/i.test(email);
@@ -203,7 +203,9 @@ export async function teleRoutes(app: FastifyInstance) {
         await setStatus(e, 'INELEGIVEL', { eligibility_note: b.note, eligibility_by: a.userId, closed_at: nowIso() }, a.userId, req.correlationId);
       } else {
         const origin = e.origin_event_id ? await one<any>('SELECT completed_at FROM care_events WHERE id = ?', e.origin_event_id) : null;
-        const p = pricingDecision(e.modality, origin ? { completedAt: origin.completed_at } : null);
+        const online = await one<any>('SELECT price_cents FROM catalog_items WHERE code = ?', ONLINE_CATALOG_CODE);
+        if (!online) throw conflict('CATALOG_MISSING', 'O valor do atendimento online não está no catálogo.');
+        const p = pricingDecision(e.modality, origin ? { completedAt: origin.completed_at } : null, Number(online.price_cents));
         await setStatus(e, 'TRIAGEM', { eligibility_note: b.note, eligibility_by: a.userId, pricing_rule: p.rule, price_cents: p.priceCents, pricing_reason: p.reason }, a.userId, req.correlationId);
         await audit({ actorId: a.userId, action: 'TELE_PRICING_DECIDED', subjectType: 'tele_episode', subjectId: id, correlationId: req.correlationId, meta: { rule: p.rule, priceCents: p.priceCents, version: TELE_PROTOCOL_VERSION } });
         await notify(e.patient_id, 'ESSENCIAL', 'Teleatendimento: confirme no app', 'Há um teleatendimento aguardando sua confirmação. Abra o app ONEMA para ver os detalhes.');
@@ -289,7 +291,7 @@ export async function teleRoutes(app: FastifyInstance) {
   app.post('/api/tele/episodes/:id/schedule', async (req) => {
     const { id } = parse(idParam, req.params);
     const b = parse(z.object({ startAt: z.string().datetime({ offset: true }) }), req.body);
-    return await tx(async () => {
+    const out = await tx(async () => {
       const { a, e } = await load(req, id, ['PROFISSIONAL', 'CENTRAL'], true);
       if (!['ACEITO', 'AGENDADO', 'FALHA_TECNICA'].includes(e.status) || !e.professional_id) throw conflict('TELE_STATE_CONFLICT', 'Só é possível agendar um teleatendimento aceito.');
       const at = new Date(b.startAt);
@@ -298,8 +300,17 @@ export async function teleRoutes(app: FastifyInstance) {
       await setStatus(e, 'AGENDADO', { scheduled_at: at.toISOString() }, a.userId, req.correlationId, ['ACEITO', 'AGENDADO', 'FALHA_TECNICA']);
       const when = at.toLocaleString('pt-BR', { timeZone: e.timezone, dateStyle: 'short', timeStyle: 'short' });
       await notify(e.patient_id, 'LEMBRETE', 'Teleatendimento agendado', `Seu teleatendimento ONEMA está marcado para ${when}. Entre pelo app no horário.`);
-      return { episode: await view((await one<any>('SELECT * FROM tele_episodes WHERE id = ?', id))!, 'PROFISSIONAL') };
+      return { episode: await view((await one<any>('SELECT * FROM tele_episodes WHERE id = ?', id))!, 'PROFISSIONAL'), e, when };
     });
+    // E-mail com o link de acesso para os dois lados (entra com login; sem conteúdo clínico).
+    const mins = maxCallMinutes();
+    await emailUser(out.e.patient_id, 'TELE_AGENDADO', 'Teleatendimento agendado', [`Seu teleatendimento ONEMA está marcado para ${out.when} (horário de Brasília).`,
+      `No horário, entre pelo link abaixo, faça login e toque em "Entrar na sala". A sala abre 30 minutos antes e o atendimento dura até ${mins} minutos. Não é gravado.`],
+      { label: 'Abrir meu teleatendimento', path: `/telenfermagem/${id}` }).catch((err) => req.log.warn({ err: String(err) }, 'e-mail do teleatendimento'));
+    await emailUser(out.e.professional_id, 'TELE_AGENDADO', 'Teleatendimento agendado', [`Você tem um teleatendimento ONEMA marcado para ${out.when} (horário de Brasília).`,
+      `Entre pelo link abaixo, faça login e toque em "Entrar na sala". O atendimento começa quando você entra e dura até ${mins} minutos.`],
+      { label: 'Abrir o teleatendimento', path: `/especialista/telenfermagem/${id}` }).catch((err) => req.log.warn({ err: String(err) }, 'e-mail do teleatendimento'));
+    return { episode: out.episode };
   });
 
   /** Token de sala de curta duração (paciente ou profissional designada), apenas com consentimento vigente. */
@@ -333,24 +344,21 @@ export async function teleRoutes(app: FastifyInstance) {
       throw new AppError(401, 'ROOM_TOKEN_EXPIRED', 'Acesso à sala expirado. Solicite um novo acesso.');
     }
     await run('UPDATE tele_room_tokens SET used_at = COALESCE(used_at, ?) WHERE id = ?', nowIso(), t.id);
+    let startedAt: string | null = e.call_started_at;
     if (access === 'PROFISSIONAL' && e.status === 'AGENDADO') {
-      await setStatus(e, 'EM_ATENDIMENTO', { call_started_at: nowIso() }, a.userId, req.correlationId);
+      startedAt = nowIso();
+      await setStatus(e, 'EM_ATENDIMENTO', { call_started_at: startedAt }, a.userId, req.correlationId);
     }
-    // Vídeo real: o acesso ao Daily só é emitido depois da conferência do token ONEMA (pessoal, do episódio, não expirado).
-    let video: { provider: string; url: string | null } = { provider: 'SIMULADO', url: null };
-    if (dailyEnabled()) {
-      try {
-        const start = e.scheduled_at ? new Date(e.scheduled_at).getTime() : Date.now();
-        const room = await ensureRoom(roomName(id), Math.floor(Math.max(Date.now(), start) / 1000) + 3 * 3600);
-        const dt = await meetingToken(room.name, a.name || (access === 'PROFISSIONAL' ? 'Enfermeira ONEMA' : 'Paciente'), access === 'PROFISSIONAL', Math.floor(Date.now() / 1000) + 15 * 60);
-        video = { provider: 'DAILY', url: `${room.url}?t=${encodeURIComponent(dt)}` };
-      } catch (err: any) {
-        req.log.error({ correlationId: req.correlationId, status: err?.status, info: err?.info }, 'Daily: falha ao abrir a sala');
-        throw new AppError(502, 'VIDEO_UNAVAILABLE', 'Não foi possível abrir a sala de vídeo agora. Tente de novo em instantes; se persistir, registre falha técnica.');
-      }
+    // Vídeo: acesso ao Daily só depois da conferência do token ONEMA; duração máxima a partir da entrada da enfermeira.
+    let video: Awaited<ReturnType<typeof openVideo>>;
+    try {
+      video = await openVideo({ key: id, userName: a.name || (access === 'PROFISSIONAL' ? 'Enfermeira ONEMA' : 'Paciente'), owner: access === 'PROFISSIONAL', startedAt, notBefore: e.scheduled_at });
+    } catch (err: any) {
+      req.log.error({ correlationId: req.correlationId, status: err?.status, info: err?.info }, 'Daily: falha ao abrir a sala');
+      throw new AppError(502, 'VIDEO_UNAVAILABLE', 'Não foi possível abrir a sala de vídeo agora. Tente de novo em instantes; se persistir, registre falha técnica.');
     }
     await audit({ actorId: a.userId, action: 'TELE_ROOM_JOINED', subjectType: 'tele_episode', subjectId: id, correlationId: req.correlationId, meta: { access, provider: video.provider } });
-    return { ok: true, status: access === 'PROFISSIONAL' && e.status === 'AGENDADO' ? 'EM_ATENDIMENTO' : e.status, video };
+    return { ok: true, status: startedAt ? 'EM_ATENDIMENTO' : e.status, video };
   });
 
   /**
@@ -363,7 +371,7 @@ export async function teleRoutes(app: FastifyInstance) {
     return await tx(async () => {
       const { a, e } = await load(req, id, ['PROFISSIONAL'], true);
       const now = nowIso();
-      if (dailyEnabled()) closeRoom(roomName(id)).catch((err) => req.log.warn({ status: err?.status }, 'Daily: falha ao encerrar a sala'));
+      closeVideo(id).catch((err) => req.log.warn({ status: err?.status }, 'Daily: falha ao encerrar a sala'));
       if (b.outcome === 'ENCERRADO') {
         if (e.status !== 'EM_ATENDIMENTO') throw conflict('TELE_STATE_CONFLICT', 'Só é possível encerrar um atendimento em andamento.');
         await setStatus(e, 'AGUARDANDO_REGISTRO', { call_ended_at: now }, a.userId, req.correlationId);

@@ -6,6 +6,8 @@ import { Alert, Badge, Button, ErrorState, Field, Loading, PageHeader, fieldErro
 import { IconCheck, IconShield } from '../../ui/icons';
 import { EVO_SECTIONS } from './WalletPage';
 import { CarePlanEditor } from '../carteira/CarteiraPages';
+import { VideoCall } from '../../ui/VideoCall';
+import { DocLink } from '../../ui/DocViewer';
 import { PopPanel } from '../pops/PopsPages';
 
 type Evo = { relato: string; sinaisVitais: string; avaliacao: string; procedimentos: string; orientacoes: string; plano: string; observacoes: string; pendencias: string[] };
@@ -101,7 +103,7 @@ export function VisitPage() {
 
       <section className="flow-card">
         <h2>1. Iniciar o atendimento</h2>
-        {e.modality !== 'PRESENCIAL' ? <p className="muted">Atendimento remoto: não exige código de início.</p>
+        {e.modality !== 'PRESENCIAL' ? <OnlineCallCard id={id!} e={e} onChange={reload} />
           : e.startedAt ? <div className="success" role="status"><IconCheck size={18} /> Atendimento iniciado e confirmado com o código do paciente.</div> : (
           <>
             <p className="muted">Ao chegar, peça ao paciente o <strong>código de 6 números</strong> que aparece no app dele. Isso confirma, para a família, que é você quem está no atendimento.</p>
@@ -206,6 +208,7 @@ function VisitInfo({ eventId, visit }: { eventId: string; visit: any }) {
       <h2>Paciente e local</h2>
       <dl className="kv small">
         <dt>Paciente</dt><dd>{visit.patientName}</dd>
+        <dt>Data de nasc.</dt><dd>{visit.patientBirthDate ? new Date(`${visit.patientBirthDate}T12:00:00`).toLocaleDateString('pt-BR') : 'Não informada'} <span className="small muted">(confirme com o paciente no início)</span></dd>
         <dt>Telefone</dt><dd><a href={`tel:${String(visit.phone).replace(/[^0-9+]/g, '')}`}>{visit.phone}</a></dd>
         <dt>Endereço</dt><dd>{ad ? `${ad.street}, ${ad.number}${ad.complement ? ` – ${ad.complement}` : ''} · ${ad.district} · ${ad.city} · CEP ${ad.cep}${ad.reference ? ` · ref.: ${ad.reference}` : ''}` : visit.location}</dd>
         <dt>Preferência</dt><dd>{visit.whenDate ? visit.whenDate.split('-').reverse().join('/') : visit.whenPref?.toLowerCase().replace('_', ' ')}{visit.timeWindow ? ` · ${TW[visit.timeWindow]}` : ''}</dd>
@@ -213,7 +216,7 @@ function VisitInfo({ eventId, visit }: { eventId: string; visit: any }) {
       </dl>
       <h3>Pedido médico e exames</h3>
       {!docs.data ? <Loading lines={1} /> : !docs.data.documents.length ? <p className="small muted">Nenhum anexo do paciente.</p> : (
-        <ul className="list small">{docs.data.documents.map((d: any) => <li key={d.id}><a href={`/api/care/specialist/events/${eventId}/documents/${d.id}`} target="_blank" rel="noopener noreferrer">{d.filename}</a> · {d.kind === 'EXAME' ? 'exame' : 'pedido médico'} (somente leitura)</li>)}</ul>
+        <ul className="list small">{docs.data.documents.map((d: any) => <li key={d.id}><DocLink url={`/api/care/specialist/events/${eventId}/documents/${d.id}`} name={d.filename} /> · {d.kind === 'EXAME' ? 'exame' : 'pedido médico'} (somente leitura)</li>)}</ul>
       )}
       {g && g.status !== 'NAO_APLICAVEL' && (
         <>
@@ -228,5 +231,36 @@ function VisitInfo({ eventId, visit }: { eventId: string; visit: any }) {
         </>
       )}
     </section>
+  );
+}
+
+/** Atendimento online (remoto): horário combinado, link por e-mail e sala de vídeo da Telenfermagem (até 30 min). */
+function OnlineCallCard({ id, e, onChange }: { id: string; e: any; onChange: () => void }) {
+  const sched = useSubmit<any>(); const call = useSubmit<any>(); const end = useSubmit<any>();
+  const local = (iso?: string | null) => { const d = iso ? new Date(iso) : new Date(Date.now() + 3600_000); const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+  const [when, setWhen] = useState(local(e.callScheduledAt));
+  if (e.status !== 'ACEITO') return <p className="muted">Atendimento online{e.callEndedAt ? ` · chamada encerrada em ${new Date(e.callEndedAt).toLocaleString('pt-BR')}` : ''}.</p>;
+  return (
+    <div>
+      <p className="muted">Atendimento online: combine o horário; paciente e você recebem o link por e-mail e aviso no app. A chamada dura até 30 minutos, sem gravação.</p>
+      {e.callScheduledAt && <p>Horário combinado: <strong>{new Date(e.callScheduledAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</strong></p>}
+      {!e.callStartedAt && (
+        <div className="row">
+          <input type="datetime-local" value={when} onChange={(ev) => setWhen(ev.target.value)} aria-label="Data e hora da chamada" />
+          <Button className="sm secondary" busy={sched.busy} onClick={async () => { if (await sched.run('POST', `/api/care/specialist/events/${id}/call-schedule`, { startAt: new Date(when).toISOString() })) onChange(); }}>
+            {e.callScheduledAt ? 'Remarcar' : 'Combinar horário'}</Button>
+        </div>
+      )}
+      <Alert error={sched.error} />
+      {e.callScheduledAt && !e.callEndedAt && (
+        <div className="mt">
+          <VideoCall busy={call.busy} error={call.error} onLeave={onChange} enter={async () => { const r = await call.run('POST', `/api/care/events/${id}/call`); return r ? r.video : null; }} />
+          {e.callStartedAt && <Button className="sm secondary mt" busy={end.busy} onClick={async () => { if (await end.run('POST', `/api/care/specialist/events/${id}/call-end`)) onChange(); }}>Encerrar chamada</Button>}
+          <Alert error={end.error} />
+        </div>
+      )}
+      {e.callEndedAt && <div className="success" role="status"><IconCheck size={18} /> Chamada encerrada. Registre e assine a evolução abaixo.</div>}
+    </div>
   );
 }

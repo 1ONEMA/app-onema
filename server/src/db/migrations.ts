@@ -1577,4 +1577,89 @@ CREATE INDEX ix_care_alert_events ON care_alert_events(alert_id, created_at);
 CREATE TRIGGER trg_care_alert_events_append BEFORE UPDATE OR DELETE ON care_alert_events FOR EACH ROW EXECUTE FUNCTION onema_append_only();
 ALTER TABLE care_alert_events ENABLE ROW LEVEL SECURITY;
 ` },
+  { name: '024_atendimento_online', sql: `
+-- 024: atendimentos online do catálogo (monitoramento, orientação on-line e atos remotos dos pacotes) pela sala de vídeo
+-- da Telenfermagem: horário combinado, início (entrada da enfermeira) e fim da chamada.
+ALTER TABLE care_events ADD COLUMN call_scheduled_at TEXT;
+ALTER TABLE care_events ADD COLUMN call_started_at TEXT;
+ALTER TABLE care_events ADD COLUMN call_ended_at TEXT;
+` },
+  { name: '025_candidatura_endereco_foto', sql: `
+-- 025: candidatura (ajustes RT 16/11/2026): endereço residencial completo (selado) e foto de perfil substituível
+-- pela própria especialista depois da aprovação (versões anteriores preservadas).
+ALTER TABLE specialist_applications ADD COLUMN address_sealed TEXT;
+` },
+  { name: '026_recusa_oferta', sql: `
+-- 026: recusa de oferta pela especialista (sem penalidade): a oferta some só para quem recusou e segue para a rede.
+CREATE TABLE specialist_offer_declines (
+  event_id TEXT NOT NULL REFERENCES care_events(id),
+  specialist_id TEXT NOT NULL REFERENCES users(id),
+  reason TEXT,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (event_id, specialist_id)
+);
+ALTER TABLE specialist_offer_declines ENABLE ROW LEVEL SECURITY;
+` },
+  { name: '027_lifescore_v04', sql: `
+-- 027: Life Score v0.4 (modelo OLS-8-HOM-0.1): segurança com ação/responsável/situação, respostas do paciente ao plano
+-- (Guardian −7/0/+7: solicitar, lembrar depois, já agendei, não quero retornar), pendências da equipe e registros de teste do RT.
+ALTER TABLE lifescore_safety_events DROP CONSTRAINT IF EXISTS lifescore_safety_events_level_check;
+ALTER TABLE lifescore_safety_events ADD CONSTRAINT lifescore_safety_events_level_check CHECK (level IN ('IMMEDIATE','PRIORITY','ROUTINE'));
+ALTER TABLE lifescore_safety_events ADD COLUMN action_taken TEXT;
+ALTER TABLE lifescore_safety_events ADD COLUMN responsible TEXT;
+ALTER TABLE lifescore_safety_events ADD COLUMN status TEXT NOT NULL DEFAULT 'ABERTA';
+
+ALTER TABLE lifescore_assessments DROP CONSTRAINT IF EXISTS lifescore_assessments_plan_status_check;
+ALTER TABLE lifescore_assessments ADD CONSTRAINT lifescore_assessments_plan_status_check CHECK (plan_status IN
+  ('VIGENTE','AGENDADO','RECUSADO','SUBSTITUIDO','ENCERRADO_SEM_RESPOSTA','CANCELADO','SOLICITADO','PAUSADO','CONTRATADO'));
+ALTER TABLE lifescore_assessments ADD COLUMN team_note TEXT;
+ALTER TABLE lifescore_assessments ADD COLUMN team_note_by TEXT REFERENCES users(id);
+ALTER TABLE lifescore_assessments ADD COLUMN team_note_at TEXT;
+CREATE OR REPLACE FUNCTION onema_lifescore_published() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $f$
+DECLARE mutable text[] := ARRAY['plan_status','plan_status_at','reminders_opt_out','updated_at','status','superseded_by','team_note','team_note_by','team_note_at'];
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    IF OLD.status <> 'RASCUNHO' THEN RAISE EXCEPTION 'lifescore assessment immutable'; END IF;
+    RETURN OLD;
+  END IF;
+  IF OLD.status <> 'RASCUNHO' THEN
+    IF (to_jsonb(NEW) - mutable) IS DISTINCT FROM (to_jsonb(OLD) - mutable) THEN RAISE EXCEPTION 'lifescore assessment immutable'; END IF;
+    IF NEW.status IS DISTINCT FROM OLD.status AND NOT (OLD.status = 'PUBLICADA' AND NEW.status = 'RETIFICADA' AND NEW.superseded_by IS NOT NULL) THEN
+      RAISE EXCEPTION 'lifescore assessment immutable';
+    END IF;
+    IF OLD.superseded_by IS NOT NULL AND NEW.superseded_by IS DISTINCT FROM OLD.superseded_by THEN RAISE EXCEPTION 'lifescore assessment immutable'; END IF;
+  END IF;
+  RETURN NEW;
+END $f$;
+
+-- Histórico das respostas do paciente ao plano (separado de envio de mensagem e de contratação).
+CREATE TABLE lifescore_plan_responses (
+  id TEXT PRIMARY KEY,
+  assessment_id TEXT NOT NULL REFERENCES lifescore_assessments(id),
+  patient_id TEXT NOT NULL REFERENCES users(id),
+  actor_id TEXT NOT NULL REFERENCES users(id),
+  action TEXT NOT NULL,
+  resulting_status TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE TRIGGER trg_ls_plan_responses_append BEFORE UPDATE OR DELETE ON lifescore_plan_responses FOR EACH ROW EXECUTE FUNCTION onema_append_only();
+ALTER TABLE lifescore_plan_responses ENABLE ROW LEVEL SECURITY;
+
+-- Modo de testes do RT (homologação): esperado × observado, evidência, build/modelo, responsável. Não ativa produção.
+CREATE TABLE lifescore_test_records (
+  id TEXT PRIMARY KEY,
+  assessment_id TEXT REFERENCES lifescore_assessments(id),
+  case_code TEXT NOT NULL,
+  expected TEXT NOT NULL,
+  observed TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('APROVADO','REPROVADO','AJUSTE_SOLICITADO','EM_ANALISE')),
+  evidence TEXT,
+  build TEXT NOT NULL,
+  model_id TEXT NOT NULL,
+  actor_id TEXT NOT NULL REFERENCES users(id),
+  created_at TEXT NOT NULL
+);
+CREATE TRIGGER trg_ls_test_records_append BEFORE UPDATE OR DELETE ON lifescore_test_records FOR EACH ROW EXECUTE FUNCTION onema_append_only();
+ALTER TABLE lifescore_test_records ENABLE ROW LEVEL SECURITY;
+` },
 ];

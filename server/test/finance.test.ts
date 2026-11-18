@@ -275,3 +275,20 @@ describe('Reembolso (política ONEMA)', () => {
     expect((await intruso.get(`/api/care/orders/${orderId}/refunds`)).status).toBe(404);
   });
 });
+
+describe('Operação com uma pessoa (RT faz todas as funções)', () => {
+  it('desligada: quem validou não autoriza; ligada pelo ADMIN_PRIME (com justificativa): a mesma pessoa valida e autoriza, e tudo fica auditado', async () => {
+    const { payout } = await readyPayout();
+    const opId = await idOf('operador');
+    await run(`INSERT INTO user_roles (user_id, role, granted_at) VALUES (?, 'FINANCEIRO', ?) ON CONFLICT DO NOTHING`, opId, new Date().toISOString());
+    const op = await loginAs(app, 'operador');
+    expect((await op.post(`/api/admin/finance/payouts/${payout.id}/authorize`)).body.error.code).toBe('SEGREGATION_OF_DUTIES');
+    expect((await op.req('PUT', '/api/admin/finance/settings/single-operator', { enabled: true, note: 'Operação conduzida só pelo RT nesta fase.' })).status).toBe(403);
+    const adm = await loginAs(app, 'adminPrime');
+    expect((await adm.req('PUT', '/api/admin/finance/settings/single-operator', { enabled: true, note: 'curta' })).status).toBe(400);
+    expect((await adm.req('PUT', '/api/admin/finance/settings/single-operator', { enabled: true, note: 'Operação conduzida só pelo RT nesta fase.' })).body.singleOperator).toBe(true);
+    expect((await op.post(`/api/admin/finance/payouts/${payout.id}/authorize`)).body).toMatchObject({ status: 'PROGRAMADO' });
+    expect((await one<any>(`SELECT meta_json FROM audit_events WHERE action = 'PAYOUT_AUTHORIZED'`)).meta_json).toContain('"singleOperator":true');
+    expect((await one<any>(`SELECT COUNT(*) AS n FROM audit_events WHERE action = 'FINANCE_SINGLE_OPERATOR_ON'`)).n).toBe(1);
+  });
+});

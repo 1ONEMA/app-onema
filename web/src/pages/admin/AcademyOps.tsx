@@ -109,7 +109,7 @@ const APP_STATUS: Record<string, { label: string; tone: string }> = {
 const DOC_LABEL: Record<string, string> = { FOTO: 'Foto', PROVA_VIVA: 'Prova viva', IDENTIDADE: 'Identidade', COREN: 'COREN', DIPLOMA_FRENTE: 'Diploma (frente)', DIPLOMA_VERSO: 'Diploma (verso)', CERTIFICADO: 'Certificado', COMPROVANTE_ENDERECO: 'Comprovante de endereço', OUTRO: 'Outro' };
 const CHECK_LABEL: Record<string, string> = { PROVA_VIVA: 'Prova viva (conferência visual humana)', IDENTIDADE: 'Identidade', INSCRICAO: 'Inscrição COREN/COFEN', CATEGORIA: 'Categoria profissional', AUTENTICIDADE: 'Autenticidade documental' };
 const RESULT_LABEL: Record<string, string> = { CONFERIDA: 'Conferida', PENDENTE: 'Pendente', DIVERGENTE: 'Divergente', INDISPONIVEL: 'Consulta indisponível', NAO_ENCONTRADA: 'Inscrição não encontrada', NAO_AUTENTICAVEL: 'Não autenticável' };
-const CAT_LABEL: Record<string, string> = { ENFERMEIRO: 'Enfermeiro(a)', TECNICO_ENFERMAGEM: 'Técnico(a) de enfermagem' };
+const CAT_LABEL: Record<string, string> = { ENFERMEIRO: 'Enfermeiro(a)', TECNICO_ENFERMAGEM: 'Técnico(a) de enfermagem (incompatível)' };
 
 /**
  * Validação documental de parceiros: fila de novos cadastros e revalidações, conferências humanas (prova viva, identidade,
@@ -161,6 +161,8 @@ export function PartnerValidationPage() {
             {sel === a.id && (
               <div className="mt flow">
                 <div className="small">CPF {a.cpf} · {a.phone} · {a.email} · regiões: {a.regions} · áreas: {a.needs.join(', ')}</div>
+                {a.address && <div className="small">Endereço: {a.address.street}, {a.address.noNumber ? 's/nº' : a.address.number}{a.address.complement ? ` – ${a.address.complement}` : ''} · {a.address.district} · {a.address.city}/{a.address.uf} · CEP {a.address.cep}</div>}
+                {a.categoryIncompatible && <div className="small danger">Categoria "{a.professionalCategory}" incompatível: a rede é somente de Enfermeiras(os). Revisão do RT.</div>}
                 <h3>Documentos (versões preservadas)</h3>
                 <div className="row small">{a.documents.map((d: any) => (
                   <a key={d.id} href={`/api/admin/specialist-applications/${a.id}/documents/${d.id}`} target="_blank" rel="noopener noreferrer" className={`badge ${d.superseded_at || d.removed_at ? 'dark' : 'blue'}`}>

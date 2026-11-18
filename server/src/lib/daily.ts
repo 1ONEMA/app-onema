@@ -22,7 +22,8 @@ async function call(method: string, path: string, body?: unknown): Promise<any> 
 export async function ensureRoom(name: string, expSec: number): Promise<{ name: string; url: string }> {
   try {
     const r = await call('GET', `/rooms/${encodeURIComponent(name)}`);
-    if (r?.config?.exp && r.config.exp < expSec) await call('POST', `/rooms/${encodeURIComponent(name)}`, { properties: { exp: expSec, eject_at_room_exp: true } });
+    // Ajusta o fim da sala ao prazo vigente (ex.: 30 minutos a partir da entrada da enfermeira).
+    if (r?.config?.exp !== expSec) await call('POST', `/rooms/${encodeURIComponent(name)}`, { properties: { exp: expSec, eject_at_room_exp: true } });
     return { name: r.name, url: r.url };
   } catch (e: any) {
     if (e?.status !== 404) throw e;
