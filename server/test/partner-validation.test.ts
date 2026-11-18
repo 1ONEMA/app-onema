@@ -7,7 +7,7 @@ import { runPartnerRevalidation } from '../src/modules/specialist/routes.ts';
 let app: FastifyInstance;
 beforeEach(async () => { app = await setup(); });
 
-const FORM = { fullName: 'Bia Enfermeira Fictícia', cpf: '529.982.247-25', corenNumber: '654321', corenUf: 'SP', professionalCategory: 'ENFERMEIRO', states: ['SP'],
+const FORM = { fullName: 'Bia Enfermeira Fictícia', cpf: '529.982.247-25', corenNumber: '654321', corenUf: 'SP', professionalCategory: 'ENFERMEIRO', states: ['SP'], address: { cep: '04101-000', street: 'Rua Fictícia', number: '10', complement: '', district: 'Vila Mariana', city: 'São Paulo', uf: 'SP' }, 
   phone: '(11) 97777-0000', regions: 'Zona Sul', needs: ['CURATIVOS'], availability: '', consent: true, dataTerm: true };
 const PDF = Buffer.from('%PDF-1.4 documento fictício');
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);

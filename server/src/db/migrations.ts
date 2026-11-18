@@ -1584,4 +1584,9 @@ ALTER TABLE care_events ADD COLUMN call_scheduled_at TEXT;
 ALTER TABLE care_events ADD COLUMN call_started_at TEXT;
 ALTER TABLE care_events ADD COLUMN call_ended_at TEXT;
 ` },
+  { name: '025_candidatura_endereco_foto', sql: `
+-- 025: candidatura (ajustes RT 16/11/2026): endereço residencial completo (selado) e foto de perfil substituível
+-- pela própria especialista depois da aprovação (versões anteriores preservadas).
+ALTER TABLE specialist_applications ADD COLUMN address_sealed TEXT;
+` },
 ];

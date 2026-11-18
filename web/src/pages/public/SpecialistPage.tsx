@@ -42,7 +42,7 @@ export function SpecialistPage() {
         </aside>
       </section>
       <div className="feature-grid">
-        <div className="feature"><IconBook /><strong>ONEMA Academy</strong><span>Aulas, atividades, avaliações e certificado da Jornada de Integração.</span></div>
+        <div className="feature"><IconBook /><strong>ONEMA Academy</strong><span>Aulas, atividades, avaliações e Certificado da Jornada de Integração.</span><span className="price-tag"><strong>R$ 29,90</strong> — pagamento único pelos quatro cursos.</span><span>Integração obrigatória para o credenciamento na rede ONEMA ONE.</span></div>
         <div className="feature"><IconWallet /><strong>Repasse integral</strong><span>O valor do seu ato é informado na oferta e não muda com descontos ao paciente.</span></div>
         <div className="feature"><IconStar /><strong>Avaliações</strong><span>Estrelas dos atendimentos, separadas das notas da Academy.</span></div>
         <div className="feature"><IconShield /><strong>POPs oficiais</strong><span>Protocolos padronizados ONEMA (conteúdo em implantação).</span></div>
@@ -54,9 +54,9 @@ export function SpecialistPage() {
           <ol className="steps steps-detailed">
             <li><strong>Crie sua conta</strong><span>Cadastro com nome, e-mail e senha. Sem exigência de CNPJ.</span></li>
             <li><strong>Preencha a candidatura</strong><span>CPF, número e UF do COREN, telefone, regiões e áreas em que deseja atender.</span></li>
-            <li><strong>Envie os documentos</strong><span>Documento de identidade e carteira do COREN (PDF ou foto), em ambiente privado.</span></li>
+            <li><strong>Envie os documentos</strong><span>Envie seu documento de identidade e sua carteira do COREN, preferencialmente em PDF ou no formato digital oficial. Também aceitamos fotos legíveis dos documentos. O envio é realizado em ambiente privado.</span></li>
             <li><strong>Análise da Central ONEMA</strong><span>O credenciamento confere identidade, COREN ativo e documentos. Se faltar algo, você recebe o pedido de ajuste.</span></li>
-            <li><strong>Acesso à ONEMA Academy</strong><span>Com a candidatura aprovada, a Jornada de Integração é liberada no seu perfil.</span></li>
+            <li><strong>Acesso à ONEMA Academy</strong><span>Após a aprovação da candidatura, realize o pagamento único de R$ 29,90 para acessar os quatro cursos de integração. A conclusão com aprovação é obrigatória para seguir ao credenciamento final.</span></li>
             <li><strong>Jornada de Integração</strong><span>Quatro cursos com aulas, atividades e materiais oficiais ONEMA.</span></li>
             <li><strong>Avaliações</strong><span>Avaliações de cada curso, com nota mínima e histórico de tentativas.</span></li>
             <li><strong>Certificado</strong><span>Concluída a jornada, o certificado é emitido com código de verificação.</span></li>

@@ -7,6 +7,8 @@ import { money } from '../../lib/format';
 import { Alert, Button, ErrorState, Field, Loading, fieldError } from '../../ui/ui';
 import { IconArrowLeft, IconArrowRight, IconCheck, IconShield } from '../../ui/icons';
 import { NEED_ICONS } from '../public/HomePage';
+import { DocLink } from '../../ui/DocViewer';
+import { prepareUpload } from '../../lib/files';
 import { AsaasNotice, openPayment } from '../../ui/AsaasPay';
 
 const STEPS = ['Necessidade', 'Atendimento', 'Materiais', 'Valores', 'Onde e quando', 'Revisão', 'Pagamento'] as const;
@@ -136,14 +138,18 @@ export function RequestFlow() {
       ? await submit.run('PUT', `/api/care/requests/${d.requestId}`, body())
       : await submit.run('POST', '/api/care/requests', body(), { idempotent: true });
     if (!r) return;
+    // Cada anexo só é dado como enviado depois de gravado no servidor; falhas ficam visíveis para nova tentativa.
+    const failed: string[] = [];
     for (const f of files) {
-      const fd = new FormData(); fd.append('kind', f.kind); fd.append('file', f.file);
-      try { await api('POST', `/api/care/requests/${r.request.id}/documents`, fd); } catch (e: any) { setNotice(`Não foi possível anexar "${f.file.name}": ${e?.message ?? 'erro'}. Você pode anexar de novo na revisão.`); }
+      const fd = new FormData(); fd.append('kind', f.kind); fd.append('file', await prepareUpload(f.file));
+      try { await api('POST', `/api/care/requests/${r.request.id}/documents`, fd); } catch (e: any) { failed.push(`"${f.file.name}" (${e?.message ?? 'erro'})`); }
     }
     setFiles([]);
     setRequest(r.request);
     set({ requestId: r.request.id, step: 5 });
-    setNotice(r.acceptanceInvalidated ? 'Você alterou dados que afetam o orçamento: os valores foram recalculados e é preciso confirmar novamente.' : null);
+    const notes = [r.acceptanceInvalidated ? 'Você alterou dados que afetam o orçamento: os valores foram recalculados e é preciso confirmar novamente.' : '',
+      failed.length ? `Não foi possível anexar ${failed.join(', ')}. Anexe de novo logo abaixo, em "Pedido médico e exames".` : ''].filter(Boolean);
+    setNotice(notes.length ? notes.join(' ') : null);
     window.scrollTo(0, 0);
   }
 
@@ -478,7 +484,7 @@ function ReviewDocuments({ requestId }: { requestId: string }) {
   const [err, setErr] = useState<string | null>(null);
   async function add(file: File | undefined, kind: string) {
     if (!file) return; setErr(null);
-    const fd = new FormData(); fd.append('kind', kind); fd.append('file', file);
+    const fd = new FormData(); fd.append('kind', kind); fd.append('file', await prepareUpload(file));
     try { await api('POST', `/api/care/requests/${requestId}/documents`, fd); reload(); } catch (e: any) { setErr(e?.message ?? 'Falha ao anexar.'); }
   }
   async function remove(id: string) { try { await api('DELETE', `/api/care/requests/${requestId}/documents/${id}`); reload(); } catch (e: any) { setErr(e?.message ?? 'Falha ao remover.'); } }
@@ -487,7 +493,7 @@ function ReviewDocuments({ requestId }: { requestId: string }) {
     <div className="mt">
       <h3>Pedido médico e exames</h3>
       {!docs.length ? <p className="small muted mb0">Nenhum anexo.</p> : <ul className="small list">{docs.map((d: any) => (
-        <li key={d.id}><a href={`/api/care/requests/${requestId}/documents/${d.id}`} target="_blank" rel="noopener noreferrer">{d.filename}</a> · {d.kind === 'EXAME' ? 'exame' : 'pedido médico'} <button type="button" className="linklike" onClick={() => remove(d.id)}>Remover</button></li>
+        <li key={d.id}><DocLink url={`/api/care/requests/${requestId}/documents/${d.id}`} name={d.filename} /> · {d.kind === 'EXAME' ? 'exame' : 'pedido médico'} <button type="button" className="linklike" onClick={() => remove(d.id)}>Remover</button></li>
       ))}</ul>}
       <div className="row small">
         <label className="linklike upload-btn">+ Anexar pedido médico<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { add(e.target.files?.[0], 'PEDIDO_MEDICO'); e.target.value = ''; }} /></label>

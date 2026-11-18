@@ -7,6 +7,7 @@ import { IconCheck, IconShield } from '../../ui/icons';
 import { EVO_SECTIONS } from './WalletPage';
 import { CarePlanEditor } from '../carteira/CarteiraPages';
 import { VideoCall } from '../../ui/VideoCall';
+import { DocLink } from '../../ui/DocViewer';
 import { PopPanel } from '../pops/PopsPages';
 
 type Evo = { relato: string; sinaisVitais: string; avaliacao: string; procedimentos: string; orientacoes: string; plano: string; observacoes: string; pendencias: string[] };
@@ -207,6 +208,7 @@ function VisitInfo({ eventId, visit }: { eventId: string; visit: any }) {
       <h2>Paciente e local</h2>
       <dl className="kv small">
         <dt>Paciente</dt><dd>{visit.patientName}</dd>
+        <dt>Data de nasc.</dt><dd>{visit.patientBirthDate ? new Date(`${visit.patientBirthDate}T12:00:00`).toLocaleDateString('pt-BR') : 'Não informada'} <span className="small muted">(confirme com o paciente no início)</span></dd>
         <dt>Telefone</dt><dd><a href={`tel:${String(visit.phone).replace(/[^0-9+]/g, '')}`}>{visit.phone}</a></dd>
         <dt>Endereço</dt><dd>{ad ? `${ad.street}, ${ad.number}${ad.complement ? ` – ${ad.complement}` : ''} · ${ad.district} · ${ad.city} · CEP ${ad.cep}${ad.reference ? ` · ref.: ${ad.reference}` : ''}` : visit.location}</dd>
         <dt>Preferência</dt><dd>{visit.whenDate ? visit.whenDate.split('-').reverse().join('/') : visit.whenPref?.toLowerCase().replace('_', ' ')}{visit.timeWindow ? ` · ${TW[visit.timeWindow]}` : ''}</dd>
@@ -214,7 +216,7 @@ function VisitInfo({ eventId, visit }: { eventId: string; visit: any }) {
       </dl>
       <h3>Pedido médico e exames</h3>
       {!docs.data ? <Loading lines={1} /> : !docs.data.documents.length ? <p className="small muted">Nenhum anexo do paciente.</p> : (
-        <ul className="list small">{docs.data.documents.map((d: any) => <li key={d.id}><a href={`/api/care/specialist/events/${eventId}/documents/${d.id}`} target="_blank" rel="noopener noreferrer">{d.filename}</a> · {d.kind === 'EXAME' ? 'exame' : 'pedido médico'} (somente leitura)</li>)}</ul>
+        <ul className="list small">{docs.data.documents.map((d: any) => <li key={d.id}><DocLink url={`/api/care/specialist/events/${eventId}/documents/${d.id}`} name={d.filename} /> · {d.kind === 'EXAME' ? 'exame' : 'pedido médico'} (somente leitura)</li>)}</ul>
       )}
       {g && g.status !== 'NAO_APLICAVEL' && (
         <>
