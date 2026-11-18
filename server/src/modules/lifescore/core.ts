@@ -1,126 +1,102 @@
 /**
- * ONEMA Life Score v1.6 — núcleo determinístico (porte fiel de src/core.mjs e src/release.mjs do pacote).
- * Modelo ativo: OLS-DESC-ITEM24-1.0 (tabela de 24 itens; SHA-256 conferido na carga).
- * Índice DESCRITIVO de 0 a 100 a partir de respostas confirmadas pela enfermeira. Não é percentual de saúde,
- * diagnóstico, risco ou prognóstico; não decide conduta nem retorno.
+ * ONEMA Life Score — núcleo determinístico do modelo OLS-8-HOM-0.1 (especificação v0.4).
+ * Substitui o modelo de 24 itens (v1.6) para novas avaliações; registros v1.6 ficam arquivados e não são recalculados.
+ * Índice DESCRITIVO 0–100 a partir das oito respostas confirmadas pela enfermeira. Sem faixas, cores clínicas ou rótulos
+ * derivados do total; sem gatilho de queda; sem prazo de retorno derivado da nota.
  */
 import crypto from 'node:crypto';
-import modelJson from './model-OLS-DESC-ITEM24-1.0.json';
+import { BLOCKING, MODEL8 } from './model8.ts';
+import { sha256, stableJson } from '../../lib/util.ts';
 
-export const MODEL_FILE_SHA256 = 'c14a255e85cd390598153af5c14381b7011ce524913572eff9913f9698d4fa90';
-export const model: any = modelJson;
-/** Hash do modelo = SHA-256 dos bytes do arquivo de configuração (o JSON importado é re-serializado; o hash fixo foi conferido no teste). */
-export const modelHash = MODEL_FILE_SHA256;
-/**
- * Identidade da integração do Life Score. A liberação operacional vale para este "build" do módulo:
- * mudar o código de cálculo, o modelo ou as regras de publicação exige trocar este valor e nova liberação do RT.
- */
-export const LIFESCORE_BUILD = `ONEMA-APP-LS-1.0+${MODEL_FILE_SHA256.slice(0, 12)}`;
+export const model: any = MODEL8;
+export const modelHash = sha256(stableJson(MODEL8));
+/** Liberação operacional vale para este build: mudar cálculo, modelo ou regras exige novo valor e nova liberação do RT. */
+export const LIFESCORE_BUILD = `ONEMA-APP-LS-8-0.4+${modelHash.slice(0, 12)}`;
+export const LEGACY_MODEL_ID = 'OLS-DESC-ITEM24-1.0';
 
 const text = (x: unknown): x is string => typeof x === 'string' && x.trim().length > 0;
 const iso = (x: unknown) => text(x) && /(Z|[+-]\d\d:\d\d)$/.test(x) && Number.isFinite(Date.parse(x));
-const round = (x: number) => Math.round((x + Number.EPSILON) * 100) / 100;
-const key = (xs: unknown) => JSON.stringify(xs);
-const contextMatches = (p: any, e: any) => e && e.patient_id === p.patient_id && e.encounter_id === p.encounter_id && e.professional_id === p.professional_id;
-const evidence = (e: any) => Array.isArray(e?.source_refs) && e.source_refs.length > 0 && e.source_refs.every(text);
+/** Precisão interna total; arredonda só a exibição (duas casas). */
+export const round2 = (x: number) => Math.round((x + Number.EPSILON) * 100) / 100;
 
 export interface Registry { model: any; modelHash: string; operationalRelease?: any }
 export const registry = (operationalRelease?: any): Registry => ({ model, modelHash, operationalRelease });
 
+/** Contexto que torna duas avaliações comparáveis (tarefas, atividades e executor do plano). */
+export function contextSignature(responses: Record<string, any>) {
+  const c = (id: string) => responses?.[id]?.context ?? {};
+  return stableJson({ model: MODEL8.model_id, task: String(c('A1').task ?? '').trim().toLowerCase(),
+    activities: [...(c('A2').activities ?? [])].map((x: string) => x.trim().toLowerCase()).sort(), executor: c('K1').executor ?? null });
+}
+
 export function evaluate(p: any, reg: Registry) {
-  const { model: m, modelHash: mh } = reg;
-  const issues: any[] = [], immediate: any[] = [], priority: any[] = [], review: any[] = [];
+  const issues: any[] = [], review: any[] = [];
   const result: any = {
-    package_version: '1.6', model_id: m.model_id, model_hash: mh,
-    patient_id: p.patient_id, encounter_id: p.encounter_id, episode_id: p.episode_id,
-    assessment_id: p.assessment_id, assessed_at: p.assessed_at,
-    task_set_id: p.task_set_id, measurement_context_id: p.measurement_context_id,
-    calculation_status: 'NOT_CALCULABLE', raw_score: null, score_display: null,
-    domain_scores: {}, applicability_signature: [], issues,
-    safety: { level: 'UNDETERMINED', immediate, priority, review },
-    clinical_validated: false, diagnostic_or_treatment_use_authorized: false, patient_publication_allowed: false,
-    descriptive_production_authorized: false,
-    patient_score: null, followup_days: null, clinical_band: null,
-    interpretation: 'ORIGINAL_DESCRIPTIVE_RECORD_INDEX_NOT_A_HEALTH_PERCENTAGE',
+    model_id: MODEL8.model_id, model_hash: reg.modelHash, patient_id: p.patient_id, encounter_id: p.encounter_id, episode_id: p.episode_id,
+    assessment_id: p.assessment_id, assessed_at: p.assessed_at, calculation_status: 'NOT_CALCULABLE', raw_score: null, score_display: null,
+    domain_scores: {}, contributions: {}, issues, review, context_signature: contextSignature(p.responses ?? {}),
+    safety: { professional: null as any, note: 'Preocupação de segurança é registro profissional independente; total alto não encerra pendência.' },
+    interpretation: 'DESCRIPTIVE_INDEX_NOT_A_HEALTH_PERCENTAGE', clinical_validated: false,
   };
-  const validContext = ['patient_id', 'encounter_id', 'episode_id', 'professional_id', 'assessment_id', 'task_set_id', 'measurement_context_id'].every((f) => text(p[f])) && iso(p.assessed_at);
-  if (!validContext) issues.push({ code: 'IDENTIFIED_CONTEXT_REQUIRED' });
-  if (p.model_id !== m.model_id || p.model_hash !== mh) issues.push({ code: 'MODEL_MISMATCH' });
+  if (!['patient_id', 'encounter_id', 'assessment_id'].every((f) => text(p[f])) || !iso(p.assessed_at)) issues.push({ code: 'IDENTIFIED_CONTEXT_REQUIRED' });
+  if (p.model_id !== MODEL8.model_id || p.model_hash !== reg.modelHash) issues.push({ code: 'MODEL_MISMATCH' });
   const release = reg.operationalRelease;
   const productionAllowed = p.environment === 'PRODUCTION' && p.synthetic === false && release?.verified === true &&
-    release.scope === 'DESCRIPTIVE_PROFESSIONAL_RECORD_ONLY' && release.model_hash === mh &&
-    release.model_id === m.model_id && text(release.app_build) && text(release.uat_report_ref) &&
-    text(release.rt_approval_ref) && text(release.approved_by) && iso(release.approved_at);
+    release.scope === 'DESCRIPTIVE_PROFESSIONAL_RECORD_ONLY' && release.model_hash === reg.modelHash && release.model_id === MODEL8.model_id;
   result.descriptive_production_authorized = productionAllowed;
   if (!productionAllowed && !(p.environment === 'HOMOLOGATION' && p.synthetic === true)) issues.push({ code: 'OPERATIONAL_RELEASE_REQUIRED_FOR_REAL_RECORDS' });
   const responses = p.responses ?? {};
-  const known = new Set(m.items.map((i: any) => i.item_id));
+  const known = new Set(MODEL8.items.map((i) => i.item_id as string));
   for (const iid of Object.keys(responses)) if (!known.has(iid)) issues.push({ code: 'UNKNOWN_ITEM', item_id: iid });
-  const s = p.professional_safety_event;
-  if (s) {
-    if (validContext && contextMatches(p, s) && s.verified === true && text(s.reason) && iso(s.occurred_at) &&
-        Date.parse(s.occurred_at) <= Date.parse(p.assessed_at) && ['IMMEDIATE', 'PRIORITY'].includes(s.level)) {
-      (s.level === 'IMMEDIATE' ? immediate : priority).push({ source: 'PROFESSIONAL_EVENT', reason: s.reason });
-    } else issues.push({ code: 'INVALID_SAFETY_EVENT' });
+  if (p.professional_safety_event) result.safety.professional = p.professional_safety_event;
+
+  const fractions: Record<string, number | null> = {};
+  for (const it of MODEL8.items) {
+    const r = responses[it.item_id];
+    const c = r?.code;
+    fractions[it.item_id] = null;
+    if (!r || !c) { issues.push({ code: 'NOT_ASSESSED', item_id: it.item_id }); continue; }
+    if (c in BLOCKING) { issues.push({ code: 'BLOCKED_RESPONSE', item_id: it.item_id, response_code: c }); continue; }
+    if (!(c in MODEL8.fractions)) { issues.push({ code: 'INVALID_RESPONSE', item_id: it.item_id, response_code: c }); continue; }
+    const ctx = r.context ?? {};
+    const needs = (it as any).context;
+    const ctxOk = !needs || (needs === 'TASK' && text(ctx.task)) || (needs === 'ACTIVITIES' && Array.isArray(ctx.activities) && ctx.activities.some(text))
+      || (needs === 'EXECUTOR' && ['PACIENTE', 'CUIDADOR', 'AMBOS'].includes(ctx.executor))
+      || (needs === 'OBJECTS' && (ctx.noneConfirmed === true || (Array.isArray(ctx.objects) && ctx.objects.length > 0)))
+      || (needs === 'WOUND' && typeof ctx.wound === 'boolean');
+    if (!ctxOk) { issues.push({ code: 'CONTEXT_REQUIRED', item_id: it.item_id }); continue; }
+    if (c === 'R0' && !text(r.rationale)) { issues.push({ code: 'RATIONALE_REQUIRED', item_id: it.item_id }); continue; }
+    if (c === 'R0' && (MODEL8.review_r0 as readonly string[]).includes(it.item_id)) review.push({ item_id: it.item_id, automatic_urgency: false });
+    fractions[it.item_id] = MODEL8.fractions[c];
   }
-  const sums: Record<string, number> = {}, counts: Record<string, number> = {};
-  for (const d of Object.keys(m.global_weights)) { sums[d] = 0; counts[d] = 0; }
-  let safetyCovered = true;
-  for (const i of m.items) {
-    const e = responses[i.item_id];
-    const prefix = ['D01', 'D03'].includes(i.domain);
-    if (!e) { issues.push({ code: 'NOT_ASSESSED', item_id: i.item_id }); if (prefix) safetyCovered = false; continue; }
-    if (!validContext || !contextMatches(p, e) || e.verified !== true || !evidence(e) || !iso(e.assessed_at) ||
-        Date.parse(e.assessed_at) > Date.parse(p.assessed_at)) {
-      issues.push({ code: 'UNVERIFIED_OR_WRONG_CONTEXT', item_id: i.item_id }); if (prefix) safetyCovered = false; continue;
-    }
-    const c = e.response_code;
-    const recognized = Object.hasOwn(i.response_anchors, c);
-    // Sinal de segurança é preservado mesmo se a qualidade impedir o cálculo do item.
-    if (prefix && c === 'L0') immediate.push({ source: 'ITEM', item_id: i.item_id });
-    if (prefix && c === 'L1') priority.push({ source: 'ITEM', item_id: i.item_id });
-    if (!prefix && ['L0', 'L1'].includes(c)) review.push({ source: 'ITEM', item_id: i.item_id, automatic_urgency: false });
-    if (c === 'NA') {
-      if (!i.allow_na || !text(e.na_reason) || e.quality !== 'ELIGIBLE') { issues.push({ code: 'NA_NOT_ALLOWED_OR_NOT_JUSTIFIED', item_id: i.item_id }); if (prefix) safetyCovered = false; }
-      continue;
-    }
-    if (!recognized || e.quality !== 'ELIGIBLE') { issues.push({ code: 'MISSING_OR_INELIGIBLE', item_id: i.item_id, response_code: c }); if (prefix) safetyCovered = false; continue; }
-    counts[i.domain]++;
-    sums[i.domain] += Number(i.response_anchors[c].points);
-    result.applicability_signature.push(i.item_id);
+  let total = 0, complete = true;
+  for (const d of MODEL8.domains) {
+    const ids = MODEL8.items.filter((i) => i.domain === d.code).map((i) => i.item_id as string);
+    const fs = ids.map((i) => fractions[i]);
+    for (const i of ids) if (fractions[i] != null) result.contributions[i] = (d.weight / 2) * (fractions[i] as number);
+    // Domínio só tem resultado com os dois itens completos (exibido como parcial se o global estiver indisponível).
+    if (fs.every((f) => f != null)) {
+      result.domain_scores[d.code] = ((fs[0]! + fs[1]!) / 2) * 100;
+      total += ids.reduce((a, i) => a + result.contributions[i], 0);
+    } else { result.domain_scores[d.code] = null; complete = false; }
   }
-  result.applicability_signature.sort();
-  for (const d of Object.keys(sums)) {
-    if (counts[d] < m.domain_min_applicable[d]) issues.push({ code: 'INSUFFICIENT_DOMAIN', domain: d });
-    result.domain_scores[d] = counts[d] ? sums[d] / counts[d] : null;
-  }
-  result.safety.level = immediate.length ? 'IMMEDIATE' : priority.length ? 'PRIORITY'
-    : !safetyCovered || issues.some((x) => ['INVALID_SAFETY_EVENT', 'MODEL_MISMATCH', 'IDENTIFIED_CONTEXT_REQUIRED'].includes(x.code)) ? 'UNDETERMINED' : 'NO_ITEM_TRIGGER_IDENTIFIED';
-  result.safety.note = 'Ausência de gatilho não demonstra ausência de risco. Preocupação profissional independe do score.';
-  if (!issues.length) {
-    result.raw_score = Object.entries(m.global_weights).reduce((a, [d, w]) => a + Number(w) * result.domain_scores[d], 0);
-    result.score_display = round(result.raw_score);
+  if (!issues.length && complete) {
+    result.raw_score = total;
+    result.score_display = round2(total);
     result.calculation_status = 'CALCULABLE_DESCRIPTIVE';
-  } else {
-    // Não publicar médias parciais como domínios completos.
-    result.domain_scores = {};
   }
   return result;
 }
 
+/** Comparação só entre o mesmo paciente, modelo e contexto equivalente (tarefas/atividades/executor). Sem inferir melhora ou piora. */
 export function compareAssessments(a: any, b: any) {
   const reasons: string[] = [];
-  for (const f of ['patient_id', 'episode_id', 'model_id', 'model_hash', 'task_set_id', 'measurement_context_id'])
-    if (!text(a[f]) || a[f] !== b[f]) reasons.push('DIFFERENT_' + f.toUpperCase());
-  if (a.assessment_id === b.assessment_id) reasons.push('SAME_ASSESSMENT');
-  if (!iso(a.assessed_at) || !iso(b.assessed_at) || Date.parse(b.assessed_at) <= Date.parse(a.assessed_at)) reasons.push('INVALID_ORDER');
-  if (a.calculation_status !== 'CALCULABLE_DESCRIPTIVE' || b.calculation_status !== 'CALCULABLE_DESCRIPTIVE') reasons.push('INCOMPLETE');
-  if (key(a.applicability_signature) !== key(b.applicability_signature)) reasons.push('DIFFERENT_APPLICABILITY');
+  if (!a || !b || a.model_id !== b.model_id) reasons.push('DIFFERENT_MODEL');
+  if (a?.patient_id !== b?.patient_id) reasons.push('DIFFERENT_PATIENT');
+  if (a?.context_signature !== b?.context_signature) reasons.push('DIFFERENT_CONTEXT');
+  if (a?.calculation_status !== 'CALCULABLE_DESCRIPTIVE' || b?.calculation_status !== 'CALCULABLE_DESCRIPTIVE') reasons.push('INCOMPLETE');
   if (reasons.length) return { status: 'NOT_COMPARABLE', reasons, delta: null };
-  return { status: 'DESCRIPTIVE_COMPARISON_ONLY', delta: round(b.raw_score - a.raw_score),
-    elapsed_hours: (Date.parse(b.assessed_at) - Date.parse(a.assessed_at)) / 3600000,
-    clinical_improvement_inferred: false, clinical_deterioration_inferred: false,
-    safety_before: a.safety.level, safety_after: b.safety.level };
+  return { status: 'DESCRIPTIVE_COMPARISON_ONLY', delta: round2(b.raw_score - a.raw_score), clinical_improvement_inferred: false, clinical_deterioration_inferred: false };
 }
 
 // ---------- Liberação operacional (release.mjs): integridade por HMAC, só no servidor ----------

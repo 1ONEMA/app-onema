@@ -102,7 +102,7 @@ export function ApplicationPage() {
             <Field label="Telefone (WhatsApp)" error={fieldError(save.error, 'phone')}><input type="tel" autoComplete="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="(11) 99999-9999" /></Field>
             <Field label="Regiões e bairros em que pode atender" error={fieldError(save.error, 'regions')}><input type="text" value={f.regions} onChange={(e) => setF({ ...f, regions: e.target.value })} placeholder="Ex.: Zona Sul, Vila Mariana, Moema" /></Field>
           </div>
-          <fieldset className="checks-grid address-grid">
+          <fieldset className="address-grid">
             <legend className="field-legend">Endereço residencial</legend>
             <div className="form-grid">
               <Field label="CEP" error={fieldError(save.error, 'address.cep')}><input type="text" inputMode="numeric" autoComplete="postal-code" maxLength={9} value={f.address.cep} onChange={(e) => setF({ ...f, address: { ...f.address, cep: e.target.value } })} placeholder="00000-000" /></Field>

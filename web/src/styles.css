@@ -862,3 +862,11 @@ h3 { font-weight: 600; letter-spacing: -0.01em; }
 .sp-photo-row { align-items: center; gap: 12px; margin-bottom: 8px; }
 .sp-photo.lg { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; }
 .sp-photo.placeholder { display: inline-flex; align-items: center; justify-content: center; background: #e4ebf3; color: #53627a; font-weight: 700; }
+.ls-explanation { font-size: 0.95rem; line-height: 1.5; margin: 8px 0 12px; color: var(--ink, #1c2b45); }
+.ls-legend { margin-top: 16px; font-size: 0.875rem; border-top: 1px solid var(--line, #d5dfea); padding-top: 10px; }
+.ls-legend summary { cursor: pointer; font-weight: 600; }
+.ls-legend-grid { display: grid; grid-template-columns: 1fr; gap: 8px 16px; }
+@media (min-width: 760px) { .ls-legend-grid { grid-template-columns: 1fr 1fr; } }
+.ls-legend ul { margin: 4px 0 0; padding-left: 18px; }
+.linklike.strong { font-weight: 700; text-decoration: underline; }
+.address-grid { border: 0; padding: 0; margin: 12px 0; }

@@ -14,15 +14,20 @@ import { hmac } from '../../lib/security.ts';
 import { nowIso, uid } from '../../lib/util.ts';
 import { notify } from '../prime/core.ts';
 import { primeActive } from '../care/report-share.ts';
-import { LIFESCORE_BUILD, compareAssessments, evaluate, model, modelHash, registry, signOperationalRelease, verifyOperationalRelease } from './core.ts';
+import { LEGACY_MODEL_ID, LIFESCORE_BUILD, compareAssessments, evaluate, model, modelHash, registry, round2, signOperationalRelease, verifyOperationalRelease } from './core.ts';
+import { BLOCKING, MODEL8 } from './model8.ts';
 
-export const RESPONSE_CODES = ['L0', 'L1', 'L2', 'L3', 'L4', 'NA', 'ND', 'QI', 'RECUSA', 'DESCONHECIDO'] as const;
+export const RESPONSE_CODES = ['R3', 'R2', 'R1', 'R0', 'NAO_AVALIADO', 'DESCONHECIDO', 'RECUSA', 'QI'] as const;
 export const DISCLAIMER = 'Índice descritivo ONEMA calculado a partir da avaliação profissional. Não representa percentual de saúde nem determina conduta.';
-export const TASK_SET_ID = 'ONEMA-LS-TAREFAS-24-v1';
+export const TASK_SET_ID = 'ONEMA-LS-8-CONTEXTO-v0.4';
+export const PATIENT_EXPLANATION = 'O Life Score resume aspectos da sua avaliação de Enfermagem. Não representa percentual de saúde nem define sozinho os cuidados necessários. As orientações são individualizadas pelo enfermeiro.';
+export const URGENCY_NOTICE = 'Este lembrete é de continuidade do cuidado. Em situação urgente ou emergência, acione o SAMU 192. Não aguarde retorno pelo aplicativo.';
 const CONTEXT = (modality: string) => `ONEMA-LS-CONTEXTO-${modality === 'REMOTO' ? 'REMOTO' : 'DOMICILIAR'}-v1`;
 const EPISODE = (patientId: string) => `ACOMPANHAMENTO-${patientId}`;
 
 export const DOMAIN_INFO: Record<string, { name: string; plain: string }> = {
+  ...Object.fromEntries(MODEL8.domains.map((d) => [d.code, { name: d.name, plain: d.plain }])),
+  // Modelo anterior (24 itens, arquivado): só para exibir registros antigos, sem recálculo.
   D01: { name: 'Condição clínica atual', plain: 'Sintomas, sinais e dor avaliados pela enfermeira neste atendimento.' },
   D02: { name: 'Capacidade funcional', plain: 'Como a pessoa realiza atividades do dia a dia, com ou sem ajuda.' },
   D03: { name: 'Pele, feridas e dispositivos', plain: 'Situação de pele, feridas e dispositivos, quando existirem.' },
@@ -31,6 +36,8 @@ export const DOMAIN_INFO: Record<string, { name: string; plain: string }> = {
   D07: { name: 'Necessidades de cuidado atendidas', plain: 'Se o que foi combinado no cuidado está sendo atendido.' },
 };
 export const ISSUE_LABEL: Record<string, string> = {
+  BLOCKED_RESPONSE: 'Não avaliado, desconhecido, recusa ou informação inadequada (bloqueia o global)', CONTEXT_REQUIRED: 'Falta o contexto do item (tarefa, atividades, executor, medicamentos/dispositivos ou ferida)',
+  RATIONALE_REQUIRED: 'Resposta R0 exige fundamento nas observações do item', INVALID_RESPONSE: 'Resposta inválida',
   NOT_ASSESSED: 'Item não avaliado', MISSING_OR_INELIGIBLE: 'Resposta ausente, recusada, desconhecida ou de qualidade inadequada',
   NA_NOT_ALLOWED_OR_NOT_JUSTIFIED: 'Não se aplica sem permissão ou sem justificativa', INSUFFICIENT_DOMAIN: 'Domínio com itens aplicáveis insuficientes',
   OPERATIONAL_RELEASE_REQUIRED_FOR_REAL_RECORDS: 'Cálculo em registros reais aguardando a liberação operacional do RT',
@@ -86,19 +93,16 @@ export async function buildPayload(a: any, assessedAt: string) {
   const evo = await one<any>('SELECT id FROM care_evolutions WHERE event_id = ?', a.event_id);
   const refs = [`atendimento:${a.event_id}`, ...(evo ? [`evolucao:${evo.id}`] : [])];
   for (const [itemId, r] of Object.entries<any>(stored)) {
-    if (!r || r.code === 'ND') continue;
-    const quality = ['L0', 'L1', 'L2', 'L3', 'L4', 'NA'].includes(r.code) ? 'ELIGIBLE' : r.code === 'QI' ? 'INADEQUATE' : 'NOT_ELIGIBLE';
-    responses[itemId] = { patient_id: a.patient_id, encounter_id: a.event_id, professional_id: a.specialist_id, assessed_at: assessedAt,
-      verified: true, source_refs: refs, response_code: r.code, quality, na_reason: r.naReason ?? undefined, rationale: r.rationale ?? undefined };
+    if (!r || !r.code) continue;
+    responses[itemId] = { code: r.code, rationale: r.rationale ?? undefined, context: r.context ?? {}, source_refs: refs };
   }
-  const safety = await one<any>(`SELECT * FROM lifescore_safety_events WHERE event_id = ? AND specialist_id = ? AND occurred_at <= ? ORDER BY CASE level WHEN 'IMMEDIATE' THEN 0 ELSE 1 END, occurred_at DESC LIMIT 1`,
+  const safety = await one<any>(`SELECT * FROM lifescore_safety_events WHERE event_id = ? AND specialist_id = ? AND occurred_at <= ? ORDER BY CASE level WHEN 'IMMEDIATE' THEN 0 WHEN 'PRIORITY' THEN 1 ELSE 2 END, occurred_at DESC LIMIT 1`,
     a.event_id, a.specialist_id, assessedAt);
   return {
     environment: a.environment, synthetic: !!a.synthetic, patient_id: a.patient_id, episode_id: a.episode_id, encounter_id: a.event_id,
     professional_id: a.specialist_id, assessment_id: a.id, assessed_at: assessedAt, task_set_id: a.task_set_id, measurement_context_id: a.measurement_context_id,
     model_id: a.model_id, model_hash: a.model_hash, responses,
-    professional_safety_event: safety ? { patient_id: a.patient_id, encounter_id: a.event_id, professional_id: a.specialist_id, verified: true,
-      level: safety.level, reason: safety.reason, occurred_at: safety.occurred_at } : undefined,
+    professional_safety_event: safety ? { level: safety.level, reason: safety.reason, occurred_at: safety.occurred_at, status: safety.status ?? null } : undefined,
   };
 }
 
@@ -106,12 +110,20 @@ export async function runEvaluation(a: any, assessedAt = nowIso()) {
   return evaluate(await buildPayload(a, assessedAt), registry(await currentRelease()));
 }
 
-/** Resultado em linguagem da tela (sem códigos crus). */
+/** Resultado em linguagem da tela (nomes junto dos códigos; nunca zero substitutivo). */
 export function resultView(r: any) {
+  const legacy = r.model_id === LEGACY_MODEL_ID;
+  const itemName = (id: string) => MODEL8.items.find((i) => i.item_id === id)?.name ?? id;
   return {
-    calculable: r.calculation_status === 'CALCULABLE_DESCRIPTIVE', score: r.score_display, rawScore: r.raw_score,
-    domains: Object.entries(r.domain_scores ?? {}).map(([d, v]) => ({ code: d, name: DOMAIN_INFO[d]?.name ?? d, plain: DOMAIN_INFO[d]?.plain ?? '', score: v == null ? null : Math.round(Number(v) * 100) / 100 })),
-    issues: (r.issues ?? []).map((i: any) => ({ ...i, label: ISSUE_LABEL[i.code] ?? i.code })),
+    legacy, calculable: r.calculation_status === 'CALCULABLE_DESCRIPTIVE', score: r.score_display, rawScore: r.raw_score,
+    domains: legacy
+      ? Object.entries(r.domain_scores ?? {}).map(([d, v]) => ({ code: d, name: DOMAIN_INFO[d]?.name ?? d, plain: DOMAIN_INFO[d]?.plain ?? '', score: v == null ? null : round2(Number(v)) }))
+      : MODEL8.domains.map((d) => ({ code: d.code, name: d.name, plain: d.plain, weight: d.weight, score: r.domain_scores?.[d.code] == null ? null : round2(Number(r.domain_scores[d.code])),
+          contribution: MODEL8.items.filter((i) => i.domain === d.code).every((i) => r.contributions?.[i.item_id] != null)
+            ? round2(MODEL8.items.filter((i) => i.domain === d.code).reduce((a, i) => a + Number(r.contributions[i.item_id]), 0)) : null })),
+    contributions: legacy ? [] : MODEL8.items.map((i) => ({ item: i.item_id, name: i.name, value: r.contributions?.[i.item_id] == null ? null : round2(Number(r.contributions[i.item_id])) })),
+    issues: (r.issues ?? []).map((i: any) => ({ ...i, label: `${i.item_id ? `${i.item_id} — ${itemName(i.item_id)}: ` : ''}${ISSUE_LABEL[i.code] ?? i.code}` })),
+    review: (r.review ?? []).map((x: any) => ({ ...x, label: `${x.item_id} — ${itemName(x.item_id)}: R0 registrado, pendência para revisão profissional (sem diagnóstico automático).` })),
     safety: r.safety, modelId: r.model_id, modelHash: r.model_hash, productionAuthorized: r.descriptive_production_authorized, disclaimer: DISCLAIMER,
   };
 }
@@ -163,10 +175,11 @@ export async function setPlanStatus(a: any, status: string, reason: string) {
 
 /** Agendamento: um atendimento de enfermagem (solicitação de cuidado) pago depois da publicação encerra o convite e os lembretes daquele plano. */
 export async function syncScheduling(patientId: string) {
-  const plans = await all<any>(`SELECT a.* FROM lifescore_assessments a WHERE a.patient_id = ? AND a.status = 'PUBLICADA' AND a.plan_status = 'VIGENTE' AND a.plan_kind = 'RETORNO'
+  const plans = await all<any>(`SELECT a.* FROM lifescore_assessments a WHERE a.patient_id = ? AND a.status = 'PUBLICADA' AND a.plan_status IN ('VIGENTE','SOLICITADO','PAUSADO','AGENDADO') AND a.plan_kind = 'RETORNO'
     AND EXISTS (SELECT 1 FROM service_orders o JOIN care_requests r ON r.id = o.request_id
       WHERE o.patient_id = a.patient_id AND o.status = 'PAID' AND o.paid_at > a.published_at)`, patientId);
-  for (const p of plans) await setPlanStatus(p, 'AGENDADO', 'Atendimento solicitado e pago após o plano.');
+  // Contratação confirmada (pedido pago depois do plano): não é sobrescrita por resposta posterior do paciente.
+  for (const p of plans) await setPlanStatus(p, 'CONTRATADO', 'Atendimento contratado e pago após o plano.');
   return plans.length;
 }
 
@@ -212,7 +225,12 @@ export async function runLifescoreReminders(now = new Date()) {
       }
       await run(`UPDATE lifescore_reminders SET status = 'ENVIADO', email_status = ?, attempts = attempts + 1, last_error = NULL, updated_at = ? WHERE id = ?`, emailStatus ?? null, nowIso(), id);
       out.sent++;
-      if (claimed.wave === 7) await run(`UPDATE lifescore_assessments SET plan_status = 'ENCERRADO_SEM_RESPOSTA', plan_status_at = ?, updated_at = ? WHERE id = ? AND plan_status = 'VIGENTE'`, nowIso(), nowIso(), a.id);
+      if (claimed.wave === 7) {
+        // Limite de três contatos atingido sem resposta: pendência operacional (não é alerta de piora clínica). Sem quarto contato.
+        const r = await run(`UPDATE lifescore_assessments SET plan_status = 'ENCERRADO_SEM_RESPOSTA', plan_status_at = ?, updated_at = ? WHERE id = ? AND plan_status = 'VIGENTE'`, nowIso(), nowIso(), a.id);
+        if (r.changes) await notify((await one<any>(`SELECT u.id FROM users u JOIN user_roles r ON r.user_id = u.id AND r.role = 'OPERADOR_CENTRAL' LIMIT 1`))?.id ?? a.specialist_id,
+          'LEMBRETE', 'Continuidade: limite de lembretes sem resposta', 'Um plano de retorno chegou ao limite de três contatos sem resposta. Veja em Gestão › Life Score.');
+      }
     } catch (e: any) {
       const attempts = claimed.attempts + 1;
       // Retentativa técnica: até 3 em 24 h (intervalos crescentes); não cria contato extra.
@@ -232,7 +250,7 @@ export async function historyFor(patientId: string, opts: { includeRetified?: bo
     WHERE a.patient_id = ? AND a.status IN ('PUBLICADA'${opts.includeRetified ? ",'RETIFICADA'" : ''}) ORDER BY a.published_at DESC LIMIT 100`, patientId);
   const items = rows.map((a) => {
     const r = JSON.parse(a.result_json);
-    return { id: a.id, status: a.status, publishedAt: a.published_at, specialist: a.specialist_name, score: a.score_display, result: r,
+    return { id: a.id, status: a.status, publishedAt: a.published_at, specialist: a.specialist_name, score: a.score_display, result: r, legacy: a.model_id === LEGACY_MODEL_ID,
       domains: resultView(r).domains, summary: a.patient_summary,
       // Interpretação profissional e motivo de retificação são registros internos (não vão ao paciente/responsável).
       ...(pro ? { interpretation: a.interpretation, rectificationReason: a.rectification_reason } : {}),
@@ -251,8 +269,8 @@ export async function historyFor(patientId: string, opts: { includeRetified?: bo
 }
 
 export const modelView = () => ({
-  modelId: model.model_id, modelHash, build: LIFESCORE_BUILD, disclaimer: DISCLAIMER, weights: model.global_weights, minApplicable: model.domain_min_applicable,
-  domains: Object.keys(model.global_weights).map((d) => ({ code: d, ...DOMAIN_INFO[d], weight: Number(model.global_weights[d]), min: model.domain_min_applicable[d],
-    items: model.items.filter((i: any) => i.domain === d).map((i: any) => ({ id: i.item_id, name: i.name, question: i.question, allowNa: !!i.allow_na, naCondition: i.na_condition,
-      anchors: Object.fromEntries(Object.entries<any>(i.response_anchors).map(([k, v]) => [k, { points: v.points, description: v.description }])) })) })),
+  modelId: MODEL8.model_id, spec: MODEL8.spec, modelHash, build: LIFESCORE_BUILD, disclaimer: DISCLAIMER, legendNote: MODEL8.legend_note,
+  blocking: BLOCKING, reviewR0: MODEL8.review_r0,
+  domains: MODEL8.domains.map((d) => ({ ...d, items: MODEL8.items.filter((i) => i.domain === d.code).map((i) => ({ id: i.item_id, name: i.name, question: i.question, help: i.help,
+    context: (i as any).context ?? null, points: d.weight / 2, anchors: i.anchors })) })),
 });
