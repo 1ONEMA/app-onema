@@ -95,14 +95,16 @@ export async function carteiraRoutes(app: FastifyInstance) {
     return await tx(async () => {
       const it = await one<any>('SELECT * FROM care_plan_items WHERE id = ? AND patient_id = ? FOR UPDATE', id, a.userId);
       if (!it) throw notFound('Tarefa não encontrada.');
-      if (it.status !== 'ATIVO') throw conflict('PLAN_ITEM_CLOSED', 'Esta tarefa já foi concluída ou cancelada.');
+      // Ajuste 01: reenvio, duplo clique ou outra aba confirmando a mesma ocorrência = um único ato (mesmo resultado).
+      if (it.status === 'CONCLUIDO') return { ok: true, already: true, item: itemView(it) };
+      if (it.status !== 'ATIVO') throw conflict('PLAN_ITEM_CLOSED', 'Esta tarefa foi cancelada pela enfermeira.');
       if (it.ask_followup && !b.answer) throw unprocessable('FOLLOWUP_REQUIRED', 'Conte como você está para concluir.');
       const now = nowIso();
       await run(`UPDATE care_plan_items SET status = 'CONCLUIDO', completed_at = ?, followup_answer = ?, followup_note = ?, updated_at = ? WHERE id = ?`, now, b.answer ?? null, b.note ?? null, now, id);
       if (it.recurrence_days) {
         const next = new Date(new Date(it.due_at).getTime() + it.recurrence_days * 86400000).toISOString();
         await run(`INSERT INTO care_plan_items (id, patient_id, created_by, source_event_id, previous_item_id, title, instructions, due_at, recurrence_days, ask_followup, status, created_at, updated_at)
-          VALUES (?,?,?,?,?,?,?,?,?,?,'ATIVO',?,?)`, uid(), it.patient_id, it.created_by, it.source_event_id, id, it.title, it.instructions, next, it.recurrence_days, it.ask_followup, now, now);
+          VALUES (?,?,?,?,?,?,?,?,?,?,'ATIVO',?,?) ON CONFLICT DO NOTHING`, uid(), it.patient_id, it.created_by, it.source_event_id, id, it.title, it.instructions, next, it.recurrence_days, it.ask_followup, now, now);
       }
       // Lembretes e atrasos daquela tarefa se resolvem com a confirmação do paciente.
       for (const al of await all<any>(`SELECT id FROM care_alerts WHERE subject_type = 'care_plan_item' AND subject_id = ? AND status IN ('PENDENTE','RECONHECIDO','EM_TRATAMENTO')`, id)) {
@@ -116,7 +118,7 @@ export async function carteiraRoutes(app: FastifyInstance) {
         else await audit({ actorId: a.userId, action: 'CARE_ALERT_RULE_INACTIVE', subjectType: 'care_plan_item', subjectId: id, meta: { rule: 'CLI-FICT-001' } });
       }
       await audit({ actorId: a.userId, action: 'CARE_PLAN_ITEM_DONE', subjectType: 'care_plan_item', subjectId: id, correlationId: req.correlationId });
-      return { ok: true };
+      return { ok: true, item: itemView((await one<any>('SELECT * FROM care_plan_items WHERE id = ?', id))!) };
     });
   });
 

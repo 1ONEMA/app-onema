@@ -60,7 +60,11 @@ describe('Carteira Digital: plano e alertas', () => {
     expect((await patient.post(`/api/carteira/alerts/${plan.alerts[0].id}/transition`, { to: 'RECONHECIDO', rev: 1 })).body.alert.status).toBe('RECONHECIDO');
     expect((await patient.post(`/api/carteira/alerts/${plan.alerts[0].id}/transition`, { to: 'RECONHECIDO', rev: 1 })).status).toBe(409);
     // confirmação da tarefa resolve o lembrete e cria a próxima (recorrência)
-    expect((await patient.post(`/api/carteira/plan/${plan.items[0].id}/done`, {})).status).toBe(200);
+    // ajuste 01: duas abas confirmando a mesma ocorrência ao mesmo tempo = um ato, uma próxima ocorrência
+    const [d1, d2] = await Promise.all([patient.post(`/api/carteira/plan/${plan.items[0].id}/done`, {}), patient.post(`/api/carteira/plan/${plan.items[0].id}/done`, {})]);
+    expect([d1.status, d2.status]).toEqual([200, 200]);
+    expect([d1.body.already, d2.body.already].filter(Boolean)).toHaveLength(1);
+    expect((await one<any>(`SELECT COUNT(*)::int AS n FROM audit_events WHERE action = 'CARE_PLAN_ITEM_DONE'`)).n).toBe(1);
     const after = (await patient.get('/api/carteira/plan')).body;
     expect(after.items.map((i: any) => i.status).sort()).toEqual(['ATIVO', 'CONCLUIDO']);
     expect(after.alerts[0].status).toBe('RESOLVIDO');

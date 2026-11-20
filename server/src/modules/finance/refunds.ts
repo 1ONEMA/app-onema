@@ -140,7 +140,7 @@ async function executeRefund(id: string, actorId: string | null, correlationId: 
 /** Cancela atos ainda não iniciados e os repasses correspondentes (nada é pago por ato cancelado). */
 async function cancelOpenActs(orderId: string) {
   const now = nowIso();
-  for (const e of await all<any>(`SELECT id, specialist_id FROM care_events WHERE order_id = ? AND status IN ('AGUARDANDO_PAGAMENTO','DISPONIVEL','ACEITO') AND started_at IS NULL`, orderId)) {
+  for (const e of await all<any>(`SELECT id, specialist_id FROM care_events WHERE order_id = ? AND status IN ('AGUARDANDO_PAGAMENTO','A_PROGRAMAR','DISPONIVEL','ACEITO') AND started_at IS NULL`, orderId)) {
     await run(`UPDATE care_events SET status = 'CANCELADO', updated_at = ? WHERE id = ?`, now, e.id);
     await run(`UPDATE payout_entries SET status = 'CANCELADO', updated_at = ? WHERE event_id = ? AND status IN ('RESERVADO','A_LIQUIDAR')`, now, e.id);
     if (e.specialist_id) await notify(e.specialist_id, 'ESSENCIAL', 'Atendimento cancelado', 'Um atendimento que você aceitou foi cancelado pelo paciente antes do início. Ele saiu da sua agenda.');

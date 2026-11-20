@@ -1,0 +1,6 @@
+.icon-btn:has(.header-avatar) { padding: 0; overflow: hidden; border-radius: 50%; }
+.header-avatar {
+  display: block; width: 42px; height: 42px; border-radius: 50%; object-fit: cover;
+  -webkit-user-select: none; user-select: none; -webkit-user-drag: none; -webkit-touch-callout: none; pointer-events: none;
+}
+.photo-protect { -webkit-user-select: none; user-select: none; -webkit-user-drag: none; -webkit-touch-callout: none; }

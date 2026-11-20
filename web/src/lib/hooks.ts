@@ -62,3 +62,49 @@ export function useOnline() {
   }, []);
   return online;
 }
+
+/**
+ * Dados que se atualizam sozinhos (regra comum dos ajustes do RT, 20/11/2026): recarrega em segundo plano a cada
+ * `intervalMs` enquanto a tela está visível, ao voltar para o app, recuperar o foco ou reconectar. Não pisca a tela:
+ * só troca os dados quando mudaram. Respostas de uma tela/conta anterior são descartadas (troca de URL aborta).
+ */
+export function useLiveApi<T = any>(url: string | null, intervalMs = 3000) {
+  const base = useApi<T>(url);
+  const { setData } = base;
+  const last = useRef<string>('');
+  const inflight = useRef(false);
+  const [offline, setOffline] = useState(false);
+  useEffect(() => { last.current = ''; }, [url]);
+  useEffect(() => {
+    if (!url) return;
+    let ctl: AbortController | null = null;
+    let stopped = false;
+    const refresh = async () => {
+      if (stopped || inflight.current || document.visibilityState !== 'visible') return;
+      inflight.current = true;
+      ctl = new AbortController();
+      try {
+        const d = await get<T>(url, ctl.signal);
+        if (stopped) return;
+        setOffline(false);
+        const s = JSON.stringify(d);
+        if (s !== last.current) { last.current = s; setData(d); }
+      } catch (e: any) {
+        if (e?.name !== 'AbortError' && (e?.isNetwork || !navigator.onLine)) setOffline(true);
+      } finally { inflight.current = false; }
+    };
+    const t = window.setInterval(refresh, intervalMs);
+    const wake = () => { if (document.visibilityState === 'visible') void refresh(); };
+    document.addEventListener('visibilitychange', wake);
+    window.addEventListener('focus', wake);
+    window.addEventListener('online', wake);
+    const off = () => setOffline(true);
+    window.addEventListener('offline', off);
+    return () => {
+      stopped = true; ctl?.abort(); window.clearInterval(t);
+      document.removeEventListener('visibilitychange', wake); window.removeEventListener('focus', wake);
+      window.removeEventListener('online', wake); window.removeEventListener('offline', off);
+    };
+  }, [url, intervalMs, setData]);
+  return { ...base, offline };
+}

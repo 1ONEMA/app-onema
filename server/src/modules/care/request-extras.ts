@@ -28,6 +28,7 @@ export async function requestDocuments(requestId: string) {
   return await all<any>(`SELECT id, kind, filename, mime, size_bytes, created_at FROM care_request_documents WHERE request_id = ? AND deleted_at IS NULL ORDER BY created_at`, requestId);
 }
 
+/** Sempre exibição dentro do app: `inline` (nunca `attachment`), sem cache compartilhado nem em disco. */
 function sendDoc(reply: any, d: any, buf: Buffer) {
   reply.header('Content-Type', d.mime).header('Content-Disposition', `inline; filename="${encodeURIComponent(d.filename)}"`)
     .header('Cache-Control', 'private, no-store').header('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; frame-ancestors 'none'");
@@ -82,10 +83,12 @@ export async function requestExtrasRoutes(app: FastifyInstance) {
 
   app.get('/api/care/requests/:id/documents/:docId', async (req, reply) => {
     const { id, docId } = parse(docParam, req.params);
-    await ownRequest(req, id);
+    const { a } = await ownRequest(req, id);
     const d = await one<any>('SELECT * FROM care_request_documents WHERE id = ? AND request_id = ? AND deleted_at IS NULL', docId, id);
     if (!d) throw notFound('Documento não encontrado.');
-    return sendDoc(reply, d, await readDoc(d));
+    const buf = await readDoc(d);
+    await audit({ actorId: a.userId, action: 'CARE_REQUEST_DOCUMENT_VIEWED', subjectType: 'care_request', subjectId: id, correlationId: req.correlationId, meta: { docId: d.id, kind: d.kind, viewer: 'PACIENTE' } });
+    return sendDoc(reply, d, buf);
   });
 
   /** Remover só antes de o pedido ser gerado (depois, o documento faz parte do registro do atendimento). */
@@ -129,8 +132,9 @@ export async function requestExtrasRoutes(app: FastifyInstance) {
     const { a, e } = await acceptedEvent(req, id);
     const d = await one<any>('SELECT * FROM care_request_documents WHERE id = ? AND request_id = ? AND deleted_at IS NULL', docId, e.request_id);
     if (!d) throw notFound('Documento não encontrado.');
-    await audit({ actorId: a.userId, action: 'CARE_REQUEST_DOCUMENT_VIEWED', subjectType: 'care_request', subjectId: e.request_id, correlationId: req.correlationId, meta: { kind: d.kind } });
-    return sendDoc(reply, d, await readDoc(d));
+    const buf = await readDoc(d);
+    await audit({ actorId: a.userId, action: 'CARE_REQUEST_DOCUMENT_VIEWED', subjectType: 'care_request', subjectId: e.request_id, correlationId: req.correlationId, meta: { docId: d.id, kind: d.kind, viewer: 'ESPECIALISTA', eventId: e.id } });
+    return sendDoc(reply, d, buf);
   });
 
   /** Orientação de materiais: especialista designada (atendimento aceito) ou Central. */

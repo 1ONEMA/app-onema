@@ -5,6 +5,7 @@ import { money } from '../../lib/format';
 import { api } from '../../lib/api';
 import { prepareUpload } from '../../lib/files';
 import { Alert, Badge, Button, ErrorState, Loading } from '../../ui/ui';
+import { emitPhotoChanged } from '../../lib/photo-events';
 
 const JOURNEY: Record<string, string> = { NAO_INICIADA: 'Jornada de integração não iniciada', EM_ANDAMENTO: 'Jornada de integração em andamento', CONCLUIDA: 'Jornada de integração concluída' };
 const WHEN: Record<string, string> = { AGORA: 'Agora', HOJE: 'Hoje', PROXIMOS_DIAS: 'Próximos dias', AGENDAR: '' };
@@ -133,7 +134,7 @@ function ProfilePhoto() {
   async function change(file?: File) {
     if (!file) return;
     setBusy(true); setErr(null);
-    try { const fd = new FormData(); fd.append('file', await prepareUpload(file)); await api('PUT', '/api/specialist/photo', fd); setMissing(false); setV(Date.now()); }
+    try { const fd = new FormData(); fd.append('file', await prepareUpload(file)); await api('PUT', '/api/specialist/photo', fd); setMissing(false); setV(Date.now()); emitPhotoChanged(); }
     catch (e: any) { setErr(e?.message ?? 'Não foi possível trocar a foto.'); } finally { setBusy(false); }
   }
   return (

@@ -1,0 +1,11 @@
+.user-photo-section { margin-top: 16px; }
+.user-photo-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 12px 0; }
+.user-photo-frame {
+  display: grid; place-items: center; width: 88px; height: 88px; border-radius: 50%; overflow: hidden; flex: none;
+  background: var(--ice); color: var(--deep);
+}
+.user-photo-img { width: 88px; height: 88px; object-fit: cover; display: block; }
+.user-photo-placeholder { display: grid; place-items: center; }
+.user-photo-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.user-photo-btn { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
+.user-photo-btn.disabled { opacity: .6; pointer-events: none; }

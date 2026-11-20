@@ -8,7 +8,7 @@ import { migrate, pendingMigrations } from './db/migrate.ts';
 import { seedAcademyDemoRest, seedDemo, seedOfficial } from './db/seed.ts';
 import { PRICING_V2_SOURCE, seedPricingV1, seedPricingV2 } from './modules/care/catalog.ts';
 import { POP_LIBRARY_VERSION, loadPops } from './modules/pops/routes.ts';
-import { loadLegalTexts } from './modules/legal.ts';
+import { LEGAL_PRIV_VERSION, loadLegalTexts } from './modules/legal.ts';
 import { loadOfficialAssessments, loadOfficialCertificateTemplate } from './modules/academy/official-bank.ts';
 import { CAFE_LAST_BATCH_DATE, importCafeBatches, seedCafeLibrary } from './modules/cafe/routes.ts';
 import { MIGRATIONS } from './db/migrations.ts';
@@ -99,7 +99,8 @@ async function runInit(opts: ReadyOptions): Promise<string[]> {
     }
     if (!(await one(`SELECT 1 AS ok FROM academy_certificate_templates WHERE heading = 'CERTIFICADO DE CONCLUSÃO' LIMIT 1`))) log(`Certificado: modelo oficial ${await loadOfficialCertificateTemplate() ? 'aprovado' : 'já existente'}`);
     // Documentos institucionais (nov/2026).
-    if (!(await one(`SELECT 1 AS ok FROM legal_texts WHERE code = 'PRIV' LIMIT 1`))) log(`Documentos legais: ${await loadLegalTexts()} publicados`);
+    // Documentos institucionais: nova versão (ex.: dados da empresa preenchidos) entra uma vez; anteriores ficam no histórico de aceites.
+    if (!(await one(`SELECT 1 AS ok FROM legal_texts WHERE code = 'PRIV' AND version = ? LIMIT 1`, LEGAL_PRIV_VERSION))) log(`Documentos legais: ${await loadLegalTexts()} publicados`);
     // Lotes mensais do Café: uma consulta quando o último lote já está carregado.
     if (!(await one('SELECT 1 AS ok FROM devotionals WHERE publish_date = ?', CAFE_LAST_BATCH_DATE))) log(`Café com a ONEMA: ${await importCafeBatches()} mensagens do lote importadas`);
     await loadSecrets(settings);

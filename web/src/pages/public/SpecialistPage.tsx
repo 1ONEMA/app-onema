@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../lib/auth';
-import { useApi, useSubmit } from '../../lib/hooks';
+import { useApi, useLiveApi, useSubmit } from '../../lib/hooks';
+import { OfflineNotice } from '../../ui/Live';
 import { dateTime, money } from '../../lib/format';
 import { Alert, Badge, Button, Empty, ErrorState, Loading } from '../../ui/ui';
 import { IconArrowRight, IconAward, IconBook, IconCheck, IconNurse, IconShield, IconStar, IconWallet } from '../../ui/icons';
@@ -74,9 +75,17 @@ export function SpecialistPage() {
 
 function SpecialistArea() {
   const summary = useApi<any>('/api/care/specialist/summary');
-  const offers = useApi<any>(summary.data?.eligible ? '/api/care/specialist/offers' : null);
+  // Ofertas e agenda se atualizam sozinhas (PAC-03 p. 6): ao voltar ao app, recuperar o foco ou reconectar, e a cada 4 s.
+  const offers = useLiveApi<any>(summary.data?.eligible ? '/api/care/specialist/offers' : null, 4000);
   const act = useSubmit<any>();
-  async function run(url: string) { if (await act.run('POST', url, {})) { offers.reload(); summary.reload(); } }
+  const [pending, setPending] = useState<string | null>(null);
+  async function run(url: string, offerId: string) {
+    setPending(offerId);
+    const r = await act.run('POST', url, {}, { idempotent: true });
+    setPending(null);
+    // Falha de comunicação: consulta o estado antes de nova tentativa. Oferta preenchida por outra pessoa: o card sai.
+    void r; offers.reload(); summary.reload();
+  }
   if (summary.loading && !summary.data) return <Loading />;
   if (summary.error) return <ErrorState error={summary.error} onRetry={summary.reload} />;
   const s = summary.data;
@@ -96,16 +105,19 @@ function SpecialistArea() {
             <h2>Ofertas disponíveis</h2>
             <p className="small muted">{offers.data.rule}</p>
             {offers.data.available === false && <div className="caution small">Você está indisponível: novas ofertas estão pausadas.</div>}
-            <Alert error={act.error} />
+            <OfflineNotice offline={offers.offline} />
+            {act.error && ['OFFER_FILLED', 'OFFER_UNAVAILABLE'].includes(act.error.code) ? <div className="caution small" role="status">Esta oferta já foi preenchida.</div> : <Alert error={act.error} />}
             {!offers.data.offers.length ? <Empty title="Nenhuma oferta no momento." /> : (
               <ul className="list">{offers.data.offers.map((o: any) => (
                 <li key={o.id}>
                   <div className="row between"><strong>{o.label}</strong><strong className="green-text">{money(o.unit_payout_cents)}</strong></div>
-                  <div className="small muted">{o.item_code} · {o.item_name} · {o.modality === 'REMOTO' ? 'remoto' : 'presencial'} · {o.region ?? 'região a confirmar'} · {WHEN[o.when_pref] ?? ''}{o.when_date ? ` ${o.when_date.split('-').reverse().join('/')}` : ''}</div>
+                  <div className="small muted">{o.item_code} · {o.item_name} · {o.modality === 'REMOTO' ? 'remoto' : 'presencial'} · {o.region ?? 'região a confirmar'}</div>
+                  <div className="small"><strong>Janela:</strong> {o.windowText ?? `${WHEN[o.when_pref] ?? ''}${o.when_date ? ` ${o.when_date.split('-').reverse().join('/')}` : ''}`}</div>
+                  {o.reserved && <div className="small success">Reservada para você por alguns minutos: você já acompanha este paciente.</div>}
                   <div className="small muted">Materiais: {o.materials === 'SIM' ? 'paciente possui' : o.materials === 'NAO' ? 'paciente não possui' : 'a confirmar'}</div>
                   <div className="row mt">
-                    <Button className="sm deep" busy={act.busy} onClick={() => run(`/api/care/specialist/events/${o.id}/accept`)}>Aceitar atendimento</Button>
-                    <button type="button" className="btn sm secondary" disabled={act.busy} onClick={() => { if (window.confirm('Recusar esta oferta? Ela deixa de aparecer para você e segue para outras especialistas. Não há penalidade.')) run(`/api/care/specialist/events/${o.id}/decline`); }}>Recusar</button>
+                    <Button className="sm deep" busy={pending === o.id} disabled={act.busy} onClick={() => run(`/api/care/specialist/events/${o.id}/accept`, o.id)}>{pending === o.id ? 'Confirmando…' : 'Aceitar atendimento'}</Button>
+                    <button type="button" className="btn sm secondary" disabled={act.busy} onClick={() => { if (window.confirm('Recusar esta oferta? Ela deixa de aparecer para você e segue para outras especialistas. Não há penalidade.')) run(`/api/care/specialist/events/${o.id}/decline`, o.id); }}>Recusar</button>
                   </div>
                 </li>
               ))}</ul>
@@ -119,7 +131,8 @@ function SpecialistArea() {
                   <div className="row between"><strong>{m.label}</strong><span>{money(m.unit_payout_cents)}</span></div>
                   <div className="small muted">{m.item_code} · aceito em {dateTime(m.accepted_at)}{m.completed_at ? ` · concluído em ${dateTime(m.completed_at)}` : ''}</div>
                   <div className="row mt">
-                    <Badge tone={m.status === 'CONCLUIDO' ? 'dark' : m.status === 'CANCELADO' ? 'red' : ''}>{m.status === 'CONCLUIDO' ? 'Concluído' : m.status === 'CANCELADO' ? 'Cancelado' : 'Agendado'}</Badge>
+                    <Badge tone={m.status === 'CONCLUIDO' ? 'dark' : m.status === 'CANCELADO' ? 'red' : ['AGUARDANDO_PACIENTE', 'ALTERACAO_SOLICITADA'].includes(m.state?.code) ? 'orange' : ''}>{m.state?.label ?? m.status}</Badge>
+                    {m.status === 'ACEITO' && m.state?.detail && <span className="small muted">{m.state.detail}</span>}
                     {m.payout_status && <Badge tone="blue">Repasse {({ A_LIQUIDAR: 'aguardando validação', VALIDADO: 'validado', PROGRAMADO: 'programado', ENVIADO: 'enviado', CONFIRMADO: 'pago', CANCELADO: 'cancelado' } as Record<string, string>)[m.payout_status] ?? 'em análise'}</Badge>}
                     {m.stars && <span className="stars" role="img" aria-label={`${m.stars} estrelas`}>{[1, 2, 3, 4, 5].map((i) => <IconStar key={i} size={16} filled={i <= m.stars} />)}</span>}
                     {m.status === 'ACEITO' && <span className="small muted">{m.started_at ? 'Iniciado' : m.modality === 'PRESENCIAL' ? 'Aguardando início' : 'Remoto'}{m.evolution_status === 'ASSINADA' ? ' · evolução assinada' : ''}</span>}

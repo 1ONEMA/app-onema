@@ -1,12 +1,13 @@
 /**
  * Documentos institucionais publicados no app (Política de Privacidade v1.1, Termo LGPD do Especialista v1.0,
  * Termos de Uso v1.2 por perfil e Política de Cancelamento). Versões imutáveis; aceite registra versão e hash.
- * Campos societários ainda não informados pela ONEMA aparecem marcados como "a preencher".
+ * Identificação da empresa (cartão CNPJ, 20/11/2026): razão social e CNPJ; contato só por meio eletrônico, a pedido do RT.
  */
 import { all, one, run } from '../db/db.ts';
 import { nowIso, sha256, uid } from '../lib/util.ts';
 import LEGAL from '../db/content/legal-2026-11.json';
 
+export const LEGAL_PRIV_VERSION: string = (LEGAL as any).texts.find((t: any) => t.code === 'PRIV').version;
 export const PUBLIC_LEGAL_CODES = ['T1', 'T2', 'PRIV', 'TERMO_ESPECIALISTA', 'TERMOS_PACIENTE', 'TERMOS_ESPECIALISTA', 'TERMOS_ACADEMY', 'TERMOS_PRIME', 'CANCELAMENTO'] as const;
 
 export async function loadLegalTexts() {

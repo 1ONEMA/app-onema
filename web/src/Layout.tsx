@@ -8,6 +8,7 @@ import { Kary } from './ui/Kary';
 import { Footer } from './ui/Footer';
 import { Logo } from './ui/Brand';
 import { Dialog } from './ui/ui';
+import { HeaderAvatar, resetHeaderAvatar } from './ui/HeaderAvatar';
 import { IconBell, IconBook, IconCog, IconDownload, IconHeart, IconHome, IconNurse, IconShield, IconUser, IconWallet } from './ui/icons';
 
 interface NavItem { to: string; label: string; icon: ReactNode; end?: boolean }
@@ -62,6 +63,7 @@ export function Layout({ children, wide }: { children: ReactNode; wide?: boolean
   const [update, setUpdate] = useState<ServiceWorkerRegistration | null>(null);
   const [unread, setUnread] = useState(0);
   useEffect(() => onUpdateAvailable(setUpdate) as any, []);
+  useEffect(() => { if (!me?.user) resetHeaderAvatar(); }, [me?.user]);
   useEffect(() => {
     if (!me?.user) return;
     get<any>('/api/notifications').then((r) => setUnread(r.items.filter((n: any) => !n.read_at).length)).catch(() => {});
@@ -106,7 +108,7 @@ export function Layout({ children, wide }: { children: ReactNode; wide?: boolean
                 <NavLink to="/avisos" className="icon-btn" aria-label={`Avisos${unread ? `: ${unread} não lidos` : ''}`}>
                   <IconBell />{unread > 0 && <span className="dot">{unread}</span>}
                 </NavLink>
-                <NavLink to="/conta" className="icon-btn" aria-label={`Minha conta (${me.user.name})`}><IconUser /></NavLink>
+                <NavLink to="/conta" className="icon-btn" aria-label={`Minha conta (${me.user.name})`}><HeaderAvatar userId={me.user.id} source={me.user.roles.includes('ESPECIALISTA') ? 'specialist' : me.user.roles.includes('PACIENTE') ? 'me' : null} /></NavLink>
               </>
             ) : <Link to="/entrar" className="btn sm deep">Entrar</Link>}
           </div>

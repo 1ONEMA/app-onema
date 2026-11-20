@@ -28,6 +28,13 @@ import { specialistNeeds, specialistPrefs } from './specialist-panel.ts';
 import { cpfSchema } from '../../lib/cpf.ts';
 import { currentVersion, offerByCode, publicOffer } from './catalog.ts';
 import { applyPaymentEvent, buildQuote, patientOrderView, placeOrder } from './core.ts';
+import { WAVE_FILTER_SQL, checkCoverage, engineParams, eventState, offerLog, requestWindow, runOfferSweep, windowDisplay } from './offer-engine.ts';
+
+/** Janela absoluta (São Paulo) gravada na solicitação, no momento em que o paciente escolhe. */
+async function saveRequestWindow(id: string, b: { whenPref: string; whenDate?: string | null; timeWindow?: string | null }) {
+  const w = requestWindow(b, await engineParams());
+  await run('UPDATE care_requests SET window_start = ?, window_end = ?, window_label = ? WHERE id = ?', w.start, w.end, w.label, id);
+}
 
 const patient = (req: any) => requireRoles(req, ['PACIENTE']);
 const idParam = z.object({ id: z.string().uuid() });
@@ -172,6 +179,7 @@ export async function careRoutes(app: FastifyInstance) {
         id, protocol('CUI'), a.userId, b.need, b.itemCode, b.infoText, b.materials, b.materialsDetail, b.materialsSupplyRequested ? 1 : 0,
         b.patientName, b.phone, b.location, b.whenPref, b.whenDate ?? null, b.notes, b.forSelf ? 1 : 0, b.responsibleAuthorized ? 1 : 0,
         q.pending ? 'ORCAMENTO_PENDENTE' : 'ORCADO', 1, JSON.stringify(q), now, now, now, ...extraArgs(b), guidanceFor(b.materials));
+      await saveRequestWindow(id, b);
       await audit({ actorId: a.userId, action: 'CARE_REQUEST_CREATED', subjectType: 'care_request', subjectId: id, correlationId: req.correlationId, meta: { item: b.itemCode } });
       return { status: 201, body: { request: requestView((await one('SELECT * FROM care_requests WHERE id = ?', id))!) } };
     });
@@ -191,9 +199,12 @@ export async function careRoutes(app: FastifyInstance) {
     const a = patient(req);
     const { id } = parse(idParam, req.params);
     const r = await ownRequest(id, a.userId);
+    await runOfferSweep();
     const orders = await all<any>('SELECT * FROM service_orders WHERE request_id = ? ORDER BY created_at DESC', id);
     const current = orders.find((o) => o.status !== 'FAILED') ?? orders[0];
     const events = current ? await all<any>(`SELECT e.id, e.seq, e.label, e.modality, e.status, e.completed_at, e.started_at, e.call_scheduled_at, e.call_started_at, e.call_ended_at, u.name AS specialist_name,
+        e.accepted_at, e.window_start, e.window_end, e.window_label, e.plan_validated_at, e.attention, e.schedule_status, e.schedule_rev, e.schedule_change_at, e.schedule_responded_at,
+        e.call_session_started_at,
         CASE WHEN e.status = 'ACEITO' AND e.started_at IS NULL AND e.modality = 'PRESENCIAL' THEN e.visit_code END AS visit_code,
         (SELECT sa.coren_number || '-' || sa.coren_uf FROM specialist_applications sa WHERE sa.user_id = e.specialist_id AND sa.status = 'APROVADA') AS specialist_coren,
         e.patient_signed_at, e.patient_signature_name, (SELECT v.content_json FROM care_evolutions v WHERE v.event_id = e.id AND v.status = 'ASSINADA') AS evolution_json,
@@ -203,7 +214,8 @@ export async function careRoutes(app: FastifyInstance) {
         FROM care_events e LEFT JOIN users u ON u.id = e.specialist_id WHERE e.order_id = ? ORDER BY e.seq`, current.id) : [];
     return {
       request: requestView(r, current), attempts: orders.map(patientOrderView),
-      events: events.map(({ evolution_json, ...e }: any) => ({ ...e, evolution: evolution_json ? JSON.parse(evolution_json) : null, awaiting_signature: !!evolution_json && e.status === 'ACEITO' && !e.patient_signed_at })),
+      events: events.map(({ evolution_json, attention, plan_validated_at, ...e }: any) => ({ ...e, state: eventState({ ...e, attention, plan_validated_at }),
+        evolution: evolution_json ? JSON.parse(evolution_json) : null, awaiting_signature: !!evolution_json && e.status === 'ACEITO' && !e.patient_signed_at })),
       timeline: current ? await careTimeline(a.userId, current.id) : [],
     };
   });
@@ -230,6 +242,7 @@ export async function careRoutes(app: FastifyInstance) {
         b.need, b.itemCode, b.infoText, b.materials, b.materialsDetail, b.materialsSupplyRequested ? 1 : 0, b.patientName, b.phone, b.location, b.whenPref,
         b.whenDate ?? null, b.notes, b.forSelf ? 1 : 0, b.responsibleAuthorized ? 1 : 0, q.pending ? 'ORCAMENTO_PENDENTE' : 'ORCADO', version, JSON.stringify(q), now,
         null, null, now, ...extraArgs(b), guidanceFor(b.materials, r), id);
+      if (r.when_pref !== b.whenPref || (r.when_date ?? null) !== (b.whenDate ?? null) || (r.time_window ?? null) !== (b.timeWindow ?? null) || !r.window_start) await saveRequestWindow(id, b);
       await audit({ actorId: a.userId, action: affects ? 'CARE_QUOTE_REISSUED' : 'CARE_REQUEST_EDITED', subjectType: 'care_request', subjectId: id, correlationId: req.correlationId,
         meta: { quoteVersion: version, acceptanceInvalidated: r.accepted_version != null } });
       return { request: requestView((await one('SELECT * FROM care_requests WHERE id = ?', id))!), quoteReissued: affects, acceptanceInvalidated: r.accepted_version != null };
@@ -318,7 +331,9 @@ export async function careRoutes(app: FastifyInstance) {
    */
   app.get('/api/care/wallet', async (req) => {
     const a = patient(req);
+    await runOfferSweep();
     const events = await all<any>(`SELECT e.id, e.label, e.modality, e.status, e.accepted_at, e.completed_at, o.item_code, o.item_name, o.id AS order_id,
+        e.window_start, e.window_end, e.window_label, e.plan_validated_at, e.attention, e.call_scheduled_at, e.schedule_status, e.schedule_change_at,
         r.id AS request_id, r.when_pref, r.when_date, u.name AS specialist_name, (SELECT stars FROM specialist_reviews s WHERE s.event_id = e.id) AS my_stars
         FROM care_events e JOIN service_orders o ON o.id = e.order_id LEFT JOIN care_requests r ON r.id = o.request_id LEFT JOIN users u ON u.id = e.specialist_id
         WHERE o.patient_id = ? AND o.status IN ('PAID','REFUNDED') ORDER BY e.created_at DESC, e.seq LIMIT 300`, a.userId);
@@ -328,8 +343,8 @@ export async function careRoutes(app: FastifyInstance) {
       primeActive: await primeActive(a.userId),
       // POPs que a especialista vinculou aos atendimentos (referência institucional; não substitui evolução).
       pops: await patientPops(a.userId),
-      upcoming: events.filter((e) => e.status === 'ACEITO' || e.status === 'DISPONIVEL'),
-      done: events.filter((e) => e.status === 'CONCLUIDO'),
+      upcoming: events.filter((e) => ['ACEITO', 'DISPONIVEL', 'A_PROGRAMAR'].includes(e.status)).map((e) => ({ ...e, state: eventState(e) })),
+      done: events.filter((e) => e.status === 'CONCLUIDO').map((e) => ({ ...e, state: eventState(e) })),
       pendingRequests: open.map((r) => ({ id: r.id, protocol: r.protocol, status: r.status, itemName: JSON.parse(r.quote_json).offer.name, createdAt: r.created_at })),
       receipts,
       // Evoluções de enfermagem assinadas pela especialista (registro clínico do titular).
@@ -436,17 +451,26 @@ export async function careRoutes(app: FastifyInstance) {
     // Indisponível: pausa novas ofertas (e seus alertas). Habilitações: só serviços das áreas aprovadas na candidatura.
     const prefs = await specialistPrefs(a.userId);
     const needs = await specialistNeeds(a.userId);
-    const offers = !prefs.available ? [] : await all<any>(`SELECT e.id, e.label, e.act_type, e.modality, e.unit_payout_cents, e.region, e.created_at, o.item_code, o.item_name,
-        r.when_pref, r.when_date, r.time_window, r.materials FROM care_events e JOIN service_orders o ON o.id = e.order_id LEFT JOIN care_requests r ON r.id = o.request_id
+    await runOfferSweep();
+    const nowTs = nowIso();
+    const rows = !prefs.available ? [] : await all<any>(`SELECT e.id, e.label, e.act_type, e.modality, e.unit_payout_cents, e.region, e.created_at, o.item_code, o.item_name,
+        r.when_pref, r.when_date, r.time_window, r.materials, e.window_start, e.window_end, e.window_label, e.offer_wave, e.reference_specialist_id
+        FROM care_events e JOIN service_orders o ON o.id = e.order_id LEFT JOIN care_requests r ON r.id = o.request_id
         LEFT JOIN catalog_items ci ON ci.code = o.item_code
         WHERE e.status = 'DISPONIVEL' AND o.status = 'PAID' ${demoOnly(a) ? DEMO_PATIENT_SQL : ''}
         AND NOT EXISTS (SELECT 1 FROM specialist_offer_declines dcl WHERE dcl.event_id = e.id AND dcl.specialist_id = ?)
-        ${needs ? `AND (ci.need IS NULL OR ci.need IN (${needs.map(() => '?').join(',')}))` : ''} ORDER BY e.created_at, e.seq LIMIT 100`, a.userId, ...(needs ?? []));
-    const mine = await all<any>(`SELECT e.id, e.label, e.modality, e.unit_payout_cents, e.region, e.status, e.accepted_at, e.completed_at, e.started_at, o.item_code, o.item_name,
+        AND ${WAVE_FILTER_SQL}
+        ${needs ? `AND (ci.need IS NULL OR ci.need IN (${needs.map(() => '?').join(',')}))` : ''} ORDER BY COALESCE(e.window_start, e.created_at), e.seq LIMIT 100`, a.userId, a.userId, nowTs, ...(needs ?? []));
+    // A oferta informa a janela vigente (data completa); "Hoje" só como complemento enquanto couber.
+    const offers = rows.map(({ reference_specialist_id, ...o }: any) => ({ ...o, reserved: reference_specialist_id === a.userId,
+      windowText: o.window_start && o.window_end ? windowDisplay(o.window_start, o.window_end, o.window_label) : null }));
+    const mineRows = await all<any>(`SELECT e.id, e.label, e.modality, e.unit_payout_cents, e.region, e.status, e.accepted_at, e.completed_at, e.started_at, o.item_code, o.item_name,
+        e.call_scheduled_at, e.schedule_status, e.schedule_change_at, e.window_start, e.window_end, e.window_label, e.attention, e.plan_validated_at,
         (SELECT v.status FROM care_evolutions v WHERE v.event_id = e.id) AS evolution_status,
         p.status AS payout_status, (SELECT stars FROM specialist_reviews s WHERE s.event_id = e.id) AS stars
         FROM care_events e JOIN service_orders o ON o.id = e.order_id LEFT JOIN payout_entries p ON p.event_id = e.id
         WHERE e.specialist_id = ? ORDER BY e.accepted_at DESC LIMIT 100`, a.userId);
+    const mine = mineRows.map(({ attention, plan_validated_at, ...m }: any) => ({ ...m, state: eventState({ ...m, attention, plan_validated_at }) }));
     return { offers, mine, available: prefs.available, rule: 'Aceite livre e recusa sem penalidade. O mesmo enfermeiro não é obrigatório em todos os eventos do pacote.' };
   });
 
@@ -455,10 +479,19 @@ export async function careRoutes(app: FastifyInstance) {
     const a = await specialist(req);
     const { id } = parse(idParam, req.params);
     const { reason } = parse(z.object({ reason: z.string().trim().max(300).optional() }), req.body ?? {});
-    const e = await one<any>('SELECT status FROM care_events WHERE id = ?', id);
-    if (!e || e.status !== 'DISPONIVEL') throw conflict('OFFER_UNAVAILABLE', 'Esta oferta não está mais disponível.');
-    await run('INSERT INTO specialist_offer_declines (event_id, specialist_id, reason, created_at) VALUES (?,?,?,?) ON CONFLICT DO NOTHING', id, a.userId, reason || null, nowIso());
-    await audit({ actorId: a.userId, action: 'OFFER_DECLINED', subjectType: 'care_event', subjectId: id, correlationId: req.correlationId });
+    const e = await one<any>('SELECT status, offer_wave, reference_specialist_id FROM care_events WHERE id = ?', id);
+    if (!e || e.status !== 'DISPONIVEL') throw conflict('OFFER_FILLED', 'Esta oferta já foi preenchida ou não está mais disponível.');
+    const ins = await run('INSERT INTO specialist_offer_declines (event_id, specialist_id, reason, created_at) VALUES (?,?,?,?) ON CONFLICT DO NOTHING', id, a.userId, reason || null, nowIso());
+    if (ins.changes) {
+      await offerLog(id, 'RECUSA', { wave: e.offer_wave, specialistId: a.userId, note: reason || null });
+      // Recusa da referência: amplia a oferta para a rede imediatamente.
+      if (e.reference_specialist_id === a.userId && e.offer_wave === 1) {
+        await run(`UPDATE care_events SET offer_wave = 2, reference_until = ?, updated_at = ? WHERE id = ? AND offer_wave = 1`, nowIso(), nowIso(), id);
+        await offerLog(id, 'ONDA_AMPLIADA', { wave: 2, note: 'Recusa do profissional de referência.' });
+      }
+      await audit({ actorId: a.userId, action: 'OFFER_DECLINED', subjectType: 'care_event', subjectId: id, correlationId: req.correlationId });
+      await checkCoverage(id);
+    }
     return { ok: true };
   });
 
@@ -471,9 +504,21 @@ export async function careRoutes(app: FastifyInstance) {
       if (demoOnly(a) && !(await one(`SELECT 1 AS ok FROM care_events e JOIN service_orders o ON o.id = e.order_id WHERE e.id = ? ${DEMO_PATIENT_SQL}`, id))) {
         throw conflict('OFFER_UNAVAILABLE', 'Esta oferta não está mais disponível.');
       }
-      const r = await run(`UPDATE care_events SET status = 'ACEITO', specialist_id = ?, accepted_at = ?, visit_code = ?, updated_at = ? WHERE id = ? AND status = 'DISPONIVEL'`, a.userId, now, newVisitCode(), now, id);
-      if (!r.changes) throw conflict('OFFER_UNAVAILABLE', 'Esta oferta não está mais disponível.');
+      // Uma transação confirma um único profissional por evento (o UPDATE condicional é o ponto de exclusão mútua).
+      const r = await run(`UPDATE care_events e SET status = 'ACEITO', specialist_id = ?, accepted_at = ?, visit_code = ?, attention = NULL, attention_at = NULL, updated_at = ?
+        WHERE e.id = ? AND e.status = 'DISPONIVEL' AND ${WAVE_FILTER_SQL}`, a.userId, now, newVisitCode(), now, id, a.userId, now);
+      if (!r.changes) {
+        const cur = await one<any>('SELECT status, specialist_id, reference_specialist_id, reference_until FROM care_events WHERE id = ?', id);
+        // Repetição do vencedor (duplo clique, reenvio após timeout): mesmo resultado, sem novo ato.
+        if (cur?.specialist_id === a.userId && ['ACEITO', 'CONCLUIDO'].includes(cur.status)) return { ok: true, already: true };
+        if (cur?.status === 'DISPONIVEL' && cur.reference_specialist_id && cur.reference_specialist_id !== a.userId) {
+          throw conflict('OFFER_RESERVED', 'Esta oferta está reservada ao profissional de referência do paciente por alguns minutos.');
+        }
+        throw conflict('OFFER_FILLED', 'Esta oferta já foi preenchida.');
+      }
       await run('UPDATE payout_entries SET specialist_id = ?, updated_at = ? WHERE event_id = ?', a.userId, now, id);
+      const ev = await one<any>('SELECT offer_wave FROM care_events WHERE id = ?', id);
+      await offerLog(id, 'ACEITE', { wave: ev?.offer_wave ?? null, specialistId: a.userId });
       await audit({ actorId: a.userId, action: 'CARE_EVENT_ACCEPTED', subjectType: 'care_event', subjectId: id, correlationId: req.correlationId });
       return { ok: true };
     });

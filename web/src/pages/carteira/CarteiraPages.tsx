@@ -3,11 +3,14 @@
  * Paciente: plano liberado + avisos. Enfermeira: plano a partir do atendimento assinado e pendências. RT/Central: fila e regras.
  */
 import { useState } from 'react';
-import { useApi, useSubmit } from '../../lib/hooks';
+import { useApi, useLiveApi, useSubmit } from '../../lib/hooks';
 import { dateTime } from '../../lib/format';
 import { Alert, Badge, Button, Empty, ErrorState, Field, Loading, PageHeader } from '../../ui/ui';
 import { useAuth } from '../../lib/auth';
 
+const ANSWER: Record<string, string> = { MELHOROU: 'Melhorou', IGUAL: 'Igual', PIOROU: 'Piorou' };
+const fmtDayTime = (iso: string) => { const d = new Date(iso); return `${d.toLocaleDateString('pt-BR')} às ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`; };
+const IconCheckInline = () => <span aria-hidden="true">✓</span>;
 const PRI: Record<string, string> = { ALTA: 'red', MEDIA: 'orange', BAIXA: 'blue' };
 const CAT: Record<string, string> = { LEMBRETE: 'Lembrete', CLINICO: 'Clínico', ADMINISTRATIVO: 'Administrativo', TECNICO: 'Técnico' };
 
@@ -18,13 +21,17 @@ function localInput(d = new Date(Date.now() + 24 * 3600_000)) {
 
 /** Paciente: plano de cuidados e avisos (dentro da Carteira). */
 export function PatientPlanSection() {
-  const { data, error, loading, reload } = useApi<any>('/api/carteira/plan');
+  const { data, error, loading, reload } = useLiveApi<any>('/api/carteira/plan', 5000);
   const act = useSubmit<any>();
   const [answer, setAnswer] = useState<Record<string, string>>({});
+  const [pending, setPending] = useState<string | null>(null);
   if (loading && !data) return <Loading lines={2} />;
-  if (error) return <ErrorState error={error} onRetry={reload} />;
+  if (error && !data) return <ErrorState error={error} onRetry={reload} />;
   const active = data.items.filter((i: any) => i.status === 'ATIVO');
-  const done = data.items.filter((i: any) => i.status !== 'ATIVO').slice(0, 10);
+  const closed = data.items.filter((i: any) => i.status !== 'ATIVO').sort((x: any, y: any) => ((x.completedAt ?? '') < (y.completedAt ?? '') ? 1 : -1));
+  // Ocorrências concluídas nos últimos 7 dias ficam à vista, travadas; as anteriores, no histórico.
+  const recent = closed.filter((i: any) => i.status === 'CONCLUIDO' && i.completedAt && Date.now() - new Date(i.completedAt).getTime() < 7 * 86400_000);
+  const done = closed.filter((i: any) => !recent.includes(i)).slice(0, 10);
   const openAlerts = data.alerts.filter((a: any) => a.status === 'PENDENTE');
   return (
     <section className="surface" aria-label="Plano de cuidados">
@@ -50,8 +57,19 @@ export function PatientPlanSection() {
                 ))}
               </div>
             )}
-            <Button className="sm deep mt" busy={act.busy} disabled={i.askFollowup && !answer[i.id]}
-              onClick={async () => { if (await act.run('POST', `/api/carteira/plan/${i.id}/done`, answer[i.id] ? { answer: answer[i.id] } : {})) reload(); }}>Marcar como feito</Button>
+            <Button className="sm deep mt" busy={pending === i.id} disabled={act.busy || (i.askFollowup && !answer[i.id])}
+              onClick={async () => { setPending(i.id); await act.run('POST', `/api/carteira/plan/${i.id}/done`, answer[i.id] ? { answer: answer[i.id] } : {}, { idempotent: true }); setPending(null); reload(); }}>
+              {pending === i.id ? 'Confirmando…' : 'Marcar como feito'}</Button>
+          </li>
+        ))}</ul>
+      )}
+      {recent.length > 0 && (
+        <ul className="list mt">{recent.map((i: any) => (
+          <li key={i.id} className="plan-done" aria-disabled="true">
+            <div className="row between"><strong>{i.title}</strong><Badge tone="dark">Concluído</Badge></div>
+            <div className="small"><IconCheckInline /> Concluído em {fmtDayTime(i.completedAt)}</div>
+            {i.followupAnswer && <div className="small">Resposta registrada: <strong>{ANSWER[i.followupAnswer] ?? i.followupAnswer}</strong></div>}
+            <div className="small muted">Ação desta ocorrência: indisponível{i.recurrenceDays ? ' · a próxima ocorrência segue a periodicidade' : ''}</div>
           </li>
         ))}</ul>
       )}

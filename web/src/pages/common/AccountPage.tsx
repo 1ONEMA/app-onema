@@ -4,6 +4,7 @@ import { useAuth } from '../../lib/auth';
 import { useSubmit } from '../../lib/hooks';
 import { Alert, Badge, Button, Field, PageHeader, fieldError } from '../../ui/ui';
 import { PasswordField } from '../../ui/PasswordField';
+import { UserPhotoSection } from './UserPhotoSection';
 
 export function AccountPage() {
   const { me, status, logout } = useAuth();
@@ -42,6 +43,7 @@ export function AccountPage() {
           </form>
         </section>
       </div>
+      {u.roles.includes('PACIENTE') && !u.roles.includes('ESPECIALISTA') && <UserPhotoSection />}
     </>
   );
 }

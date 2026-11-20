@@ -36,9 +36,10 @@ export async function ensureRoom(name: string, expSec: number): Promise<{ name: 
 }
 
 /** Token de reunião pessoal: entra até `expSec`; profissional como dona da sala; sem gravação. */
-export async function meetingToken(room: string, userName: string, owner: boolean, expSec: number): Promise<string> {
+export async function meetingToken(room: string, userName: string, owner: boolean, expSec: number, userId?: string): Promise<string> {
   const r = await call('POST', '/meeting-tokens', { properties: {
     room_name: room, user_name: userName.slice(0, 60), is_owner: owner, exp: expSec, eject_at_token_exp: false, enable_recording: false,
+    ...(userId ? { user_id: userId.slice(0, 36) } : {}),
     start_video_off: false, start_audio_off: false, lang: 'pt-BR',
   } });
   return r.token;
@@ -47,4 +48,12 @@ export async function meetingToken(room: string, userName: string, owner: boolea
 /** Encerra a sala (desconecta quem ainda estiver dentro). */
 export async function closeRoom(name: string) {
   try { await call('DELETE', `/rooms/${encodeURIComponent(name)}`); } catch (e: any) { if (e?.status !== 404) throw e; }
+}
+
+/** Quem está de fato dentro da chamada agora (passou da tela de entrada). Fonte da presença real na sala. */
+export async function roomPresence(name: string): Promise<{ userId: string | null; userName: string }[]> {
+  try {
+    const r = await call('GET', `/rooms/${encodeURIComponent(name)}/presence`);
+    return (r?.data ?? []).map((p: any) => ({ userId: p.userId ?? p.user_id ?? null, userName: p.userName ?? p.user_name ?? '' }));
+  } catch (e: any) { if (e?.status === 404) return []; throw e; }
 }
