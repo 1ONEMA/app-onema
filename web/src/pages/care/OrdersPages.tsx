@@ -3,7 +3,8 @@ import { EVO_SECTIONS } from './WalletPage';
 import { Fragment, useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { VideoCall } from '../../ui/VideoCall';
-import { useApi, useSubmit } from '../../lib/hooks';
+import { useApi, useLiveApi, useSubmit } from '../../lib/hooks';
+import { OfflineNotice, ProtectedImg, fromLocalInput, toLocalInput } from '../../ui/Live';
 import { dateTime, label, money } from '../../lib/format';
 import { Alert, Badge, Button, Empty, ErrorState, Field, Loading, PageHeader, fieldError } from '../../ui/ui';
 import { IconArrowRight, IconCheck, IconStar } from '../../ui/icons';
@@ -15,12 +16,10 @@ export const REQ_STATUS: Record<string, { label: string; tone: string }> = {
   PEDIDO_GERADO: { label: 'Pedido confirmado', tone: '' },
   DESISTENCIA: { label: 'Desistência', tone: 'dark' },
 };
-const EVENT_STATUS: Record<string, { label: string; tone: string }> = {
-  AGUARDANDO_PAGAMENTO: { label: 'Aguardando pagamento', tone: 'orange' },
-  DISPONIVEL: { label: 'Buscando especialista', tone: 'blue' },
-  ACEITO: { label: 'Especialista confirmado', tone: '' },
-  CONCLUIDO: { label: 'Concluído', tone: 'dark' },
-  CANCELADO: { label: 'Cancelado', tone: 'red' },
+/** Tom do selo pelo estado exibido (o texto vem do servidor, igual nas telas do paciente, da especialista e da Gestão). */
+export const STATE_TONE: Record<string, string> = {
+  AGUARDANDO_PAGAMENTO: 'orange', A_PROGRAMAR: 'dark', PREVISTO: 'blue', VERIFICANDO: 'orange', BUSCANDO: 'blue', CONFIRMADA: '',
+  AGUARDANDO_PACIENTE: 'orange', ALTERACAO_SOLICITADA: 'orange', AGENDADO: '', CONCLUIDO: 'dark', CANCELADO: 'red',
 };
 
 /** Meus pedidos: solicitações, orçamentos e pedidos do titular. */
@@ -114,22 +113,26 @@ function SignCard({ event: e, onDone }: { event: any; onDone: () => void }) {
 export function CareTimeline({ items }: { items: any[] }) {
   if (!items?.length) return <p className="small muted">Os próximos passos aparecem aqui assim que acontecerem.</p>;
   return (
-    <ol className="timeline">{items.map((t, i) => (
-      <li key={i}><strong>{t.title}</strong> <span className="small muted">{dateTime(t.at)}</span>{t.detail && <p className="mb0 small">{t.detail}</p>}</li>
+    <ol className="timeline" aria-live="polite">{items.map((t) => (
+      <li key={`${t.kind}:${t.eventId ?? t.orderId}:${t.at}`}><strong>{t.title}</strong> <span className="small muted">{dateTime(t.at)}</span>{t.detail && <p className="mb0 small">{t.detail}</p>}</li>
     ))}</ol>
   );
 }
 
-/** Comprovante e andamento: pedido, versão, valores, desconto, ciclo, pagamento e próximos passos. */
+/** Comprovante e andamento: pedido, versão, valores, desconto, ciclo, pagamento e próximos passos. Atualiza sozinho. */
 export function RequestDetailPage() {
   const { id } = useParams();
   const [params] = useSearchParams();
-  const { data, error, loading, reload } = useApi<any>(`/api/care/requests/${id}`);
+  const { data, error, loading, reload, offline } = useLiveApi<any>(`/api/care/requests/${id}`, 2000);
   useEffect(() => { document.title = 'Comprovante · ONEMA SAÚDE'; }, []);
   if (loading && !data) return <Loading />;
-  if (error) return <ErrorState error={error} onRetry={reload} />;
+  if (error && !data) return <ErrorState error={error} onRetry={reload} />;
   const r = data.request, o = r.order, q = r.quote;
   const pendingPay = data.attempts.find((a: any) => a.status === 'PENDING_PAYMENT');
+  const events: any[] = data.events;
+  const active = events.filter((e) => !['CONCLUIDO', 'CANCELADO'].includes(e.status));
+  const done = events.filter((e) => e.status === 'CONCLUIDO').sort((x, y) => (x.completed_at < y.completed_at ? 1 : -1));
+  const [latest, ...older] = done;
   return (
     <>
       <PageHeader kicker={o?.status === 'PAID' ? 'Comprovante do pedido' : 'Solicitação'} title={q.offer.name} back={{ to: '/servicos', label: 'Meus pedidos' }}>
@@ -137,6 +140,7 @@ export function RequestDetailPage() {
         {pendingPay && r.status !== 'PEDIDO_GERADO' && <PendingPayment url={pendingPay.paymentUrl} onPoll={reload} />}
         <Badge tone={REQ_STATUS[r.status].tone}>{REQ_STATUS[r.status].label}</Badge>
       </PageHeader>
+      <OfflineNotice offline={offline} />
       <div className="two">
         <section className="surface">
           <h2>Valores</h2>
@@ -155,36 +159,24 @@ export function RequestDetailPage() {
         </section>
         <section className="surface">
           <h2>Próximos passos</h2>
-          {!data.events.length ? <p className="muted">Os atendimentos aparecem aqui após a confirmação do pagamento.</p> : (
-            <ul className="list">
-              {data.events.map((e: any) => (
-                <li key={e.id}>
-                  <div className="row between">
-                    <span><strong>{e.label}</strong> <span className="small muted">· {e.modality === 'REMOTO' ? 'remoto' : 'presencial'}</span></span>
-                    <Badge tone={EVENT_STATUS[e.status].tone}>{EVENT_STATUS[e.status].label}</Badge>
-                  </div>
-                  {e.specialist_name && <div className="small muted">Especialista: {e.specialist_name}{Number(e.specialist_reviews) > 0 ? ` · ${Number(e.specialist_rating).toFixed(1).replace('.', ',')} ★ (${e.specialist_reviews} ${Number(e.specialist_reviews) > 1 ? 'avaliações' : 'avaliação'})` : ''}{e.completed_at ? ` · concluído em ${dateTime(e.completed_at)}` : ''}</div>}
-                  {e.specialist_name && ['ACEITO', 'CONCLUIDO'].includes(e.status) && (
-                    <img className="sp-photo" src={`/api/care/events/${e.id}/specialist-photo`} alt={`Foto de ${e.specialist_name}`} width={56} height={56}
-                      onError={(ev) => { (ev.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                  )}
-                  {e.specialist_coren && <div className="small muted">COREN {e.specialist_coren} · especialista validada pela Central ONEMA</div>}
-                  {e.modality === 'REMOTO' && e.status === 'ACEITO' && <PatientOnlineCall e={e} />}
-                  {e.visit_code && (
-                    <div className="visit-code" role="status">
-                      <span className="small">Código de início da visita</span>
-                      <strong className="mono" aria-label={`Código ${e.visit_code.split('').join(' ')}`}>{e.visit_code}</strong>
-                      <span className="small muted">Informe este código à especialista quando ela chegar. Não compartilhe por telefone ou mensagem.</span>
-                    </div>
-                  )}
-                  {e.started_at && e.status === 'ACEITO' && <div className="small"><IconCheck size={14} /> Atendimento iniciado em {dateTime(e.started_at)} (código confirmado)</div>}
-                  {e.awaiting_signature && <SignCard event={e} onDone={reload} />}
-                  {e.patient_signed_at && <div className="small"><IconCheck size={14} /> Atendimento assinado por {e.patient_signature_name} em {dateTime(e.patient_signed_at)}</div>}
-                  {e.status === 'CONCLUIDO' && <div className="mt"><Stars eventId={e.id} current={e.my_stars} onDone={reload} /></div>}
-                </li>
-              ))}
-            </ul>
-          )}
+          {!events.length ? <p className="muted">Os atendimentos aparecem aqui após a confirmação do pagamento.</p> : (<>
+            {active.length > 0 && (
+              <ul className="list">{active.map((e) => <li key={e.id}><ActiveEvent e={e} onDone={reload} /></li>)}</ul>
+            )}
+            {latest && (
+              <div className="mt">
+                <h3 className="h4">Último atendimento recebido</h3>
+                <DoneEvent e={latest} onDone={reload} photo />
+              </div>
+            )}
+            {older.length > 0 && (
+              <details className="mt">
+                <summary>Ver histórico de atendimentos ({older.length})</summary>
+                <ul className="list">{older.map((e) => <li key={e.id}><DoneEvent e={e} onDone={reload} /></li>)}</ul>
+              </details>
+            )}
+          </>)}
+          {events.some((e) => e.state?.code === 'A_PROGRAMAR') && <p className="small muted">"A programar": a Central ONEMA define a data dos próximos eventos a partir da avaliação inicial.</p>}
           <p className="small muted">A Central ONEMA confirma a agenda com um especialista validado. O mesmo enfermeiro não é obrigatório em todos os atendimentos de um pacote.</p>
         </section>
       </div>
@@ -193,8 +185,94 @@ export function RequestDetailPage() {
       <section className="surface mt">
         <h2>Linha do tempo do atendimento</h2>
         <CareTimeline items={data.timeline} />
+        <p className="small muted mb0">Atualização automática, sem recarregar.</p>
       </section>
     </>
+  );
+}
+
+const rating = (e: any) => Number(e.specialist_reviews) > 0 ? ` · ${Number(e.specialist_rating).toFixed(1).replace('.', ',')} ★ (${e.specialist_reviews} ${Number(e.specialist_reviews) === 1 ? 'avaliação' : 'avaliações'})` : '';
+
+/** Evento em andamento: estado (mesmo texto da especialista), agenda, sala, código e assinatura. */
+function ActiveEvent({ e, onDone }: { e: any; onDone: () => void }) {
+  return (<>
+    <div className="row between">
+      <span><strong>{e.label}</strong> <span className="small muted">· {e.modality === 'REMOTO' ? 'remoto' : 'presencial'}</span></span>
+      <Badge tone={STATE_TONE[e.state?.code] ?? ''}>{e.state?.label}</Badge>
+    </div>
+    {e.state?.detail && <div className="small muted">{e.state.detail}</div>}
+    {e.specialist_name && <div className="small muted">Especialista: {e.specialist_name}{rating(e)}</div>}
+    {e.specialist_name && e.status === 'ACEITO' && (
+      <ProtectedImg className="sp-photo" src={`/api/care/events/${e.id}/specialist-photo`} alt={`Foto de ${e.specialist_name}`} width={56} height={56}
+        onError={(ev) => { (ev.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+    )}
+    {e.specialist_coren && <div className="small muted">COREN {e.specialist_coren} · especialista validada pela Central ONEMA</div>}
+    {e.status === 'ACEITO' && e.call_scheduled_at && <PatientSchedule e={e} onDone={onDone} />}
+    {e.modality === 'REMOTO' && e.status === 'ACEITO' && <PatientOnlineCall e={e} />}
+    {e.visit_code && (
+      <div className="visit-code" role="status">
+        <span className="small">Código de início da visita</span>
+        <strong className="mono" aria-label={`Código ${e.visit_code.split('').join(' ')}`}>{e.visit_code}</strong>
+        <span className="small muted">Informe este código à especialista quando ela chegar. Não compartilhe por telefone ou mensagem.</span>
+      </div>
+    )}
+    {e.started_at && e.status === 'ACEITO' && <div className="small"><IconCheck size={14} /> Atendimento iniciado em {dateTime(e.started_at)}{e.modality === 'PRESENCIAL' ? ' (código confirmado)' : ''}</div>}
+    {e.awaiting_signature && <SignCard event={e} onDone={onDone} />}
+    {e.patient_signed_at && <div className="small"><IconCheck size={14} /> Atendimento assinado por {e.patient_signature_name} em {dateTime(e.patient_signed_at)}. Aguardando a especialista concluir.</div>}
+  </>);
+}
+
+/** Atendimento concluído: resumo de encerramento (sem campos de execução) e avaliação. */
+function DoneEvent({ e, onDone, photo }: { e: any; onDone: () => void; photo?: boolean }) {
+  return (<>
+    <div className="row between">
+      <span><strong>{e.label}</strong> <span className="small muted">· {e.modality === 'REMOTO' ? 'remoto' : 'presencial'} · {dateTime(e.completed_at)}</span></span>
+      <Badge tone="dark">Concluído</Badge>
+    </div>
+    {e.specialist_name && <div className="small muted">Especialista: {e.specialist_name}{rating(e)}</div>}
+    {photo && e.specialist_name && (
+      <ProtectedImg className="sp-photo" src={`/api/care/events/${e.id}/specialist-photo`} alt={`Foto de ${e.specialist_name}`} width={56} height={56}
+        onError={(ev) => { (ev.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+    )}
+    {e.patient_signed_at && <div className="small"><IconCheck size={14} /> Assinatura do paciente/responsável registrada em {dateTime(e.patient_signed_at)}</div>}
+    <div className="mt"><Stars eventId={e.id} current={e.my_stars} onDone={onDone} /></div>
+  </>);
+}
+
+/** Agendamento (ajuste 10): confirmar o horário proposto ou pedir alteração; mesmo estado e versão nas duas telas. */
+function PatientSchedule({ e, onDone }: { e: any; onDone: () => void }) {
+  const s = useSubmit<any>();
+  const [changing, setChanging] = useState(false);
+  const [when, setWhen] = useState('');
+  const st = e.schedule_status ?? 'AGUARDANDO_PACIENTE';
+  async function act(path: string, body: any) {
+    const r = await s.run('POST', `/api/care/events/${e.id}/schedule/${path}`, body, { idempotent: true });
+    if (r) { setChanging(false); setWhen(''); }
+    onDone();
+  }
+  return (
+    <div className="schedule-box mt" role="region" aria-label="Agendamento">
+      <div className="small">Horário proposto: <strong>{dateTime(e.call_scheduled_at)}</strong></div>
+      {st === 'CONFIRMADO' && <div className="small success"><IconCheck size={14} /> Confirmado{e.schedule_responded_at ? ` em ${dateTime(e.schedule_responded_at)}` : ''}</div>}
+      {st === 'ALTERACAO_SOLICITADA' && <div className="small">Alteração solicitada · nova proposta: <strong>{dateTime(e.schedule_change_at)}</strong><br /><span className="muted">Pendente de resposta: especialista</span></div>}
+      {st === 'AGUARDANDO_PACIENTE' && (<>
+        <div className="small muted">Pendente de resposta: você</div>
+        {!changing ? (
+          <div className="row">
+            <Button className="sm green" busy={s.busy} onClick={() => act('confirm', { rev: e.schedule_rev })}>{s.busy ? 'Confirmando…' : 'Confirmar horário'}</Button>
+            <button type="button" className="btn sm secondary" disabled={s.busy} onClick={() => setChanging(true)}>Solicitar alteração</button>
+          </div>
+        ) : (
+          <div className="row">
+            <label className="field"><span className="small">Nova data e hora</span>
+              <input type="datetime-local" value={when} min={toLocalInput(new Date().toISOString())} onChange={(ev) => setWhen(ev.target.value)} /></label>
+            <Button className="sm deep" busy={s.busy} disabled={!when} onClick={() => act('change', { rev: e.schedule_rev, startAt: fromLocalInput(when) })}>Enviar proposta</Button>
+            <button type="button" className="btn sm secondary" onClick={() => setChanging(false)}>Voltar</button>
+          </div>
+        )}
+      </>)}
+      <Alert error={s.error} />
+    </div>
   );
 }
 
@@ -254,15 +332,17 @@ function GuidanceCard({ request: r, onDone }: { request: any; onDone: () => void
   );
 }
 
-/** Paciente: atendimento online (sala de vídeo da Telenfermagem, até 30 min, sem gravação). */
+/** Paciente: atendimento online (sala de vídeo da Telenfermagem, até 30 min de sessão, sem gravação), com aviso de presença. */
 function PatientOnlineCall({ e }: { e: any }) {
   const call = useSubmit<any>();
   if (e.call_ended_at) return <p className="small muted">Atendimento online realizado.</p>;
   if (!e.call_scheduled_at) return <p className="small muted">Atendimento online: a enfermeira vai combinar o horário e você recebe o link por e-mail e aqui no app.</p>;
+  const opensAt = new Date(e.call_scheduled_at).getTime() - 30 * 60_000;
   return (
     <div className="mt">
       <p className="small">Atendimento online marcado para <strong>{dateTime(e.call_scheduled_at)}</strong>. A sala abre 30 minutos antes.</p>
-      <VideoCall busy={call.busy} error={call.error} enter={async () => { const r = await call.run('POST', `/api/care/events/${e.id}/call`); return r ? r.video : null; }} />
+      <VideoCall busy={call.busy} error={call.error} presenceUrl={Date.now() >= opensAt ? `/api/care/events/${e.id}/call/presence` : undefined} role="PACIENTE"
+        enter={async () => { const r = await call.run('POST', `/api/care/events/${e.id}/call`); return r ? r.video : null; }} />
     </div>
   );
 }

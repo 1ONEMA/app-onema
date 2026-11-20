@@ -22,7 +22,7 @@ async function onlineEvent() {
 }
 
 describe('Atendimento online (catálogo) na sala da Telenfermagem', () => {
-  it('horário combinado com link por e-mail; sala só para paciente e enfermeira; 30 minutos a partir da entrada da enfermeira', async () => {
+  it('horário combinado com link por e-mail; sala só para paciente e enfermeira; 30 minutos a partir dos dois presentes; agendamento confirmado pelo paciente', async () => {
     const { patient, sp, eventId, requestId } = await onlineEvent();
     expect((await patient.post(`/api/care/events/${eventId}/call`)).body.error.code).toBe('CALL_NOT_SCHEDULED');
     const start = new Date(Date.now() + 10 * 60_000).toISOString();
@@ -34,16 +34,36 @@ describe('Atendimento online (catálogo) na sala da Telenfermagem', () => {
     // outra pessoa não entra
     const outro = new Client(app); await outro.login(emailOf('responsavel'));
     expect((await outro.post(`/api/care/events/${eventId}/call`)).status).toBe(404);
-    // paciente entra antes: sala aguarda; fim = horário + 30 min
+    // agendamento (ajustes 09/10): proposta → paciente confirma; resposta a versão antiga não sobrescreve
+    const req0 = (await patient.get(`/api/care/requests/${requestId}`)).body.events.find((e: any) => e.id === eventId);
+    expect(req0.state.code).toBe('AGUARDANDO_PACIENTE'); expect(req0.schedule_rev).toBe(1);
+    const later = new Date(Date.now() + 3 * 3600_000).toISOString();
+    const ch = await patient.post(`/api/care/events/${eventId}/schedule/change`, { rev: 1, startAt: later });
+    expect(ch.body.schedule).toMatchObject({ status: 'ALTERACAO_SOLICITADA', pendingFrom: 'ESPECIALISTA', rev: 2 });
+    expect((await patient.post(`/api/care/events/${eventId}/schedule/confirm`, { rev: 1 })).body.error.code).toBe('SCHEDULE_OUTDATED');
+    // a especialista remarca para o horário original (nova proposta rastreável) e o paciente confirma (duplo envio = um ato)
+    expect((await sp.post(`/api/care/specialist/events/${eventId}/call-schedule`, { startAt: start })).status).toBe(200);
+    expect((await patient.post(`/api/care/events/${eventId}/schedule/confirm`, { rev: 3 })).body.schedule.status).toBe('CONFIRMADO');
+    expect((await patient.post(`/api/care/events/${eventId}/schedule/confirm`, { rev: 3 })).body.already).toBe(true);
+    expect((await one<any>(`SELECT COUNT(*)::int AS n FROM care_schedule_log WHERE event_id = ? AND action = 'CONFIRMADO'`, eventId)).n).toBe(1);
+    expect((await patient.get(`/api/care/requests/${requestId}`)).body.events.find((e: any) => e.id === eventId).state.label).toBe('Agendado');
+    // paciente entra antes: aguardando; o tempo de espera não consome os 30 minutos
     const p1 = (await patient.post(`/api/care/events/${eventId}/call`)).body;
     expect(p1.video).toMatchObject({ provider: 'SIMULADO', maxMinutes: 30 });
-    expect(Math.round((new Date(p1.video.endsAt).getTime() - new Date(start).getTime()) / 60000)).toBe(30);
-    // enfermeira entra: começa o atendimento e o relógio de 30 minutos
-    const s1 = (await sp.post(`/api/care/events/${eventId}/call`)).body;
-    expect(s1.startedAt).toBeTruthy();
-    expect(Math.round((new Date(s1.video.endsAt).getTime() - Date.now()) / 60000)).toBe(30);
-    // passou de 30 minutos: sala não reabre
-    await run(`UPDATE care_events SET call_started_at = ? WHERE id = ?`, new Date(Date.now() - 31 * 60_000).toISOString(), eventId);
+    expect(p1.startedAt).toBeNull();
+    const pr1 = (await patient.post(`/api/care/events/${eventId}/call/presence`, { inRoom: true })).body;
+    expect(pr1).toMatchObject({ patient: 'AGUARDANDO', specialist: 'AUSENTE', sessionStartedAt: null });
+    // enfermeira vê "paciente aguardando" antes de entrar; ao entrar, os dois conectados e o relógio começa
+    expect((await sp.post(`/api/care/events/${eventId}/call/presence`, {})).body.patient).toBe('AGUARDANDO');
+    await sp.post(`/api/care/events/${eventId}/call`);
+    const pr2 = (await sp.post(`/api/care/events/${eventId}/call/presence`, { inRoom: true })).body;
+    expect(pr2).toMatchObject({ patient: 'CONECTADO', specialist: 'CONECTADO' });
+    expect(Math.round((new Date(pr2.endsAt).getTime() - Date.now()) / 60000)).toBe(30);
+    // paciente sai (sem sinal por mais de 20 s): desconectado
+    await run(`UPDATE care_events SET call_patient_seen_at = ? WHERE id = ?`, new Date(Date.now() - 60_000).toISOString(), eventId);
+    expect((await sp.post(`/api/care/events/${eventId}/call/presence`, { inRoom: true })).body).toMatchObject({ patient: 'DESCONECTADO', specialist: 'AGUARDANDO' });
+    // passou de 30 minutos de sessão: sala não reabre
+    await run(`UPDATE care_events SET call_session_started_at = ? WHERE id = ?`, new Date(Date.now() - 31 * 60_000).toISOString(), eventId);
     expect((await patient.post(`/api/care/events/${eventId}/call`)).body.error.code).toBe('CALL_TIME_OVER');
     expect((await sp.post(`/api/care/specialist/events/${eventId}/call-end`)).status).toBe(200);
     expect((await one<any>('SELECT call_ended_at, started_at FROM care_events WHERE id = ?', eventId))).toMatchObject({ call_ended_at: expect.any(String), started_at: expect.any(String) });

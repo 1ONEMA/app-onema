@@ -4,6 +4,7 @@ import { api, type ApiError } from '../../lib/api';
 import { useApi, useSubmit } from '../../lib/hooks';
 import { dateTime } from '../../lib/format';
 import { Alert, Badge, Button, Empty, ErrorState, Field, Loading, PageHeader, fieldError } from '../../ui/ui';
+import './my-followup-card.css';
 
 const CODES = ['R3', 'R2', 'R1', 'R0'] as const;
 const BLOCKING: Record<string, string> = { NAO_AVALIADO: 'Não avaliado', DESCONHECIDO: 'Desconhecido', RECUSA: 'Recusa de informação', QI: 'Informação inadequada' };
@@ -215,23 +216,70 @@ export function SpecialistLifeScorePage() {
   );
 }
 
-/** Paciente: card "Meu acompanhamento" na Carteira (ordem e texto da especificação v0.4; sem códigos nem legenda técnica). */
+/** Valor do Life Score para o paciente: "80" ou "80,5" (mesma precisão de fmtScore, sem zeros à direita). */
+const fmtScorePlain = (s: any) => {
+  if (s == null || !Number.isFinite(Number(s))) return null;
+  return Number(s).toFixed(2).replace(/\.?0+$/, '').replace('.', ',');
+};
+/** Data de publicação (ISO) no fuso de São Paulo: DD/MM/AAAA. */
+const fmtDayBr = (iso?: string | null) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+/**
+ * Paciente: card "Meu acompanhamento" na Carteira — leitura confortável para pacientes 50+/60+ (texto grande, alto contraste).
+ * Só apresentação: mostra o que a enfermagem registrou (resumo ao paciente e plano de retorno); nada é inventado.
+ * O detalhamento por área e o histórico ficam em /acompanhamento.
+ */
 export function MyFollowupCard() {
   const { data } = useApi<any>('/api/lifescore/me');
   if (!data) return null;
   const l = data.latest;
+  const score = l ? fmtScorePlain(l.score) : null;
+  const day = l ? fmtDayBr(l.publishedAt) : null;
+  const nextDate = l?.plan?.kind === 'RETORNO' && l.plan.date ? fmtDate(l.plan.date) : null;
   return (
-    <section className="surface lifescore">
-      <h2>Meu acompanhamento</h2>
-      {!l ? <p className="mb0 muted">{data.emptyText}</p> : (
-        <>
-          <p className="mb0"><strong className="ls-score sm">{fmtScore(l.score)}</strong> <span className="small muted">Life Score · avaliação de {dateTime(l.publishedAt)} · {l.specialist}</span></p>
-          <p className="ls-explanation">{data.explanation}</p>
-          <ul className="list small">{l.domains.map((d: any) => <li key={d.code}><div className="row between"><strong>{d.name}</strong><span>{fmtScore(d.score)}</span></div><div className="muted">{d.plain}</div></li>)}</ul>
-          {l.summary && <p className="mb0"><strong>Resumo do enfermeiro:</strong> {l.summary}</p>}
-        </>
-      )}
-      <p className="mb0 mt"><Link to="/acompanhamento">Ver avaliação e histórico</Link></p>
+    <section className="ls-followup" aria-labelledby="ls-followup-title">
+      <header className="lsf-head">
+        <span className="lsf-kicker">ONEMA LIFE SCORE™</span>
+        <h2 id="ls-followup-title">Meu acompanhamento</h2>
+      </header>
+      <div className="lsf-body">
+        {!l ? (
+          <>
+            <p className="lsf-empty">{data.emptyText}</p>
+            <div className="lsf-actions"><Link className="btn deep lsf-btn" to="/acompanhamento">Ver avaliação e histórico →</Link></div>
+          </>
+        ) : (
+          <>
+            <div className="lsf-block lsf-last">
+              <h3>Última avaliação</h3>
+              <p>Avaliação de Enfermagem em <strong>{day ?? dateTime(l.publishedAt)}</strong></p>
+              {l.specialist && <p className="lsf-sub">Enfermeiro(a): {l.specialist}</p>}
+            </div>
+            <div className="lsf-pair">
+              <div className="lsf-block lsf-orient">
+                <h3>Orientação da Enfermagem</h3>
+                <p className="lsf-pre">{l.summary?.trim() ? l.summary : 'Consulte as orientações registradas na sua avaliação.'}</p>
+              </div>
+              <div className="lsf-block lsf-next">
+                <h3>Próximo acompanhamento</h3>
+                <p>{nextDate ? <strong>{nextDate}</strong> : 'Data do retorno não informada'}</p>
+              </div>
+            </div>
+            <div className="lsf-score-row">
+              <div className="lsf-score">
+                <h3>LifeScore da última avaliação</h3>
+                <p className="lsf-value">{score != null ? <><strong>{score}</strong> de 100</> : <strong>—</strong>}</p>
+                <p className="lsf-note">O Life Score resume aspectos da sua avaliação de Enfermagem. Não representa percentual de saúde nem define sozinho os cuidados necessários. As orientações são individualizadas pelo enfermeiro.</p>
+              </div>
+              <div className="lsf-actions"><Link className="btn deep lsf-btn" to="/acompanhamento">Ver avaliação e histórico →</Link></div>
+            </div>
+          </>
+        )}
+      </div>
     </section>
   );
 }

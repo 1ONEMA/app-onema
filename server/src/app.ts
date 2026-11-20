@@ -11,6 +11,7 @@ import { academyAdminRoutes } from './modules/academy/admin.ts';
 import { academyRoutes } from './modules/academy/routes.ts';
 import { adminRoutes } from './modules/admin/routes.ts';
 import { authRoutes } from './modules/auth/routes.ts';
+import { userPhotoRoutes } from './modules/auth/user-photo.ts';
 import { careAdminRoutes } from './modules/care/admin.ts';
 import { careRoutes } from './modules/care/routes.ts';
 import { reportShareRoutes } from './modules/care/report-share.ts';
@@ -27,6 +28,7 @@ import { visitRoutes } from './modules/care/visit.ts';
 import { teleRoutes } from './modules/tele/routes.ts';
 import { carteiraRoutes } from './modules/carteira/routes.ts';
 import { onlineCallRoutes } from './modules/care/online-call.ts';
+import { offerAdminRoutes } from './modules/care/offer-admin.ts';
 import { primeAdminRoutes } from './modules/prime/admin.ts';
 import { primeRoutes } from './modules/prime/routes.ts';
 
@@ -112,6 +114,7 @@ export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean 
   });
 
   await app.register(authRoutes);
+  await app.register(userPhotoRoutes);
   await app.register(adminRoutes);
   await app.register(academyRoutes);
   await app.register(academyAdminRoutes);
@@ -133,6 +136,7 @@ export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean 
   await app.register(teleRoutes);
   await app.register(carteiraRoutes);
   await app.register(onlineCallRoutes);
+  await app.register(offerAdminRoutes);
 
   app.get('/api/health', async () => ({ ok: true }));
 

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
-import { useApi, useSubmit } from '../../lib/hooks';
+import { useApi, useLiveApi, useSubmit } from '../../lib/hooks';
+import { OfflineNotice, fromLocalInput, toLocalInput } from '../../ui/Live';
 import { Alert, Badge, Button, ErrorState, Field, Loading, PageHeader, fieldError } from '../../ui/ui';
 import { IconCheck, IconShield } from '../../ui/icons';
 import { EVO_SECTIONS } from './WalletPage';
@@ -36,16 +37,16 @@ export function useDictation(onText: (t: string) => void) {
   return { supported: !!SR, on, toggle };
 }
 
-/** Atualiza a tela enquanto aguarda a assinatura do paciente. */
-function SignatureWatcher({ onPoll }: { onPoll: () => void }) {
-  useEffect(() => { const t = window.setInterval(onPoll, 5000); return () => window.clearInterval(t); }, [onPoll]);
+/** A tela inteira se atualiza sozinha (useLiveApi); aqui só o aviso enquanto aguarda a assinatura do paciente. */
+function SignatureWatcher() {
   return <p className="small" role="status">Aguardando a assinatura…</p>;
 }
 
 /** Atendimento da especialista: início com o código do paciente, evolução ditada e organizada pela Kary, assinatura e conclusão. */
 export function VisitPage() {
   const { id } = useParams();
-  const { data, error, loading, reload } = useApi<any>(`/api/care/specialist/events/${id}/evolution`);
+  const { data, error, loading, reload, offline } = useLiveApi<any>(`/api/care/specialist/events/${id}/evolution`, 2000);
+  const [showRecord, setShowRecord] = useState(false);
   const start = useSubmit<any>();
   const organize = useSubmit<any>();
   const save = useSubmit<any>();
@@ -64,7 +65,7 @@ export function VisitPage() {
     if (data?.evolution) { setEvo({ ...EMPTY, ...data.evolution.content }); setDictation((d) => d || data.evolution.dictation || ''); }
   }, [data?.evolution?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (loading && !data) return <Loading />;
-  if (error) return <ErrorState error={error} onRetry={reload} />;
+  if (error && !data) return <ErrorState error={error} onRetry={reload} />;
   const e = data.event;
   const signed = data.evolution?.status === 'ASSINADA';
   const started = !!e.startedAt || e.modality !== 'PRESENCIAL';
@@ -98,14 +99,41 @@ export function VisitPage() {
   return (
     <div className="flow">
       <PageHeader kicker="Atendimento ONEMA ONE" title={e.label} back={{ to: '/especialista#ofertas', label: 'Meus atendimentos' }}>
-        <p>{e.itemName} · {e.modality === 'REMOTO' ? 'remoto' : 'presencial'}</p>
+        <p>{e.itemName} · {e.modality === 'REMOTO' ? 'remoto' : 'presencial'}{e.window ? ` · janela: ${e.window}` : ''}</p>
       </PageHeader>
+      <OfflineNotice offline={offline} />
+      {e.status === 'CONCLUIDO' ? (
+        <>
+          {/* Ajuste 08: concluído no servidor → só o resumo de encerramento; o registro fica em modo de consulta. */}
+          <section className="flow-card closing-summary" role="status">
+            <h2>Atendimento concluído</h2>
+            <dl className="kv">
+              <dt>Assinatura do paciente/responsável</dt><dd>{e.patientSignedAt ? `registrada (${e.patientSignatureName}, ${new Date(e.patientSignedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })})` : '—'}</dd>
+              <dt>Encerramento</dt><dd>{new Date(e.completedAt).toLocaleDateString('pt-BR')} às {new Date(e.completedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</dd>
+              <dt>Repasse</dt><dd>segue para validação da ONEMA</dd>
+            </dl>
+            <button type="button" className="btn sm secondary" aria-expanded={showRecord} onClick={() => setShowRecord((v) => !v)}>{showRecord ? 'Ocultar registro' : 'Ver registro do atendimento'}</button>
+          </section>
+          {showRecord && (
+            <>
+              <section className="flow-card mt">
+                <h2>Evolução de enfermagem <Badge>Assinada</Badge></h2>
+                {signed ? <dl className="kv">{EVO_SECTIONS.map(([k, l]) => (data.evolution.content as any)[k] && <div key={k} className="contents"><dt>{l}</dt><dd>{(data.evolution.content as any)[k]}</dd></div>)}</dl> : <p className="muted">Sem evolução registrada.</p>}
+              </section>
+              {signed && <CarePlanEditor eventId={id!} />}
+              <PopPanel eventId={id!} active={false} />
+            </>
+          )}
+          <p className="small"><Link to="/especialista#ofertas">Voltar aos meus atendimentos</Link></p>
+        </>
+      ) : (<>
 
       <section className="flow-card">
         <h2>1. Iniciar o atendimento</h2>
         {e.modality !== 'PRESENCIAL' ? <OnlineCallCard id={id!} e={e} onChange={reload} />
           : e.startedAt ? <div className="success" role="status"><IconCheck size={18} /> Atendimento iniciado e confirmado com o código do paciente.</div> : (
           <>
+            <SpecialistSchedule id={id!} e={e} onChange={reload} />
             <p className="muted">Ao chegar, peça ao paciente o <strong>código de 6 números</strong> que aparece no app dele. Isso confirma, para a família, que é você quem está no atendimento.</p>
             <Field label="Código do paciente" error={fieldError(start.error, 'code')}>
               <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(ev) => setCode(ev.target.value.replace(/\D/g, ''))} placeholder="000000" />
@@ -165,7 +193,7 @@ export function VisitPage() {
         <h2>3. Assinatura do paciente ou responsável</h2>
         {e.patientSignedAt ? <div className="success" role="status"><IconCheck size={18} /> Assinado por {e.patientSignatureName} em {new Date(e.patientSignedAt).toLocaleString('pt-BR')}.</div>
           : !signed ? <p className="muted">Depois que você assinar a evolução, o paciente ou responsável confirma o atendimento no app dele.</p>
-          : <><p className="muted">Peça ao paciente ou responsável para abrir o pedido no app e tocar em <strong>Assinar atendimento</strong>. Esta tela atualiza sozinha.</p><SignatureWatcher onPoll={reload} /></>}
+          : <><p className="muted">Peça ao paciente ou responsável para abrir o pedido no app e tocar em <strong>Assinar atendimento</strong>. Esta tela atualiza sozinha.</p><SignatureWatcher /></>}
       </section>
 
       <section className="flow-card mt">
@@ -184,12 +212,49 @@ export function VisitPage() {
       <VisitInfo eventId={id!} visit={data.visit} />
       <section className="flow-card mt">
         <h2>Life Score <span className="small muted">(opcional)</span></h2>
-        <p className="small muted">Índice descritivo a partir dos 24 itens que você confirma. Não é necessário para concluir o atendimento.</p>
+        <p className="small muted">Índice descritivo a partir dos 5 itens que você confirma. Não é necessário para concluir o atendimento.</p>
         <Link className="btn sm deep" to={`/especialista/atendimentos/${id}/lifescore`}>Abrir Life Score</Link>
       </section>
       {signed && <CarePlanEditor eventId={id!} />}
       <PopPanel eventId={id!} active={['ACEITO', 'CONCLUIDO'].includes(e.status)} />
       <p className="small"><Link to="/especialista#ofertas">Voltar aos meus atendimentos</Link></p>
+      </>)}
+    </div>
+  );
+}
+
+/**
+ * Agendamento (ajuste 09): proposta da especialista e resposta do paciente com o mesmo estado e versão nas duas telas.
+ * Pedido de alteração só vira horário combinado depois do aceite; qualquer remarcação cria nova proposta rastreável.
+ */
+function SpecialistSchedule({ id, e, onChange }: { id: string; e: any; onChange: () => void }) {
+  const sched = useSubmit<any>(); const acc = useSubmit<any>();
+  const [when, setWhen] = useState(toLocalInput(e.callScheduledAt ?? new Date(Date.now() + 3600_000).toISOString()));
+  if (e.status !== 'ACEITO') return null;
+  const s = e.schedule;
+  return (
+    <div className="schedule-box" role="region" aria-label="Agendamento">
+      <h3 className="h4">Agendamento</h3>
+      {s ? (
+        <dl className="kv small">
+          <dt>Proposta</dt><dd>{new Date(s.proposedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</dd>
+          <dt>Status</dt><dd><strong>{s.label}</strong>{s.respondedAt && s.status === 'CONFIRMADO' ? ` (resposta em ${new Date(s.respondedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })})` : ''}</dd>
+          {s.status === 'ALTERACAO_SOLICITADA' && <><dt>Nova proposta</dt><dd><strong>{new Date(s.changeRequestedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</strong> · pendente de resposta: você</dd></>}
+          {s.status === 'AGUARDANDO_PACIENTE' && <><dt>Pendente de resposta</dt><dd>paciente</dd></>}
+        </dl>
+      ) : <p className="small muted">Combine o horário com o paciente: ele confirma ou pede alteração pelo app.</p>}
+      {s?.status === 'ALTERACAO_SOLICITADA' && (
+        <Button className="sm green" busy={acc.busy} onClick={async () => { await acc.run('POST', `/api/care/specialist/events/${id}/schedule/accept-change`, { rev: s.rev }, { idempotent: true }); onChange(); }}>
+          {acc.busy ? 'Confirmando…' : 'Aceitar nova data'}</Button>
+      )}
+      {!e.callStartedAt && !e.startedAt && (
+        <div className="row mt">
+          <input type="datetime-local" value={when} onChange={(ev) => setWhen(ev.target.value)} aria-label="Data e hora do atendimento" />
+          <Button className="sm secondary" busy={sched.busy} onClick={async () => { if (await sched.run('POST', `/api/care/specialist/events/${id}/call-schedule`, { startAt: fromLocalInput(when) }, { idempotent: true })) onChange(); }}>
+            {s ? 'Remarcar' : 'Combinar horário'}</Button>
+        </div>
+      )}
+      <Alert error={sched.error ?? acc.error} />
     </div>
   );
 }
@@ -234,28 +299,19 @@ function VisitInfo({ eventId, visit }: { eventId: string; visit: any }) {
   );
 }
 
-/** Atendimento online (remoto): horário combinado, link por e-mail e sala de vídeo da Telenfermagem (até 30 min). */
+/** Atendimento online (remoto): horário combinado, link por e-mail e sala de vídeo (até 30 min de sessão), com aviso de presença. */
 function OnlineCallCard({ id, e, onChange }: { id: string; e: any; onChange: () => void }) {
-  const sched = useSubmit<any>(); const call = useSubmit<any>(); const end = useSubmit<any>();
-  const local = (iso?: string | null) => { const d = iso ? new Date(iso) : new Date(Date.now() + 3600_000); const p = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
-  const [when, setWhen] = useState(local(e.callScheduledAt));
+  const call = useSubmit<any>(); const end = useSubmit<any>();
   if (e.status !== 'ACEITO') return <p className="muted">Atendimento online{e.callEndedAt ? ` · chamada encerrada em ${new Date(e.callEndedAt).toLocaleString('pt-BR')}` : ''}.</p>;
+  const opensAt = e.callScheduledAt ? new Date(e.callScheduledAt).getTime() - 30 * 60_000 : Infinity;
   return (
     <div>
-      <p className="muted">Atendimento online: combine o horário; paciente e você recebem o link por e-mail e aviso no app. A chamada dura até 30 minutos, sem gravação.</p>
-      {e.callScheduledAt && <p>Horário combinado: <strong>{new Date(e.callScheduledAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</strong></p>}
-      {!e.callStartedAt && (
-        <div className="row">
-          <input type="datetime-local" value={when} onChange={(ev) => setWhen(ev.target.value)} aria-label="Data e hora da chamada" />
-          <Button className="sm secondary" busy={sched.busy} onClick={async () => { if (await sched.run('POST', `/api/care/specialist/events/${id}/call-schedule`, { startAt: new Date(when).toISOString() })) onChange(); }}>
-            {e.callScheduledAt ? 'Remarcar' : 'Combinar horário'}</Button>
-        </div>
-      )}
-      <Alert error={sched.error} />
+      <p className="muted">Atendimento online: combine o horário; paciente e você recebem o link por e-mail e aviso no app. A chamada dura até 30 minutos (a partir de quando os dois estão na sala), sem gravação.</p>
+      <SpecialistSchedule id={id} e={e} onChange={onChange} />
       {e.callScheduledAt && !e.callEndedAt && (
         <div className="mt">
-          <VideoCall busy={call.busy} error={call.error} onLeave={onChange} enter={async () => { const r = await call.run('POST', `/api/care/events/${id}/call`); return r ? r.video : null; }} />
+          <VideoCall busy={call.busy} error={call.error} onLeave={onChange} role="ESPECIALISTA" presenceUrl={Date.now() >= opensAt ? `/api/care/events/${id}/call/presence` : undefined}
+            enter={async () => { const r = await call.run('POST', `/api/care/events/${id}/call`); return r ? r.video : null; }} />
           {e.callStartedAt && <Button className="sm secondary mt" busy={end.busy} onClick={async () => { if (await end.run('POST', `/api/care/specialist/events/${id}/call-end`)) onChange(); }}>Encerrar chamada</Button>}
           <Alert error={end.error} />
         </div>

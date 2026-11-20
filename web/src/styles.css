@@ -870,3 +870,11 @@ h3 { font-weight: 600; letter-spacing: -0.01em; }
 .ls-legend ul { margin: 4px 0 0; padding-left: 18px; }
 .linklike.strong { font-weight: 700; text-decoration: underline; }
 .address-grid { border: 0; padding: 0; margin: 12px 0; }
+
+/* Ajustes RT 20/11/2026: agendamento, encerramento e tarefas concluídas */
+.schedule-box { margin-bottom: 12px; border: 1px solid var(--line, #d8e0ec); border-radius: 12px; padding: 12px; background: var(--surface-2, #f6f9fc); }
+.schedule-box .row { flex-wrap: wrap; align-items: flex-end; }
+.closing-summary { border-left: 4px solid var(--green, #0f9d76); background: #eefaf5; }
+.closing-summary h2 { text-transform: none; }
+.plan-done { opacity: .9; background: #f3f6f9; border-radius: 10px; padding: 10px 12px; }
+.h4 { font-size: 1.02rem; margin: 0 0 6px; }

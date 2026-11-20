@@ -4,6 +4,8 @@
  * - Evolução de enfermagem: ditado → Kary organiza → enfermeira revisa e assina → aparece na Carteira do paciente.
  */
 import crypto from 'node:crypto';
+import { scheduleView } from './online-call.ts';
+import { eventState, windowDisplay } from './offer-engine.ts';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { one, run, tx } from '../../db/db.ts';
@@ -92,7 +94,8 @@ export async function visitRoutes(app: FastifyInstance) {
       address: r.address_sealed ? JSON.parse(openField(r.address_sealed)) : null, whenPref: r.when_pref, whenDate: r.when_date, timeWindow: r.time_window, notes: r.notes } : null;
     return { event: { id: e.id, label: e.label, itemName: e.item_name, modality: e.modality, status: e.status, startedAt: e.started_at,
         patientSignedAt: e.patient_signed_at, patientSignatureName: e.patient_signature_name, completedAt: e.completed_at,
-        callScheduledAt: e.call_scheduled_at, callStartedAt: e.call_started_at, callEndedAt: e.call_ended_at }, visit,
+        callScheduledAt: e.call_scheduled_at, callStartedAt: e.call_started_at, callEndedAt: e.call_ended_at,
+        schedule: scheduleView(e), state: eventState(e), window: e.window_start && e.window_end ? windowDisplay(e.window_start, e.window_end, e.window_label) : null }, visit,
       evolution: evolutionView(v), aiEnabled: evolutionAiEnabled() };
   });
 

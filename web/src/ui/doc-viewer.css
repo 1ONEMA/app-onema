@@ -1,0 +1,21 @@
+/* Visualizador de documentos dentro do app (Ajuste 07): PDF em canvas (pdf.js) e imagens, sem download. */
+.dv { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.dv-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.dv-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dv-status { font-size: .95rem; white-space: nowrap; padding: 0 4px; }
+.dv-toolbar .btn { min-width: 44px; min-height: 40px; }
+.dv-stage {
+  overflow: auto; max-height: min(70vh, 760px); min-height: 160px;
+  border-radius: 12px; background: var(--surface-2, #eef2f6); padding: 8px;
+  -webkit-overflow-scrolling: touch; overscroll-behavior: contain; scrollbar-gutter: stable;
+}
+.dv-pdf { position: relative; width: 100%; }
+.dv-rendering { position: absolute; top: 6px; left: 8px; margin: 0; }
+.dv .dv-content {
+  display: block; margin: 0 auto; background: #fff; border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .15);
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-user-drag: none;
+}
+.dv .dv-stage img.dv-content { max-width: none; height: auto; }
+.dv-error .row { gap: 8px; }
+@media print { .dv-stage { display: none !important; } }

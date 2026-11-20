@@ -89,8 +89,11 @@ test('paciente, especialista e Central: jornada completa com evidências', async
   await shot(page, 'evid-07-pagamento', p);
   await page.getByRole('button', { name: 'Confirmar e pagar R$ 739,90' }).click();
   await expect(page.getByText(/Pagamento confirmado \(simulação\)/)).toBeVisible();
-  await expect(page.getByText('Avaliação inicial')).toBeVisible();
-  await expect(page.getByText('Avaliação final')).toBeVisible();
+  await expect(page.getByText('Avaliação inicial', { exact: true })).toBeVisible();
+  await expect(page.getByText('Avaliação final', { exact: true })).toBeVisible();
+  // Motor de ofertas (PAC-03): só a avaliação inicial é ofertada; os demais eventos ficam "A programar"
+  await expect(page.locator('li', { hasText: 'Avaliação inicial' }).getByText('Buscando especialista')).toBeVisible();
+  await expect(page.getByText('A programar', { exact: true })).toHaveCount(3);
   await shot(page, 'evid-08-comprovante', p);
   if (p !== 'desktop') return;
 
@@ -102,18 +105,19 @@ test('paciente, especialista e Central: jornada completa com evidências', async
   await sp.goto('/especialista');
   await expect(sp.getByRole('heading', { name: 'Ofertas disponíveis' })).toBeVisible();
   await expect(sp.getByText('R$ 170,00').first()).toBeVisible();
-  await expect(sp.getByText('R$ 50,00').first()).toBeVisible();
+  await expect(sp.getByText('R$ 50,00')).toHaveCount(0); // monitoramentos ainda "A programar": não são ofertados
   await expect(sp.getByText('R$ 739,90')).toHaveCount(0); // preço ao paciente não aparece
   await shot(sp, 'evid-09-especialista-ofertas', p);
-  // aceita e conclui as 4 ofertas deste pedido (identificadas pela região)
+  // aceita e conclui a oferta deste pedido (identificada pela região): só a avaliação inicial
   const mineOffer = () => sp.locator('li', { hasText: `Vila Mariana ${p}` }).getByRole('button', { name: 'Aceitar atendimento' });
-  for (let n = 4; n > 0; n--) {
+  await expect(mineOffer()).toHaveCount(1);
+  for (let n = 1; n > 0; n--) {
     await mineOffer().first().click();
     await expect(mineOffer()).toHaveCount(n - 1);
   }
   // Cada atendimento: código de início dado pelo paciente → evolução ditada → assinatura → conclusão
   const requestUrl = page.url();
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 1; i++) {
     await sp.goto('/especialista');
     await sp.locator('li', { hasText: 'Aguardando início' }).or(sp.locator('li', { hasText: 'Remoto' })).getByRole('link', { name: 'Abrir atendimento' }).first().click();
     await expect(sp.getByRole('heading', { name: '1. Iniciar o atendimento' })).toBeVisible();
@@ -146,7 +150,9 @@ test('paciente, especialista e Central: jornada completa com evidências', async
     await expect(page.locator('li', { hasText: title }).getByText(/Atendimento assinado por Maria Fictícia/)).toBeVisible();
     await expect(sp.getByText(/Assinado por Maria Fictícia/)).toBeVisible({ timeout: 15_000 });
     await sp.getByRole('button', { name: 'Registrar conclusão' }).click();
-    await expect(sp.getByText(/Atendimento concluído em/)).toBeVisible();
+    // Ajuste 08: concluído → resumo de encerramento, sem campos de execução
+    await expect(sp.getByRole('heading', { name: 'Atendimento concluído' })).toBeVisible();
+    await expect(sp.getByRole('button', { name: 'Registrar conclusão' })).toHaveCount(0);
   }
   await sp.goto('/especialista');
   await expect(sp.getByText('Repasse aguardando validação').first()).toBeVisible();

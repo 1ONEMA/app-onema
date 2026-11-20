@@ -14,6 +14,7 @@ import { brl, nowIso, uid } from '../../lib/util.ts';
 import { currentParams, notify, quote, receipt, sandboxCharge } from '../prime/core.ts';
 import { offerByCode, publicOffer } from './catalog.ts';
 import { createPayment, dueDateFor, ensureCustomer } from '../../lib/asaas.ts';
+import { onOrderPaid } from './offer-engine.ts';
 
 /** Mês de referência (São Paulo) para ofertas mensais: chave de não duplicidade CAT-08/PAC-05. */
 export function billingPeriod(iso = nowIso()) {
@@ -176,7 +177,8 @@ export async function applyPaymentEvent(ev: { eventId: string; orderId: string; 
       await run(`UPDATE discount_reservations SET status = 'USED', updated_at = ? WHERE id = ?`, now, reservation.id);
       await audit({ actorId: ev.actorId ?? null, action: 'DESCONTO_USADO', subjectType: 'service_order', subjectId: o.id, correlationId });
     }
-    await run(`UPDATE care_events SET status = 'DISPONIVEL', updated_at = ? WHERE order_id = ? AND status = 'AGUARDANDO_PAGAMENTO'`, now, o.id);
+    // Motor de ofertas (PAC-03): só o primeiro evento entra em oferta; os demais ficam "A programar" (uma única vez).
+    await onOrderPaid(o.id, o.request_id ?? null);
     // Reserva do repasse integral por evento (unicidade por evento impede reserva dupla).
     for (const e of await all<any>('SELECT id, unit_payout_cents FROM care_events WHERE order_id = ?', o.id)) {
       await run(`INSERT INTO payout_entries (id, order_id, event_id, amount_cents, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?)

@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react';
+import { STATE_TONE } from './OrdersPages';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../lib/auth';
 import { useApi } from '../../lib/hooks';
@@ -45,8 +46,8 @@ export function WalletPage() {
               ))}
               {data.upcoming.map((e: any) => (
                 <li key={e.id}><div className="row between"><Link to={`/solicitacoes/${e.request_id}`}><strong>{e.label}</strong></Link>
-                  <Badge tone={e.status === 'ACEITO' ? '' : 'blue'}>{e.status === 'ACEITO' ? 'Especialista confirmado' : 'Buscando especialista'}</Badge></div>
-                  <div className="small muted">{e.item_name} · {e.modality === 'REMOTO' ? 'remoto' : 'presencial'} · {WHEN[e.when_pref] ?? ''}{e.when_date ? ` ${e.when_date.split('-').reverse().join('/')}` : ''}{e.specialist_name ? ` · ${e.specialist_name}` : ''}</div></li>
+                  <Badge tone={STATE_TONE[e.state?.code] ?? ''}>{e.state?.label ?? e.status}</Badge></div>
+                  <div className="small muted">{e.item_name} · {e.modality === 'REMOTO' ? 'remoto' : 'presencial'}{e.state?.detail ? ` · ${e.state.detail}` : ''}{e.specialist_name ? ` · ${e.specialist_name}` : ''}</div></li>
               ))}
             </ul>
           )}

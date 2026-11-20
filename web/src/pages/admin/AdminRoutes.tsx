@@ -14,6 +14,7 @@ import { PopsLibraryPage } from '../pops/PopsPages';
 import { LifeScoreAdminPage } from '../lifescore/LifeScorePages';
 import { useApi } from '../../lib/hooks';
 import { AdminCarteiraPage } from '../carteira/CarteiraPages';
+import { AgendaPacotesPage } from './AgendaPacotes';
 import { dateTime } from '../../lib/format';
 
 export const SECTIONS: { to: string; label: string; roles: Role[]; desc: string }[] = [
@@ -26,6 +27,7 @@ export const SECTIONS: { to: string; label: string; roles: Role[]; desc: string 
   { to: 'relatorios', label: 'Relatórios Academy', roles: ['ADMIN_ACADEMY', 'AUDITOR'], desc: 'Indicadores calculados a partir do banco.' },
   { to: 'financeiro', label: 'Financeiro', roles: ['FINANCEIRO', 'ADMIN_ACADEMY', 'AUDITOR'], desc: 'Pedidos, cobranças, estornos (sandbox).' },
   { to: 'lifescore', label: 'Life Score', roles: ['AVALIADOR_RT', 'OPERADOR_CENTRAL', 'ADMIN_PRIME', 'AUDITOR'], desc: 'Avaliações, preocupações de segurança, retornos, lembretes, suspensão e liberação.' },
+  { to: 'agenda', label: 'Agenda de pacotes', roles: ['OPERADOR_CENTRAL', 'ADMIN_PRIME', 'AVALIADOR_RT', 'AUDITOR'], desc: 'Motor de ofertas: eventos a programar, janelas, ondas, pendências, reoferta e reatribuição.' },
   { to: 'carteira', label: 'Alertas da Carteira', roles: ['AVALIADOR_RT', 'OPERADOR_CENTRAL'], desc: 'Fila de alertas e lembretes, atribuição, escalonamento, auditoria e matriz de regras.' },
   { to: 'telenfermagem', label: 'Telenfermagem', roles: ['AVALIADOR_RT', 'OPERADOR_CENTRAL'], desc: 'Homologação: triagem, ofertas, pendências e auditoria dos teleatendimentos.' },
   { to: 'pops', label: 'POPs', roles: ['AVALIADOR_RT'], desc: 'Biblioteca de POPs: conferir, liberar e suspender versões.' },
@@ -66,6 +68,7 @@ export function AdminRoutes() {
         <Route path="pops" element={<PopsLibraryPage />} />
         <Route path="telenfermagem" element={<AdminTelePage />} />
         <Route path="carteira" element={<AdminCarteiraPage />} />
+        <Route path="agenda" element={<AgendaPacotesPage />} />
         <Route path="lifescore" element={<LifeScoreAdminPage />} />
         <Route path="responsaveis" element={<SharesAdminPage />} />
         <Route path="prime" element={<PrimeAdminPage />} />

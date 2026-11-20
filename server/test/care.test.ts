@@ -463,7 +463,10 @@ describe('Especialista e avaliações por estrelas', () => {
     const sp = new Client(app); await sp.login(emailOf('especialistaOne'));
     const ev = (await sp.get('/api/care/specialist/offers')).body.offers[0];
     expect((await sp.post(`/api/care/specialist/events/${ev.id}/accept`)).status).toBe(200);
-    expect((await sp.post(`/api/care/specialist/events/${ev.id}/accept`)).status).toBe(409);
+    // repetição do vencedor devolve o mesmo resultado (PAC-03: aceite idempotente), sem novo ato
+    const again = await sp.post(`/api/care/specialist/events/${ev.id}/accept`);
+    expect(again.status).toBe(200); expect(again.body.already).toBe(true);
+    expect((await one<any>(`SELECT COUNT(*)::int AS n FROM care_offer_log WHERE event_id = ? AND kind = 'ACEITE'`, ev.id)).n).toBe(1);
     expect((await c.post(`/api/care/events/${ev.id}/review`, { stars: 5 })).status).toBe(422);
     await finishVisit(sp, ev.id, c);
     expect((await c.post(`/api/care/events/${ev.id}/review`, { stars: 4, comment: 'Atencioso.', nps: 10 })).status).toBe(200);

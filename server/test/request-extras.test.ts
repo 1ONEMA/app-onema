@@ -50,7 +50,20 @@ describe('Solicitação: endereço, anexos, orientação de materiais e validade
     expect(view.documents).toHaveLength(1);
     const file = await app.inject({ method: 'GET', url: `/api/care/specialist/events/${ev.id}/documents/${view.documents[0].id}`, headers: { cookie: sp.cookie } });
     expect(file.statusCode).toBe(200);
-    expect(file.headers['cache-control']).toContain('no-store');
+    expect(file.headers['cache-control']).toBe('private, no-store');
+    expect(String(file.headers['content-disposition'])).toMatch(/^inline;/);
+    // consulta auditada (especialista) com o id do documento
+    const spAudit = await one<any>(`SELECT meta_json FROM audit_events WHERE action = 'CARE_REQUEST_DOCUMENT_VIEWED' AND subject_id = ?`, req.id);
+    expect(JSON.parse(spAudit.meta_json)).toMatchObject({ docId: view.documents[0].id, viewer: 'ESPECIALISTA' });
+    // paciente também consulta dentro do app: inline, sem cache e auditado
+    const own = await app.inject({ method: 'GET', url: `/api/care/requests/${req.id}/documents/${docs[0].id}`, headers: { cookie: c.cookie } });
+    expect(own.statusCode).toBe(200);
+    expect(own.headers['cache-control']).toBe('private, no-store');
+    expect(String(own.headers['content-disposition'])).toMatch(/^inline;/);
+    expect((await one<any>(`SELECT COUNT(*) AS n FROM audit_events WHERE action = 'CARE_REQUEST_DOCUMENT_VIEWED' AND subject_id = ? AND meta_json LIKE '%"viewer":"PACIENTE"%'`, req.id)).n).toBe(1);
+    // outra especialista (não designada) não vê o arquivo
+    const naoDesignadaDoc = new Client(app); await naoDesignadaDoc.login(emailOf('especialista'));
+    expect((await naoDesignadaDoc.get(`/api/care/specialist/events/${ev.id}/documents/${view.documents[0].id}`)).status).toBe(404);
     // orientação: especialista designada envia; paciente confirma
     expect((await sp.post(`/api/care/requests/${req.id}/guidance`, { text: 'Gaze estéril, soro 0,9%, luvas. Links: farmácia do bairro.' })).status).toBe(200);
     expect((await one<any>('SELECT guidance_status FROM care_requests WHERE id = ?', req.id)).guidance_status).toBe('ENVIADA');

@@ -1662,4 +1662,101 @@ CREATE TABLE lifescore_test_records (
 CREATE TRIGGER trg_ls_test_records_append BEFORE UPDATE OR DELETE ON lifescore_test_records FOR EACH ROW EXECUTE FUNCTION onema_append_only();
 ALTER TABLE lifescore_test_records ENABLE ROW LEVEL SECURITY;
 ` },
+  { name: '028_motor_ofertas_agenda', sql: `
+-- 028: PAC-03 / motor de ofertas (RT, 17/11/2026) e ajustes de automação (RT, 20/11/2026).
+-- Pacotes com vários eventos: só a avaliação inicial entra em oferta após o pagamento; os demais ficam "A programar"
+-- até a Central validar a janela. Ondas (profissional de referência primeiro), vencimento da janela e pendências da Central.
+ALTER TABLE care_events DROP CONSTRAINT IF EXISTS care_events_status_check;
+ALTER TABLE care_events ADD CONSTRAINT care_events_status_check CHECK (status IN ('AGUARDANDO_PAGAMENTO','A_PROGRAMAR','DISPONIVEL','ACEITO','CONCLUIDO','CANCELADO'));
+ALTER TABLE care_events ADD COLUMN window_start TEXT;
+ALTER TABLE care_events ADD COLUMN window_end TEXT;
+ALTER TABLE care_events ADD COLUMN window_label TEXT;
+ALTER TABLE care_events ADD COLUMN plan_validated_at TEXT;
+ALTER TABLE care_events ADD COLUMN plan_validated_by TEXT REFERENCES users(id);
+ALTER TABLE care_events ADD COLUMN offer_opens_at TEXT;
+ALTER TABLE care_events ADD COLUMN depends_on_seq INTEGER;
+ALTER TABLE care_events ADD COLUMN offer_published_at TEXT;
+ALTER TABLE care_events ADD COLUMN offer_wave INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE care_events ADD COLUMN reference_specialist_id TEXT REFERENCES users(id);
+ALTER TABLE care_events ADD COLUMN reference_until TEXT;
+ALTER TABLE care_events ADD COLUMN attention TEXT;
+ALTER TABLE care_events ADD COLUMN attention_at TEXT;
+-- Agendamento (ajustes 09/10): proposta da especialista, confirmação ou pedido de alteração do paciente, com versão.
+ALTER TABLE care_events ADD COLUMN schedule_status TEXT;
+ALTER TABLE care_events ADD COLUMN schedule_rev INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE care_events ADD COLUMN schedule_change_at TEXT;
+ALTER TABLE care_events ADD COLUMN schedule_responded_at TEXT;
+-- Presença na sala remota (ajuste 05): visto por último e início efetivo da sessão (os dois presentes).
+ALTER TABLE care_events ADD COLUMN call_patient_seen_at TEXT;
+ALTER TABLE care_events ADD COLUMN call_specialist_seen_at TEXT;
+ALTER TABLE care_events ADD COLUMN call_session_started_at TEXT;
+
+ALTER TABLE care_requests ADD COLUMN window_start TEXT;
+ALTER TABLE care_requests ADD COLUMN window_end TEXT;
+ALTER TABLE care_requests ADD COLUMN window_label TEXT;
+
+-- Histórico do motor (convites, ondas, recusas, aceite, vencimento, ações da Central). Append-only.
+CREATE TABLE care_offer_log (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL REFERENCES care_events(id),
+  kind TEXT NOT NULL,
+  wave INTEGER,
+  specialist_id TEXT REFERENCES users(id),
+  actor_id TEXT REFERENCES users(id),
+  note TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX ix_care_offer_log_event ON care_offer_log(event_id, created_at);
+CREATE TRIGGER trg_care_offer_log_append BEFORE UPDATE OR DELETE ON care_offer_log FOR EACH ROW EXECUTE FUNCTION onema_append_only();
+ALTER TABLE care_offer_log ENABLE ROW LEVEL SECURITY;
+
+-- Histórico das propostas de horário (cada remarcação é uma nova proposta rastreável). Append-only.
+CREATE TABLE care_schedule_log (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL REFERENCES care_events(id),
+  rev INTEGER NOT NULL,
+  action TEXT NOT NULL,
+  proposed_time TEXT,
+  actor_id TEXT NOT NULL REFERENCES users(id),
+  created_at TEXT NOT NULL
+);
+CREATE INDEX ix_care_schedule_log_event ON care_schedule_log(event_id, rev);
+CREATE TRIGGER trg_care_schedule_log_append BEFORE UPDATE OR DELETE ON care_schedule_log FOR EACH ROW EXECUTE FUNCTION onema_append_only();
+ALTER TABLE care_schedule_log ENABLE ROW LEVEL SECURITY;
+
+-- Ajuste 01: uma ocorrência recorrente gera no máximo uma próxima (duas abas/reenvio não duplicam).
+CREATE UNIQUE INDEX ux_care_plan_next ON care_plan_items(previous_item_id) WHERE previous_item_id IS NOT NULL;
+
+-- Ajuste 04: foto opcional do paciente/responsável (enviada pela própria pessoa; nunca importada).
+CREATE TABLE user_photos (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  mime TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  storage_key TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  removed_at TEXT
+);
+CREATE INDEX ix_user_photos_user ON user_photos(user_id, created_at);
+ALTER TABLE user_photos ENABLE ROW LEVEL SECURITY;
+
+-- Pedidos em andamento (PAC-03, p. 7): eventos futuros de pacotes ofertados antes da regra voltam para "A programar";
+-- aceites já registrados vão para a Central confirmar ou corrigir a agenda. Histórico e pagamento preservados.
+INSERT INTO care_offer_log (id, event_id, kind, note, created_at)
+  SELECT gen_random_uuid()::text, e.id, 'CONVITE_ENCERRADO', 'Revisão da ativação do motor: evento futuro ofertado antes da programação.', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+  FROM care_events e WHERE e.status = 'DISPONIVEL'
+    AND e.seq > (SELECT MIN(x.seq) FROM care_events x WHERE x.order_id = e.order_id)
+    AND (SELECT COUNT(*) FROM care_events x WHERE x.order_id = e.order_id) > 1;
+UPDATE care_events e SET status = 'A_PROGRAMAR', depends_on_seq = (SELECT MIN(x.seq) FROM care_events x WHERE x.order_id = e.order_id)
+  WHERE e.status = 'DISPONIVEL'
+    AND e.seq > (SELECT MIN(x.seq) FROM care_events x WHERE x.order_id = e.order_id)
+    AND (SELECT COUNT(*) FROM care_events x WHERE x.order_id = e.order_id) > 1;
+UPDATE care_events e SET depends_on_seq = (SELECT MIN(x.seq) FROM care_events x WHERE x.order_id = e.order_id)
+  WHERE e.status = 'AGUARDANDO_PAGAMENTO' AND e.seq > (SELECT MIN(x.seq) FROM care_events x WHERE x.order_id = e.order_id);
+UPDATE care_events e SET attention = 'REVISAR_AGENDA', attention_at = to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+  WHERE e.status = 'ACEITO' AND e.started_at IS NULL
+    AND e.seq > (SELECT MIN(x.seq) FROM care_events x WHERE x.order_id = e.order_id)
+    AND EXISTS (SELECT 1 FROM care_events x WHERE x.order_id = e.order_id AND x.seq < e.seq AND x.status <> 'CONCLUIDO');
+` },
 ];

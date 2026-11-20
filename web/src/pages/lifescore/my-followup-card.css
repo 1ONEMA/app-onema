@@ -1,0 +1,55 @@
+/* Ajuste 11 — card "Meu acompanhamento" (Carteira) para pacientes 50+/60+: alto contraste, texto grande, sem truncar. */
+.ls-followup {
+  margin: 16px 0; border-radius: var(--radius, 18px); overflow: hidden; background: #fff;
+  border: 1px solid var(--line, #D5DFEA); box-shadow: var(--shadow); color: var(--ink, #1C2B45);
+}
+.ls-followup .lsf-head { background: var(--deep, #0b2a6f); color: #fff; padding: 16px 20px; }
+.ls-followup .lsf-kicker { display: block; font-size: 13px; font-weight: 700; letter-spacing: .08em; color: #fff; opacity: .92; }
+.ls-followup .lsf-head h2 { margin: 2px 0 0; color: #fff; font-size: 24px; line-height: 1.3; font-weight: 700; }
+
+.ls-followup .lsf-body { display: grid; gap: 14px; padding: 18px 16px 24px; background: #fff; }
+.ls-followup p, .ls-followup h3 { margin: 0; }
+.ls-followup p { font-size: 18px; line-height: 1.55; color: var(--ink, #1C2B45); overflow-wrap: anywhere; }
+.ls-followup h3 { font-size: 15px; font-weight: 700; letter-spacing: .02em; color: var(--deep, #0b2a6f); margin-bottom: 4px; }
+.ls-followup .lsf-sub { font-size: 16px; color: #3E4C63; }
+.ls-followup .lsf-pre { white-space: pre-line; }
+
+.ls-followup .lsf-block { border-radius: var(--radius-sm, 12px); padding: 14px 16px; background: var(--paper, #F3F6FA); border: 1px solid var(--line, #D5DFEA); }
+.ls-followup .lsf-orient { background: var(--green-soft, #DDF6F1); border-color: #A9E3D7; }
+.ls-followup .lsf-orient h3 { color: #005A4C; }
+.ls-followup .lsf-pair { display: grid; gap: 14px; }
+
+.ls-followup .lsf-score-row { display: grid; gap: 14px; align-items: center; padding-top: 4px; }
+.ls-followup .lsf-value { font-size: 20px; }
+.ls-followup .lsf-value strong { font-size: 34px; line-height: 1.2; color: var(--deep, #0b2a6f); margin-right: 4px; }
+.ls-followup .lsf-note { font-size: 16px; line-height: 1.55; color: #33425A; margin-top: 6px; }
+.ls-followup .lsf-empty { font-size: 18px; }
+
+.ls-followup .lsf-actions { display: flex; }
+.ls-followup .lsf-btn {
+  min-height: 48px; min-width: 44px; padding: 12px 20px; font-size: 17px; line-height: 1.3;
+  display: inline-flex; align-items: center; justify-content: center; text-align: center; white-space: normal;
+}
+
+/* Celular: coluna única; espaço extra embaixo para o botão flutuante da Kary e a barra inferior não cobrirem o botão. */
+@media (max-width: 959px) {
+  .ls-followup .lsf-actions { padding-bottom: 8px; margin-right: 96px; }
+  .ls-followup .lsf-btn { width: 100%; }
+  .ls-followup { margin-bottom: 32px; }
+}
+@media (max-width: 380px) {
+  .ls-followup .lsf-actions { margin-right: 0; padding-bottom: 72px; }
+}
+
+/* Computador: "Última avaliação" inteira; Orientação e Próximo acompanhamento lado a lado; score com botão à direita. */
+@media (min-width: 720px) {
+  .ls-followup .lsf-head { padding: 18px 28px; }
+  .ls-followup .lsf-body { padding: 24px 28px 28px; gap: 18px; }
+  .ls-followup p { font-size: 17px; }
+  .ls-followup .lsf-pair { grid-template-columns: 1fr 1fr; }
+}
+@media (min-width: 960px) {
+  .ls-followup .lsf-score-row { grid-template-columns: 1fr auto; gap: 24px; }
+  .ls-followup .lsf-actions { margin-right: 0; padding-bottom: 0; align-self: end; }
+  .ls-followup .lsf-btn { width: auto; }
+}
