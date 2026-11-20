@@ -3,7 +3,7 @@
  "texts": [
   {
    "code": "PRIV",
-   "version": "1.1",
+   "version": "1.1.1",
    "title": "POLÍTICA DE PRIVACIDADE E PROTEÇÃO DE DADOS DA ONEMA SAÚDE",
    "sections": [
     {
@@ -16,7 +16,7 @@
     {
      "heading": "1. QUEM SOMOS E COMO ENTRAR EM CONTATO",
      "paragraphs": [
-      "1.1. A ONEMA SAÚDE é uma plataforma de coordenação de cuidados de enfermagem domiciliar e de recursos digitais associados ao cuidado e à educação continuada. A responsável pelas operações descritas nesta política é [razão social: a preencher pela ONEMA], CNPJ 18.834.917/0001-57, com sede em [endereço da sede: a preencher pela ONEMA], doravante ONEMA.",
+      "1.1. A ONEMA SAÚDE é uma plataforma de coordenação de cuidados de enfermagem domiciliar e de recursos digitais associados ao cuidado e à educação continuada. A responsável pelas operações descritas nesta política é ONEMA TECNOLOGIA E SOLUÇÕES INTEGRADAS EM SAÚDE LTDA, CNPJ 18.834.917/0001-57, atendimento por meio eletrônico: App ONEMA SAÚDE (https://onemasaude.com.br), e-mail atendimento@onemasaude.com.br e WhatsApp (11) 97554-0108, doravante ONEMA.",
       "1.2. Nosso site institucional é https://onemasaude.com.br. O canal institucional de atendimento e privacidade é atendimento@onemasaude.com.br. Você também pode encaminhar solicitações sobre seus dados pela área de privacidade do App, conforme disponibilizada. Se a função estiver indisponível ou você não conseguir acessar a conta, utilize o e-mail.",
       "1.3. A ONEMA atua como controladora nas operações em que decide as finalidades e os elementos essenciais do tratamento. Profissionais, instituições e prestadores podem ter responsabilidades próprias, conforme sua atuação efetiva. Esta política não atribui automaticamente a todos os parceiros a mesma posição jurídica.",
       "1.4. O canal institucional encaminha os pedidos à equipe responsável. A identificação e o contato do encarregado, quando aplicáveis, devem constar das informações institucionais de privacidade, após a correspondente designação. A condição de fundador ou Responsável Técnico não representa, por si só, nomeação como encarregado."
@@ -195,7 +195,7 @@
   },
   {
    "code": "TERMO_ESPECIALISTA",
-   "version": "1.0",
+   "version": "1.0.1",
    "title": "TERMO DE PROTEÇÃO DE DADOS PESSOAIS SIGILO E RESPONSABILIDADES DO ESPECIALISTA ONEMA ONE",
    "sections": [
     {
@@ -204,7 +204,7 @@
       "Código ONEMA-LGPD-ESP-001 | Versão 1.0 | Data de elaboração 05/11/2026",
       "Status: minuta jurídica para revisão e preenchimento antes da publicação. Não constitui parecer ou aprovação jurídica.",
       "QUADRO DE IDENTIFICAÇÃO",
-      "ONEMA SAÚDE: [razão social: a preencher pela ONEMA], CNPJ 18.834.917/0001-57, sede [endereço da sede: a preencher pela ONEMA], site https://onemasaude.com.br. Canal institucional para atendimento e privacidade: atendimento@onemasaude.com.br, também acessível por solicitação dentro do App.",
+      "ONEMA SAÚDE: ONEMA TECNOLOGIA E SOLUÇÕES INTEGRADAS EM SAÚDE LTDA, CNPJ 18.834.917/0001-57, atendimento por meio eletrônico: App ONEMA SAÚDE (https://onemasaude.com.br), e-mail atendimento@onemasaude.com.br e WhatsApp (11) 97554-0108, site https://onemasaude.com.br. Canal institucional para atendimento e privacidade: atendimento@onemasaude.com.br, também acessível por solicitação dentro do App.",
       "Especialista: [NOME COMPLETO], CPF [IDENTIFICADOR PROTEGIDO NO FLUXO], COREN [UF/NÚMERO], identificador da conta [ID].",
       "Início de vigência da versão publicada: [DATA DE APROVAÇÃO]. Política de Privacidade complementar: [LINK VÁLIDO]. Identificação e contato do encarregado, quando exigíveis: [PUBLICAR APÓS DESIGNAÇÃO E AVALIAÇÃO PERTINENTES]."
      ]
@@ -432,7 +432,7 @@
   },
   {
    "code": "TERMOS_PACIENTE",
-   "version": "1.2",
+   "version": "1.2.1",
    "title": "Termos de uso e contratação do paciente",
    "sections": [
     {
@@ -444,7 +444,7 @@
     {
      "heading": "1 Partes e representação",
      "paragraphs": [
-      "A plataforma ONEMA SAÚDE é operada por [razão social: a preencher pela ONEMA], inscrita no CNPJ nº 18.834.917/0001-57, com sede em [endereço da sede: a preencher pela ONEMA], doravante ONEMA. Atendimento ao usuário: solicitação pelo App ou atendimento@onemasaude.com.br. Privacidade: área de privacidade do App ou atendimento@onemasaude.com.br.",
+      "A plataforma ONEMA SAÚDE é operada por ONEMA TECNOLOGIA E SOLUÇÕES INTEGRADAS EM SAÚDE LTDA, inscrita no CNPJ nº 18.834.917/0001-57, atendimento por meio eletrônico: App ONEMA SAÚDE (https://onemasaude.com.br), e-mail atendimento@onemasaude.com.br e WhatsApp (11) 97554-0108, doravante ONEMA. Atendimento ao usuário: solicitação pelo App ou atendimento@onemasaude.com.br. Privacidade: área de privacidade do App ou atendimento@onemasaude.com.br.",
       "O contratante é a pessoa identificada no cadastro e no pedido. Quando contrata para outra pessoa, deve informar quem é o paciente, qual sua relação com ele e se possui poderes de representação. Pagar pelo atendimento não confere, por si só, acesso ao prontuário ou poder para consentir em procedimentos. A capacidade e a legitimidade do representante poderão ser verificadas por meios proporcionais. Crianças, adolescentes e pessoas representadas receberão proteção adequada, considerando sua autonomia e seu melhor interesse."
      ]
     },
@@ -537,7 +537,7 @@
   },
   {
    "code": "TERMOS_ESPECIALISTA",
-   "version": "1.2",
+   "version": "1.2.1",
    "title": "Termo de parceria do especialista ONEMA ONE",
    "sections": [
     {
@@ -549,7 +549,7 @@
     {
      "heading": "1 Qualificação e objeto",
      "paragraphs": [
-      "A plataforma ONEMA SAÚDE é operada por [razão social: a preencher pela ONEMA], inscrita no CNPJ nº 18.834.917/0001-57, com sede em [endereço da sede: a preencher pela ONEMA], doravante ONEMA. Atendimento ao usuário: solicitação pelo App ou atendimento@onemasaude.com.br. Privacidade: área de privacidade do App ou atendimento@onemasaude.com.br.",
+      "A plataforma ONEMA SAÚDE é operada por ONEMA TECNOLOGIA E SOLUÇÕES INTEGRADAS EM SAÚDE LTDA, inscrita no CNPJ nº 18.834.917/0001-57, atendimento por meio eletrônico: App ONEMA SAÚDE (https://onemasaude.com.br), e-mail atendimento@onemasaude.com.br e WhatsApp (11) 97554-0108, doravante ONEMA. Atendimento ao usuário: solicitação pelo App ou atendimento@onemasaude.com.br. Privacidade: área de privacidade do App ou atendimento@onemasaude.com.br.",
       "O profissional é identificado no cadastro validado, com nome civil, CPF ou CNPJ, registro no conselho, endereço e dados de recebimento. A parceria tem por objeto a execução de serviços de enfermagem legalmente permitidos, dentro da habilitação e competência demonstradas, com coordenação, documentação e suporte da ONEMA. O termo não autoriza atos fora do exercício profissional nem substitui inscrições, licenças ou obrigações pessoais exigíveis."
      ]
     },
@@ -648,7 +648,7 @@
   },
   {
    "code": "TERMOS_ACADEMY",
-   "version": "1.2",
+   "version": "1.2.1",
    "title": "Termos de uso da ONEMA Academy",
    "sections": [
     {
@@ -660,7 +660,7 @@
     {
      "heading": "1 Prestadora e aluno",
      "paragraphs": [
-      "A plataforma ONEMA SAÚDE é operada por [razão social: a preencher pela ONEMA], inscrita no CNPJ nº 18.834.917/0001-57, com sede em [endereço da sede: a preencher pela ONEMA], doravante ONEMA. Atendimento ao usuário: solicitação pelo App ou atendimento@onemasaude.com.br. Privacidade: área de privacidade do App ou atendimento@onemasaude.com.br.",
+      "A plataforma ONEMA SAÚDE é operada por ONEMA TECNOLOGIA E SOLUÇÕES INTEGRADAS EM SAÚDE LTDA, inscrita no CNPJ nº 18.834.917/0001-57, atendimento por meio eletrônico: App ONEMA SAÚDE (https://onemasaude.com.br), e-mail atendimento@onemasaude.com.br e WhatsApp (11) 97554-0108, doravante ONEMA. Atendimento ao usuário: solicitação pelo App ou atendimento@onemasaude.com.br. Privacidade: área de privacidade do App ou atendimento@onemasaude.com.br.",
       "O aluno é a pessoa identificada na matrícula. A Academy é a unidade educacional da ONEMA, com ofertas de integração e educação continuada. Cursos livres e atividades de capacitação não equivalem a graduação, especialização reconhecida ou título profissional, salvo informação específica e comprovada de outra natureza educacional."
      ]
     },
@@ -746,7 +746,7 @@
   },
   {
    "code": "TERMOS_PRIME",
-   "version": "1.2",
+   "version": "1.2.1",
    "title": "Termo de adesão ao ONEMA PRIME",
    "sections": [
     {
@@ -758,7 +758,7 @@
     {
      "heading": "1 Prestadora e natureza da adesão",
      "paragraphs": [
-      "A plataforma ONEMA SAÚDE é operada por [razão social: a preencher pela ONEMA], inscrita no CNPJ nº 18.834.917/0001-57, com sede em [endereço da sede: a preencher pela ONEMA], doravante ONEMA. Atendimento ao usuário: solicitação pelo App ou atendimento@onemasaude.com.br. Privacidade: área de privacidade do App ou atendimento@onemasaude.com.br.",
+      "A plataforma ONEMA SAÚDE é operada por ONEMA TECNOLOGIA E SOLUÇÕES INTEGRADAS EM SAÚDE LTDA, inscrita no CNPJ nº 18.834.917/0001-57, atendimento por meio eletrônico: App ONEMA SAÚDE (https://onemasaude.com.br), e-mail atendimento@onemasaude.com.br e WhatsApp (11) 97554-0108, doravante ONEMA. Atendimento ao usuário: solicitação pelo App ou atendimento@onemasaude.com.br. Privacidade: área de privacidade do App ou atendimento@onemasaude.com.br.",
       "O PRIME é um programa de assinatura de benefícios comerciais da ONEMA. Sua mensalidade não inclui atendimentos, não assegura cobertura assistencial ilimitada e não substitui contratação de serviços ou plano de saúde. A adesão é voluntária e separada do cadastro e dos pedidos assistenciais. Não se exigirá PRIME para acesso aos próprios registros, documentos, orientações necessárias ao cuidado e alertas essenciais."
      ]
     },
@@ -832,7 +832,7 @@
   },
   {
    "code": "CANCELAMENTO",
-   "version": "1.2",
+   "version": "1.2.1",
    "title": "Política de cancelamento e reembolso",
    "sections": [
     {
@@ -846,7 +846,7 @@
     {
      "heading": "1 Identificação e alcance",
      "paragraphs": [
-      "A plataforma ONEMA SAÚDE é operada por [razão social: a preencher pela ONEMA], inscrita no CNPJ nº 18.834.917/0001-57, com sede em [endereço da sede: a preencher pela ONEMA], doravante ONEMA. Atendimento ao usuário: solicitação pelo App ou atendimento@onemasaude.com.br. Privacidade: área de privacidade do App ou atendimento@onemasaude.com.br.",
+      "A plataforma ONEMA SAÚDE é operada por ONEMA TECNOLOGIA E SOLUÇÕES INTEGRADAS EM SAÚDE LTDA, inscrita no CNPJ nº 18.834.917/0001-57, atendimento por meio eletrônico: App ONEMA SAÚDE (https://onemasaude.com.br), e-mail atendimento@onemasaude.com.br e WhatsApp (11) 97554-0108, doravante ONEMA. Atendimento ao usuário: solicitação pelo App ou atendimento@onemasaude.com.br. Privacidade: área de privacidade do App ou atendimento@onemasaude.com.br.",
       "A política integra os termos correspondentes e deve estar acessível antes de contratar e durante toda a relação. A análise considera a oferta aceita, o estágio efetivo da execução e os direitos legais, com decisão fundamentada. Condição de oferta não pode reduzir direito obrigatório. As regras desta versão não estabelecem multa por cancelamento, taxa de ausência ou percentual de retenção não informado."
      ]
     },
