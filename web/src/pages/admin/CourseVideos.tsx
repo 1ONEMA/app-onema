@@ -55,14 +55,14 @@ export function CourseVideosPage() {
     return await api<any>('GET', `/api/admin/academy/course-versions/${id}`);
   }
 
-  async function pick(code: string, files: FileList | null) {
+  async function pick(code: string, files: File[]) {
     setErr({ ...err, [code]: null }); setDone({ ...done, [code]: '' });
-    if (!files?.length) return;
+    if (!files.length) return;
     try {
       const v = await draftFor(code);
       const lessons = [...v.lessons].sort((a: any, b: any) => a.sort_order - b.sort_order);
       const list: Row[] = []; const skip: Skipped[] = [];
-      for (const f of [...files]) {
+      for (const f of files) {
         const v2 = await asVideo(f);
         if ('reason' in v2) { skip.push({ name: f.name, reason: v2.reason }); continue; }
         const n = lessonNumber(f.name);
@@ -112,7 +112,7 @@ export function CourseVideosPage() {
             <div className="row between"><h2 className="mb0">{c.code} · {pub?.title ?? c.versions[0]?.title}</h2>
               {c.versions.find((v: any) => v.state === 'IN_REVIEW') && <Badge tone="orange">Em revisão do RT</Badge>}</div>
             <label className="btn sm secondary mt upload-btn">{list.length ? 'Escolher outros vídeos' : 'Escolher os vídeos deste curso'}
-              <input type="file" multiple accept="video/mp4,video/webm" className="sr-only" disabled={!!busy} onChange={(e) => { pick(c.code, e.target.files); e.target.value = ''; }} /></label>
+              <input type="file" multiple accept="video/mp4,video/webm" className="sr-only" disabled={!!busy} onChange={(e) => { const picked = Array.from(e.target.files ?? []); e.target.value = ''; void pick(c.code, picked); }} /></label>
             {(skipped[c.code]?.length ?? 0) > 0 && (
               <div className="caution small mt" role="alert"><strong>Arquivos que não serão enviados:</strong>
                 <ul className="mb0">{skipped[c.code].map((k) => <li key={k.name}>{k.name}: {k.reason}</li>)}</ul></div>
