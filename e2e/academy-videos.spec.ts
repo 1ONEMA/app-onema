@@ -14,10 +14,15 @@ test('envio em lote dos vídeos das aulas', async ({ page }, info) => {
   fs.writeFileSync(`${dir}/1`, mp4); fs.writeFileSync(`${dir}/PMG INTRO.mp4`, mp4); fs.writeFileSync(`${dir}/AULA 2.mov`, mov);
   await page.locator('input[type=file]').first().setInputFiles([`${dir}/1`, `${dir}/PMG INTRO.mp4`, `${dir}/AULA 2.mov`]);
   const sec = page.locator('section.surface').first();
-  await expect(sec).toContainText(/1\.mp4 \(0 MB\) → C01-A01/);
-  await expect(sec).toContainText(/PMG INTRO\.mp4 \(0 MB\) → sem aula correspondente/);
+  await expect(sec.getByLabel('Aula do vídeo 1.mp4')).toHaveValue(/.+/);
+  await expect(sec).toContainText(/PMG INTRO\.mp4 \(0 MB\) →.*sem aula escolhida/);
+  // escolher a aula manualmente e remover um vídeo antes de enviar
+  await sec.getByLabel('Aula do vídeo PMG INTRO.mp4').selectOption({ index: 2 });
+  await expect(sec.getByRole('button', { name: /Enviar e mandar para o RT \(2 vídeos\)/ })).toBeEnabled();
+  await sec.getByRole('button', { name: 'Remover PMG INTRO.mp4' }).click();
+  await expect(sec.getByRole('button', { name: /Enviar e mandar para o RT \(1 vídeo\)/ })).toBeEnabled();
   await expect(sec).toContainText(/AULA 2\.mov: vídeo \.MOV/);
-  await sec.getByRole('button', { name: 'Enviar e mandar para o RT' }).click();
+  await sec.getByRole('button', { name: /Enviar e mandar para o RT/ }).click();
   await expect(sec.getByText(/Vídeos enviados e versão enviada para o RT/)).toBeVisible({ timeout: 30_000 });
   await expect(sec.getByText('Em revisão do RT')).toBeVisible();
 });
