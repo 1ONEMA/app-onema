@@ -43,6 +43,9 @@ export function CourseVideosPage() {
   const [err, setErr] = useState<Record<string, ApiError | null>>({});
   const [done, setDone] = useState<Record<string, string>>({});
   const [skipped, setSkipped] = useState<Record<string, Skipped[]>>({});
+  const [lessonsOf, setLessonsOf] = useState<Record<string, any[]>>({});
+  const setRow = (code: string, i: number, patch: Partial<Row>) => setRows((r) => ({ ...r, [code]: r[code].map((x, k) => (k === i ? { ...x, ...patch } : x)) }));
+  const removeRow = (code: string, i: number) => setRows((r) => ({ ...r, [code]: r[code].filter((_, k) => k !== i) }));
   if (loading && !data) return <Loading />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
 
@@ -70,6 +73,7 @@ export function CourseVideosPage() {
       }
       list.sort((a, b) => (a.n ?? 99) - (b.n ?? 99));
       setSkipped({ ...skipped, [code]: skip });
+      setLessonsOf((m) => ({ ...m, [code]: lessons }));
       setRows({ ...rows, [code]: list.map((r) => ({ ...r, versionId: v.version.id } as any)) });
       reload();
     } catch (e) { setErr({ ...err, [code]: e as ApiError }); }
@@ -119,13 +123,31 @@ export function CourseVideosPage() {
             )}
             {list.length > 0 && (
               <>
-                <ul className="list small mt">{list.map((r, i) => (
-                  <li key={i} className="row between">
-                    <span>{r.file.name} ({mb(r.file.size)}) → {r.lesson ? <strong>{r.lesson.code} · {r.lesson.title}</strong> : <span className="err">sem aula correspondente</span>}</span>
-                    <span>{r.status}{r.pct > 0 && r.pct < 100 ? ` · ${r.pct}%` : ''}</span>
-                  </li>
-                ))}</ul>
-                {!done[c.code] && <Button className="deep" busy={busy === c.code} disabled={!!busy || !list.some((r) => r.lesson)} onClick={() => send(c.code)}>Enviar e mandar para o RT</Button>}
+                <p className="small muted mt">Confira a aula de cada vídeo. Se precisar, troque a aula na lista ou remova o vídeo antes de enviar.</p>
+                <ul className="list small">{list.map((r, i) => {
+                  const dup = r.lesson && list.some((x, k) => k !== i && x.lesson?.id === r.lesson.id);
+                  const locked = !!busy || !!done[c.code] || r.status !== 'pronto';
+                  return (
+                    <li key={`${r.file.name}-${i}`} className="row between video-row">
+                      <span>{r.file.name} ({mb(r.file.size)}) →{' '}
+                        <select aria-label={`Aula do vídeo ${r.file.name}`} value={r.lesson?.id ?? ''} disabled={locked}
+                          onChange={(e) => setRow(c.code, i, { lesson: (lessonsOf[c.code] ?? []).find((l) => l.id === e.target.value) })}>
+                          <option value="">— escolha a aula —</option>
+                          {(lessonsOf[c.code] ?? []).map((l) => <option key={l.id} value={l.id}>{l.code} · {l.title}</option>)}
+                        </select>
+                        {!r.lesson && <span className="err"> sem aula escolhida (não será enviado)</span>}
+                        {dup && <span className="err"> outra linha usa a mesma aula</span>}
+                      </span>
+                      <span className="row">
+                        <span>{r.status}{r.pct > 0 && r.pct < 100 ? ` · ${r.pct}%` : ''}</span>
+                        {!locked && <button type="button" className="btn sm secondary" aria-label={`Remover ${r.file.name}`} onClick={() => removeRow(c.code, i)}>Remover</button>}
+                      </span>
+                    </li>
+                  );
+                })}</ul>
+                {!done[c.code] && <Button className="deep" busy={busy === c.code}
+                  disabled={!!busy || !list.some((r) => r.lesson) || list.some((r, i) => r.lesson && list.some((x, k) => k !== i && x.lesson?.id === r.lesson.id))}
+                  onClick={() => send(c.code)}>Enviar e mandar para o RT ({list.filter((r) => r.lesson).length} vídeo{list.filter((r) => r.lesson).length === 1 ? '' : 's'})</Button>}
               </>
             )}
             <Alert error={err[c.code] ?? null} />
