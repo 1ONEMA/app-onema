@@ -5,11 +5,32 @@ import { useApi } from '../../lib/hooks';
 import { uploadInParts } from '../../lib/upload';
 import { Alert, Badge, Button, ErrorState, Loading, PageHeader } from '../../ui/ui';
 
-/** Número da aula no nome do arquivo ("AULA 01.mp4", "Aula 3.mp4" → 1, 3). */
-const lessonNumber = (name: string) => { const m = /aula\D{0,3}0*(\d{1,2})/i.exec(name) ?? /(\d{1,2})\D*\.\w+$/.exec(name); return m ? Number(m[1]) : null; };
+/** Número da aula no nome do arquivo ("AULA 01.mp4", "Aula 3.mp4", "1", "02.mp4" → 1, 3, 1, 2). */
+const lessonNumber = (name: string) => {
+  const base = name.replace(/\.[a-z0-9]{2,4}$/i, '');
+  const m = /aula\D{0,3}0*(\d{1,2})/i.exec(base) ?? /^\s*0*(\d{1,2})\s*$/.exec(base) ?? /(\d{1,2})\D*$/.exec(base);
+  return m ? Number(m[1]) : null;
+};
+
+/**
+ * Reconhece o vídeo pelo conteúdo, não só pelo nome: arquivos baixados do Drive às vezes vêm sem extensão ("1", "2"…).
+ * MP4 ("ftyp" no byte 4, exceto QuickTime/MOV) e WebM (assinatura EBML). Devolve o arquivo com nome e tipo corretos.
+ */
+async function asVideo(file: File): Promise<{ file: File } | { reason: string }> {
+  const head = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  const txt = (a: number, b: number) => String.fromCharCode(...head.slice(a, b));
+  const base = file.name.replace(/\.[a-z0-9]{2,4}$/i, '');
+  if (txt(4, 8) === 'ftyp') {
+    if (txt(8, 12) === 'qt  ') return { reason: 'vídeo .MOV (iPhone/QuickTime): converta para MP4 antes de enviar' };
+    return { file: new File([file], `${base}.mp4`, { type: 'video/mp4' }) };
+  }
+  if (head[0] === 0x1a && head[1] === 0x45 && head[2] === 0xdf && head[3] === 0xa3) return { file: new File([file], `${base}.webm`, { type: 'video/webm' }) };
+  return { reason: 'não é um vídeo MP4 ou WEBM' };
+}
 const mb = (n: number) => `${(n / 1024 / 1024).toFixed(0)} MB`;
 
 type Row = { file: File; n: number | null; lesson?: any; status: string; pct: number; error?: string };
+type Skipped = { name: string; reason: string };
 
 /**
  * Envio em lote dos vídeos das aulas: para cada curso, cria (ou reaproveita) o rascunho da nova versão,
@@ -21,6 +42,7 @@ export function CourseVideosPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<Record<string, ApiError | null>>({});
   const [done, setDone] = useState<Record<string, string>>({});
+  const [skipped, setSkipped] = useState<Record<string, Skipped[]>>({});
   if (loading && !data) return <Loading />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
 
@@ -39,10 +61,15 @@ export function CourseVideosPage() {
     try {
       const v = await draftFor(code);
       const lessons = [...v.lessons].sort((a: any, b: any) => a.sort_order - b.sort_order);
-      const list: Row[] = [...files].filter((f) => /\.(mp4|webm)$/i.test(f.name)).map((file) => {
-        const n = lessonNumber(file.name);
-        return { file, n, lesson: n ? lessons[n - 1] : undefined, status: 'pronto', pct: 0 };
-      }).sort((a, b) => (a.n ?? 99) - (b.n ?? 99));
+      const list: Row[] = []; const skip: Skipped[] = [];
+      for (const f of [...files]) {
+        const v2 = await asVideo(f);
+        if ('reason' in v2) { skip.push({ name: f.name, reason: v2.reason }); continue; }
+        const n = lessonNumber(f.name);
+        list.push({ file: v2.file, n, lesson: n ? lessons[n - 1] : undefined, status: 'pronto', pct: 0 });
+      }
+      list.sort((a, b) => (a.n ?? 99) - (b.n ?? 99));
+      setSkipped({ ...skipped, [code]: skip });
       setRows({ ...rows, [code]: list.map((r) => ({ ...r, versionId: v.version.id } as any)) });
       reload();
     } catch (e) { setErr({ ...err, [code]: e as ApiError }); }
@@ -86,6 +113,10 @@ export function CourseVideosPage() {
               {c.versions.find((v: any) => v.state === 'IN_REVIEW') && <Badge tone="orange">Em revisão do RT</Badge>}</div>
             <label className="btn sm secondary mt upload-btn">{list.length ? 'Escolher outros vídeos' : 'Escolher os vídeos deste curso'}
               <input type="file" multiple accept="video/mp4,video/webm" className="sr-only" disabled={!!busy} onChange={(e) => { pick(c.code, e.target.files); e.target.value = ''; }} /></label>
+            {(skipped[c.code]?.length ?? 0) > 0 && (
+              <div className="caution small mt" role="alert"><strong>Arquivos que não serão enviados:</strong>
+                <ul className="mb0">{skipped[c.code].map((k) => <li key={k.name}>{k.name}: {k.reason}</li>)}</ul></div>
+            )}
             {list.length > 0 && (
               <>
                 <ul className="list small mt">{list.map((r, i) => (
