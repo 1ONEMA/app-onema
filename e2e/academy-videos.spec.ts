@@ -5,7 +5,7 @@ import fs from 'node:fs';
 /** Envio em lote dos vídeos das aulas: arquivos sem extensão (baixados do Drive) e nomes sem número de aula. */
 test('envio em lote dos vídeos das aulas', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop');
-  await loginAdmin(page, 'admin.academy.demo@exemplo.test', new Map());
+  await loginAdmin(page, 'gestor.demo@exemplo.test', new Map());
   await page.goto('/admin/conteudo/videos');
   await expect(page.getByRole('heading', { name: /C01 · / })).toBeVisible();
   const dir = `test-results/academy-videos-${Date.now()}`; fs.mkdirSync(dir, { recursive: true });

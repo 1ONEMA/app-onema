@@ -146,6 +146,9 @@ export function VisitPage() {
         )}
       </section>
 
+      {/* POPs sugeridos para este serviço: liberados no início do atendimento (comando do RT, 21/11/2026). */}
+      <PopPanel eventId={id!} />
+
       <section className="flow-card mt" aria-disabled={!started}>
         <h2>2. Evolução de enfermagem {signed && <Badge>Assinada</Badge>}</h2>
         {!started ? <p className="muted">Disponível depois de iniciar o atendimento.</p> : signed ? (
@@ -216,7 +219,6 @@ export function VisitPage() {
         <Link className="btn sm deep" to={`/especialista/atendimentos/${id}/lifescore`}>Abrir Life Score</Link>
       </section>
       {signed && <CarePlanEditor eventId={id!} />}
-      <PopPanel eventId={id!} active={['ACEITO', 'CONCLUIDO'].includes(e.status)} />
       <p className="small"><Link to="/especialista#ofertas">Voltar aos meus atendimentos</Link></p>
       </>)}
     </div>
