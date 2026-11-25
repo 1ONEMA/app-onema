@@ -23,6 +23,9 @@ export default async () => {
   // Carteira Digital: lembretes do plano de cuidados, escalonamento de alertas e falhas de canal.
   const { runCarteiraAlerts } = await import('../../server/src/modules/carteira/engine.ts');
   try { console.log('Alertas da Carteira:', JSON.stringify(await runCarteiraAlerts())); } catch (e: any) { console.error('[carteira] falha nos alertas:', e?.message); }
+  // Motor de ofertas (PAC-03): abertura programada, ampliação de onda e janela vencida, mesmo sem ninguém com a tela aberta.
+  const { runOfferSweep } = await import('../../server/src/modules/care/offer-engine.ts');
+  try { await runOfferSweep(true); } catch (e: any) { console.error('[ofertas] falha na varredura:', e?.message); }
 };
 
 export const config: Config = { schedule: '@hourly' };

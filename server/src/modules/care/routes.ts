@@ -60,12 +60,17 @@ const requestSchema = z.object({
     cep: z.string().trim().regex(/^\d{5}-?\d{3}$/, 'CEP inválido.')
       .refine(inServiceArea, 'No momento a ONEMA atende somente na cidade de São Paulo.'),
     street: z.string().trim().min(3, 'Informe a rua.').max(120),
-    number: z.string().trim().min(1, 'Informe o número.').max(20),
+    number: z.string().trim().max(20).optional().default(''),
+    // Ajuste A01 (22/11/2026): "sem número" (mesmo padrão do cadastro do especialista) e UF opcional.
+    noNumber: z.boolean().optional().default(false),
     complement: z.string().trim().max(80).optional().default(''),
     district: z.string().trim().min(2, 'Informe o bairro.').max(80),
     city: z.string().trim().min(2, 'Informe a cidade.').max(80),
+    uf: z.string().trim().regex(/^([A-Za-z]{2})?$/, 'UF inválida.').max(2).optional().default('').transform((s) => s.toUpperCase()),
     reference: z.string().trim().max(160).optional().default(''),
-  }).nullable().optional(),
+  }).refine((a) => a.noNumber || a.number.length > 0, { message: 'Informe o número ou marque "sem número".', path: ['number'] })
+    // Quem lê o endereço (especialista, visita) vê "S/N" em vez de número vazio.
+    .transform((a) => (a.noNumber ? { ...a, number: 'S/N' } : a)).nullable().optional(),
   patientBirthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data de nascimento inválida.').nullable().optional(),
   timeWindow: z.enum(['MANHA', 'TARDE', 'NOITE', 'QUALQUER']).nullable().optional(),
   relationship: z.string().trim().max(60).nullable().optional(),
@@ -97,6 +102,25 @@ const quoteExpiresAt = (issued: string) => new Date(new Date(issued).getTime() +
 const guidanceFor = (materials: string, prev?: any) =>
   materials === 'SIM' ? 'NAO_APLICAVEL' : prev && prev.materials === materials && prev.guidance_status !== 'NAO_APLICAVEL' ? prev.guidance_status : 'SOLICITADA';
 const extraArgs = (b: RequestBody) => [b.address ? sealField(JSON.stringify(b.address)) : null, b.patientBirthDate ?? null, b.timeWindow ?? null, b.forSelf ? null : (b.relationship ?? null)];
+
+function openAddress(sealed: string | null | undefined) {
+  if (!sealed) return null;
+  try { return JSON.parse(openField(sealed)); } catch { return null; }
+}
+
+/**
+ * Cadastro do próprio paciente (A01): uma solicitação "para mim" preenche apenas os campos ainda
+ * VAZIOS do cadastro (primeira vez). Solicitações seguintes com outro telefone/endereço não sobrescrevem.
+ */
+async function fillEmptySelfProfile(userId: string, b: RequestBody) {
+  const u = await one<any>('SELECT phone, birth_date, address_sealed FROM users WHERE id = ?', userId);
+  if (!u) return;
+  const sets: string[] = [], args: any[] = [];
+  if (!u.phone && b.phone) { sets.push('phone = ?'); args.push(b.phone); }
+  if (!u.birth_date && b.patientBirthDate) { sets.push('birth_date = ?'); args.push(b.patientBirthDate); }
+  if (!u.address_sealed && b.address) { sets.push('address_sealed = ?'); args.push(sealField(JSON.stringify(b.address))); }
+  if (sets.length) await run(`UPDATE users SET ${sets.join(', ')}, updated_at = ? WHERE id = ?`, ...args, nowIso(), userId);
+}
 
 async function ownRequest(id: string, userId: string) {
   const r = await one<any>('SELECT * FROM care_requests WHERE id = ?', id);
@@ -166,6 +190,25 @@ export async function careRoutes(app: FastifyInstance) {
   });
 
   // ---------- Paciente / titular ----------
+  /**
+   * Ajuste A01 (22/11/2026): "O cuidado é para mim" pré-preenche com o cadastro do próprio usuário.
+   * Fonte: users (nome, telefone, nascimento, endereço); campo vazio no cadastro → última solicitação
+   * do mesmo usuário marcada "para mim" (nunca de solicitação para outra pessoa). Sem dados clínicos.
+   */
+  app.get('/api/care/self-profile', async (req) => {
+    const a = patient(req);
+    const u = await one<any>('SELECT name, phone, birth_date, address_sealed FROM users WHERE id = ?', a.userId);
+    if (!u) throw notFound('Cadastro não encontrado.');
+    const last = await one<any>(`SELECT phone, patient_birth_date, address_sealed FROM care_requests
+      WHERE requester_id = ? AND for_self = 1 ORDER BY created_at DESC LIMIT 1`, a.userId);
+    return {
+      name: u.name ?? '',
+      phone: u.phone || last?.phone || '',
+      birthDate: u.birth_date || last?.patient_birth_date || '',
+      address: openAddress(u.address_sealed) ?? openAddress(last?.address_sealed),
+    };
+  });
+
   app.post('/api/care/requests', async (req, reply) => {
     const a = patient(req);
     const b = parse(requestSchema, req.body);
@@ -180,6 +223,7 @@ export async function careRoutes(app: FastifyInstance) {
         b.patientName, b.phone, b.location, b.whenPref, b.whenDate ?? null, b.notes, b.forSelf ? 1 : 0, b.responsibleAuthorized ? 1 : 0,
         q.pending ? 'ORCAMENTO_PENDENTE' : 'ORCADO', 1, JSON.stringify(q), now, now, now, ...extraArgs(b), guidanceFor(b.materials));
       await saveRequestWindow(id, b);
+      if (b.forSelf) await fillEmptySelfProfile(a.userId, b);
       await audit({ actorId: a.userId, action: 'CARE_REQUEST_CREATED', subjectType: 'care_request', subjectId: id, correlationId: req.correlationId, meta: { item: b.itemCode } });
       return { status: 201, body: { request: requestView((await one('SELECT * FROM care_requests WHERE id = ?', id))!) } };
     });

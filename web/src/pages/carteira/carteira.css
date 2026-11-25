@@ -1,0 +1,8 @@
+.plan-card .last-reminder { border: 1px solid var(--line, #dfe6f0); border-radius: 16px; padding: 16px; background: #fff; }
+.chip-label { display: inline-block; background: #E3F6F1; color: #0B6B57; font-weight: 700; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; padding: 4px 12px; border-radius: 999px; }
+.status-pill { display: inline-block; background: #E3F6F1; color: #0B6B57; font-weight: 600; font-size: 14px; padding: 6px 12px; border-radius: 999px; }
+.btn.wide { width: 100%; justify-content: center; min-height: 48px; }
+.link-btn { justify-content: space-between !important; }
+.history-list li { border: 1px solid var(--line, #dfe6f0); border-radius: 12px; padding: 10px 12px; background: #F6F9FC; }
+.radio-list { border: 0; padding: 0; display: grid; gap: 8px; margin: 8px 0; }
+@media (max-width: 720px) { .plan-card .last-reminder { padding: 14px; } .plan-card { padding-bottom: 24px; } }

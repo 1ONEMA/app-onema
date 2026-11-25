@@ -336,7 +336,7 @@ function GuidanceCard({ request: r, onDone }: { request: any; onDone: () => void
 function PatientOnlineCall({ e }: { e: any }) {
   const call = useSubmit<any>();
   if (e.call_ended_at) return <p className="small muted">Atendimento online realizado.</p>;
-  if (!e.call_scheduled_at) return <p className="small muted">Atendimento online: a enfermeira vai combinar o horário e você recebe o link por e-mail e aqui no app.</p>;
+  if (!e.call_scheduled_at) return <p className="small muted">Atendimento online: Especialista vai combinar o horário e você recebe o link por e-mail e aqui no app.</p>;
   const opensAt = new Date(e.call_scheduled_at).getTime() - 30 * 60_000;
   return (
     <div className="mt">

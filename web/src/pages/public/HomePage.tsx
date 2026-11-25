@@ -6,6 +6,7 @@ import { money } from '../../lib/format';
 import { DailyVerse } from '../../ui/DailyVerse';
 import { openKary } from '../../ui/Kary';
 import { AppIcon } from '../../ui/Brand';
+import './home-lifescore.css';
 import {
   IconArrowRight, IconBell, IconCalendar, IconChat, IconDoc, IconHeart, IconHospital, IconHome, IconNurse, IconPill, IconShield, IconTube, IconWallet,
 } from '../../ui/icons';

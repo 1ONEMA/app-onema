@@ -42,8 +42,11 @@ test('paciente: cadastro, adesão PRIME, checkout com desconto, preferências, r
     await page.getByRole('button', { name: need }).click();
     await page.getByText(offer, { exact: true }).click();
     await page.getByRole('button', { name: /Continuar/ }).click();
-    await page.getByText('Já tenho os materiais indicados').click();
-    await page.getByRole('button', { name: /Ver valores do atendimento/ }).click();
+    // A02: serviço só remoto pula a etapa de materiais
+    if (!/on-line|Monitoramento/i.test(offer)) {
+      await page.getByText('Já tenho os materiais.').click();
+      await page.getByRole('button', { name: /Ver valores do atendimento/ }).click();
+    } else await expect(page.getByText('Já tenho os materiais.')).toHaveCount(0);
   }
   await request(/Pós-alta Hospitalar/, 'Pós-Alta 14 dias');
   await expect(page.getByText('− R$ 20,00')).toBeVisible();
@@ -52,9 +55,9 @@ test('paciente: cadastro, adesão PRIME, checkout com desconto, preferências, r
   await page.getByLabel('Nome completo do paciente').fill('Paciente E2E Fictício');
   await page.getByLabel('Telefone de contato no domicílio').fill('(11) 98888-7777');
   await page.getByLabel('CEP').fill('04101-000');
-  await page.getByLabel('Rua / avenida').fill('Rua Fictícia');
-  await page.getByLabel('Número').fill('100');
-  await page.getByLabel('Bairro').fill('Moema');
+  await page.getByLabel('Logradouro (rua, avenida)').fill('Rua Fictícia');
+  await page.getByLabel('Número', { exact: true }).fill('100');
+  await page.getByLabel('Bairro', { exact: true }).fill('Moema');
   await page.getByLabel('Janela de horário preferida').selectOption('MANHA');
   await page.getByRole('button', { name: /Revisar solicitação/ }).click();
   await page.getByText(/aceito este orçamento/).click();

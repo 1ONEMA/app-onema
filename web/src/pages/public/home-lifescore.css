@@ -1,0 +1,15 @@
+/* Ajuste A05 (22/11/2026): "Acompanhamento ativo" cabe inteiro na área interna do anel do exemplo
+   ONEMA LIFE SCORE™ (sem cruzar a borda verde, sem cortar e sem encostar em "82" e "/100").
+   O anel tem 170 px fixos e área interna de ~126 px; a frase quebra centralizada em "Acompanhamento" / "ativo". */
+.ls-dial > div > em {
+  display: block;
+  justify-self: center;
+  max-width: 96px;
+  margin-top: 3px;
+  font-size: 10px;
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}

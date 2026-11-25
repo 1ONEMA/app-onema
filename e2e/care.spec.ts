@@ -65,7 +65,7 @@ test('paciente, especialista e Central: jornada completa com evidências', async
   await expect(page).toHaveURL(/\/solicitar/);
   await page.getByText('Pós-Alta 14 dias', { exact: true }).click();
   await page.getByRole('button', { name: /Continuar/ }).click();
-  await page.getByText('Já tenho os materiais indicados').click();
+  await page.getByText('Já tenho os materiais.').click();
   await page.getByRole('button', { name: /Ver valores do atendimento/ }).click();
   await expect(page.getByText('R$ 739,90').first()).toBeVisible();
   await shot(page, 'evid-04-valores-paciente', p);
@@ -74,9 +74,9 @@ test('paciente, especialista e Central: jornada completa com evidências', async
   await page.getByLabel('Nome completo do paciente').fill('Maria Fictícia');
   await page.getByLabel('Telefone de contato no domicílio').fill('(11) 99999-9999');
   await page.getByLabel('CEP').fill('04101-000');
-  await page.getByLabel('Rua / avenida').fill('Rua Fictícia');
-  await page.getByLabel('Número').fill('100');
-  await page.getByLabel('Bairro').fill(`Vila Mariana ${p}`);
+  await page.getByLabel('Logradouro (rua, avenida)').fill('Rua Fictícia');
+  await page.getByLabel('Número', { exact: true }).fill('100');
+  await page.getByLabel('Bairro', { exact: true }).fill(`Vila Mariana ${p}`);
   await page.getByLabel('Janela de horário preferida').selectOption('MANHA');
   await shot(page, 'evid-05-onde-e-quando', p);
   await page.getByRole('button', { name: /Revisar solicitação/ }).click();

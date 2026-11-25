@@ -11,6 +11,7 @@ import { config } from '../../config.ts';
 import { audit } from '../../lib/audit.ts';
 import { nowIso, uid } from '../../lib/util.ts';
 import { notify } from '../prime/core.ts';
+import { runPlanReminders } from './reminders.ts';
 
 export interface RuleSeed {
   code: string; version: number; category: 'LEMBRETE' | 'CLINICO' | 'ADMINISTRATIVO' | 'TECNICO'; title: string; sourceProtocol: string | null; trigger: string;
@@ -92,7 +93,7 @@ const addH = (iso: string, h: number | null) => (h ? new Date(new Date(iso).getT
  * Cria o alerta (uma vez por chave de deduplicação) e registra as entregas por canal.
  * Notificação externa nunca leva dado clínico; entrega não é leitura.
  */
-export async function raiseAlert(rule: any, p: { patientId: string | null; subjectType: string; subjectId: string; dedupeKey: string; assignedTo?: string | null; title?: string }) {
+export async function raiseAlert(rule: any, p: { patientId: string | null; subjectType: string; subjectId: string; dedupeKey: string; assignedTo?: string | null; title?: string; quiet?: boolean }) {
   const id = uid(); const now = nowIso();
   const r = await run(`INSERT INTO care_alerts (id, rule_code, rule_version, category, priority, patient_id, subject_type, subject_id, dedupe_key, recipient, owner_role, assigned_to, status,
       title, message, ack_due_at, action_due_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'PENDENTE',?,?,?,?,?,?) ON CONFLICT (dedupe_key) DO NOTHING`,
@@ -102,7 +103,8 @@ export async function raiseAlert(rule: any, p: { patientId: string | null; subje
   await alertEvent(id, null, 'CRIADO');
   for (const ch of JSON.parse(rule.channels_json) as string[]) {
     if (ch === 'CARTEIRA' && p.patientId) {
-      await notify(p.patientId, 'LEMBRETE', 'Cuidado programado', rule.message);
+      // Lembretes do plano: o aviso ao paciente vai no resumo diário (no máximo um por dia), não um por item.
+      if (!p.quiet) await notify(p.patientId, 'LEMBRETE', 'Cuidado programado', rule.message);
       await alertEvent(id, null, 'ENTREGUE', 'CARTEIRA');
     } else if (ch === 'PAINEL') {
       await alertEvent(id, null, 'ENTREGUE', 'PAINEL');
@@ -122,16 +124,18 @@ export async function runCarteiraAlerts(now = new Date()) {
   await ensureAlertRules();
   const iso = now.toISOString();
   let reminders = 0, overdue = 0, escalated = 0;
+  // Motor de lembretes do plano (disponibilização, agenda, pausas, resumo diário) — RT 20/11/2026.
+  const plan = await runPlanReminders();
   const lem = await activeRule('LEM-PLANO-001');
   if (lem) {
-    const soon = new Date(now.getTime() + 24 * 3600_000).toISOString();
-    for (const it of await all<any>(`SELECT id, patient_id, due_at FROM care_plan_items WHERE status = 'ATIVO' AND due_at <= ? AND due_at >= ?`, soon, new Date(now.getTime() - 24 * 3600_000).toISOString())) {
-      if (await raiseAlert(lem, { patientId: it.patient_id, subjectType: 'care_plan_item', subjectId: it.id, dedupeKey: `LEM-PLANO-001:${it.id}:${it.due_at}` })) reminders++;
+    for (const it of await all<any>(`SELECT id, patient_id, due_at FROM care_plan_items WHERE status = 'ATIVO' AND released_at IS NOT NULL AND due_at >= ?`, new Date(now.getTime() - 24 * 3600_000).toISOString())) {
+      if (await raiseAlert(lem, { patientId: it.patient_id, subjectType: 'care_plan_item', subjectId: it.id, dedupeKey: `LEM-PLANO-001:${it.id}:${it.due_at}`, quiet: true })) reminders++;
     }
   }
   const adm = await activeRule('ADM-PLANO-ATRASO-001');
   if (adm) {
-    for (const it of await all<any>(`SELECT id, patient_id, created_by FROM care_plan_items WHERE status = 'ATIVO' AND due_at < ?`, new Date(now.getTime() - 24 * 3600_000).toISOString())) {
+    // Só ações de agendar pendentes viram pendência administrativa (falta de "Ciente" não é classificada como não adesão).
+    for (const it of await all<any>(`SELECT id, patient_id, created_by FROM care_plan_items WHERE status = 'ATIVO' AND item_kind = 'AGENDAR' AND released_at IS NOT NULL AND due_at < ?`, new Date(now.getTime() - 24 * 3600_000).toISOString())) {
       if (await raiseAlert(adm, { patientId: it.patient_id, subjectType: 'care_plan_item', subjectId: it.id, dedupeKey: `ADM-PLANO-ATRASO-001:${it.id}`, assignedTo: it.created_by })) overdue++;
     }
   }
@@ -146,5 +150,5 @@ export async function runCarteiraAlerts(now = new Date()) {
       await audit({ actorId: null, action: 'CARE_ALERT_ESCALATED', subjectType: 'care_alert', subjectId: a.id });
     }
   }
-  return { reminders, overdue, escalated };
+  return { reminders, overdue, escalated, released: plan.released, expired: plan.expired };
 }
