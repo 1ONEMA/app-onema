@@ -1,0 +1,9 @@
+/* C05 · V1 — card de orientação (não é curso). Mesmo visual dos cards de curso. */
+.c05-card { box-shadow: var(--shadow, 0 2px 10px rgba(10, 31, 77, 0.08)); }
+.c05-card .course-num.c05-num { background: var(--green); color: var(--deep-900); }
+.c05-card .c05-body { min-width: 0; }
+.c05-card h3 { color: var(--deep); margin: 4px 0 6px; overflow-wrap: anywhere; word-break: normal; hyphens: auto; }
+.c05-card .c05-sub { color: var(--muted); margin: 0 0 12px; }
+.c05-card .c05-btn { color: var(--deep); white-space: normal; text-align: left; }
+.c05-player video { display: block; width: 100%; max-height: 70vh; border-radius: 12px; background: #000; }
+.dialog:has(.c05-player) { max-width: 820px; }

@@ -20,4 +20,14 @@ test('validação de parceiros, plano de cuidados e central de alertas', async (
   await pt.goto('/carteira');
   await expect(pt.getByRole('heading', { name: 'Plano de cuidados' })).toBeVisible();
   await expect(pt.getByText(/não substituem atendimento de urgência/)).toBeVisible();
+  // A04: atendimentos, plano e evoluções em cards recolhidos; listagens em painel próprio
+  await expect(pt.getByRole('button', { name: /Ver atendimentos/ })).toBeVisible();
+  await pt.getByRole('button', { name: /Ver evoluções/ }).click();
+  await expect(pt.getByRole('dialog', { name: 'Evoluções de enfermagem' })).toBeVisible();
+  await pt.getByRole('button', { name: 'Fechar' }).click();
+  await pt.getByRole('button', { name: /Ver histórico de lembretes/ }).click();
+  await expect(pt.getByRole('dialog', { name: 'Histórico de lembretes' })).toBeVisible();
+  await shot(pt, 'carteira-historico-lembretes', p);
+  await pt.getByRole('button', { name: 'Fechar' }).click();
+  await expect(pt.getByRole('heading', { name: 'Teleatendimentos' })).toBeVisible();
 });

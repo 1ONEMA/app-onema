@@ -16,6 +16,8 @@ import { benefitState, latestSubscription } from '../prime/core.ts';
 
 export const SHARE_DAYS = 7;
 const firstName = (n: string) => String(n).split(' ')[0];
+/** Identificador curto do registro (evolução) para conferência: 8 primeiros caracteres do id. */
+export const recordCode = (id: string) => String(id).replace(/-/g, '').slice(0, 8).toUpperCase();
 
 export async function primeActive(userId: string) {
   return (await benefitState(await latestSubscription(userId))).active;
@@ -61,14 +63,35 @@ export async function reportShareRoutes(app: FastifyInstance) {
     const { token } = parse(z.object({ token: z.string().regex(/^[A-Za-z0-9_-]{30,80}$/) }), req.params);
     const s = await one<any>('SELECT * FROM report_shares WHERE token_hash = ?', sha256(token));
     if (!s || s.revoked_at || s.expires_at <= nowIso()) throw notFound('Este link não está mais disponível. Peça um novo ao paciente.');
-    const d = (await one<any>(`SELECT v.signed_at, v.content_json, e.label, o.item_name, u.name AS specialist, p.name AS patient,
-        (SELECT sa.coren_number || '-' || sa.coren_uf FROM specialist_applications sa WHERE sa.user_id = v.specialist_id AND sa.status = 'APROVADA') AS coren
+    // Só o necessário para o relatório: nada de CPF, endereço, telefone, preços ou pendências internas.
+    const d = (await one<any>(`SELECT v.id, v.signed_at, v.content_json, e.label, e.started_at, e.completed_at, o.item_name,
+        u.name AS specialist, p.name AS patient, sh.name AS shared_by,
+        (SELECT sa.coren_number FROM specialist_applications sa WHERE sa.user_id = v.specialist_id AND sa.status = 'APROVADA') AS coren_number,
+        (SELECT sa.coren_uf FROM specialist_applications sa WHERE sa.user_id = v.specialist_id AND sa.status = 'APROVADA') AS coren_uf
       FROM care_evolutions v JOIN care_events e ON e.id = v.event_id JOIN service_orders o ON o.id = v.order_id
-      JOIN users u ON u.id = v.specialist_id JOIN users p ON p.id = v.patient_id WHERE v.id = ?`, s.evolution_id))!;
+      JOIN users u ON u.id = v.specialist_id JOIN users p ON p.id = v.patient_id JOIN users sh ON sh.id = ? WHERE v.id = ?`, s.patient_id, s.evolution_id))!;
     await run('UPDATE report_shares SET access_count = access_count + 1, last_access_at = ? WHERE id = ?', nowIso(), s.id);
     await audit({ actorId: null, action: 'REPORT_SHARE_OPENED', subjectType: 'report_share', subjectId: s.id, correlationId: req.correlationId });
     reply.header('X-Robots-Tag', 'noindex, nofollow');
     const { pendencias: _p, ...content } = JSON.parse(d.content_json);
-    return { patient: firstName(d.patient), label: d.label, itemName: d.item_name, signedAt: d.signed_at, specialist: d.specialist, coren: d.coren, content, expiresAt: s.expires_at };
+    return {
+      patient: firstName(d.patient),
+      patientName: d.patient,
+      sharedBy: d.shared_by,
+      recordId: recordCode(d.id),
+      // Data/hora do atendimento: início da visita registrado (código do paciente); sem início, a assinatura da evolução.
+      careAt: d.started_at ?? d.signed_at,
+      careAtSource: d.started_at ? 'STARTED_AT' : 'SIGNED_AT',
+      label: d.label,
+      itemName: d.item_name,
+      serviceName: d.item_name,
+      signedAt: d.signed_at,
+      specialist: d.specialist,
+      coren: d.coren_number && d.coren_uf ? `${d.coren_number}-${d.coren_uf}` : null,
+      corenNumber: d.coren_number ?? null,
+      corenUf: d.coren_uf ?? null,
+      content,
+      expiresAt: s.expires_at,
+    };
   });
 }

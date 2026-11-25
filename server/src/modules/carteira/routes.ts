@@ -13,6 +13,7 @@ import { hasRole, parse, requireRoles, requireUser } from '../../lib/context.ts'
 import { conflict, forbidden, notFound, unprocessable } from '../../lib/errors.ts';
 import { nowIso, uid } from '../../lib/util.ts';
 import { activeRule, alertEvent, ensureAlertRules, raiseAlert, ruleGaps, runCarteiraAlerts } from './engine.ts';
+import { ITEM_KINDS, SPACING_OPTIONS, ensureNext, fmt, fmtDay, prefOf, reminderEvent, requestReview, runPlanReminders, seriesState } from './reminders.ts';
 
 const idParam = z.object({ id: z.string().uuid() });
 const STAFF = ['AVALIADOR_RT', 'OPERADOR_CENTRAL'] as const;
@@ -22,8 +23,20 @@ const NEXT: Record<string, string[]> = { PENDENTE: ['RECONHECIDO', 'EM_TRATAMENT
   EM_TRATAMENTO: ['RESOLVIDO', 'ENCERRADO'], RESOLVIDO: [], ENCERRADO: [] };
 const PRIORITY_ORDER = `CASE a.priority WHEN 'ALTA' THEN 0 WHEN 'MEDIA' THEN 1 ELSE 2 END`;
 
-const itemView = (i: any) => ({ id: i.id, title: i.title, instructions: i.instructions, dueAt: i.due_at, recurrenceDays: i.recurrence_days, askFollowup: !!i.ask_followup,
-  status: i.status, completedAt: i.completed_at, followupAnswer: i.followup_answer, sourceEventId: i.source_event_id, author: i.author ?? null, label: i.label ?? null });
+const itemView = (i: any) => ({ id: i.id, seriesId: i.series_id ?? i.id, title: i.title, instructions: i.instructions, dueAt: i.due_at, recurrenceDays: i.recurrence_days, askFollowup: !!i.ask_followup,
+  status: i.status, completedAt: i.completed_at, followupAnswer: i.followup_answer, sourceEventId: i.source_event_id, author: i.author ?? null, label: i.label ?? null,
+  kind: i.item_kind ?? 'GERAL', careFrequency: i.care_frequency ?? null, remindersUntil: i.reminders_until ?? null, untilKind: i.until_kind ?? null,
+  releasedAt: i.released_at ?? null, ackedAt: i.acked_at ?? null, scheduleReport: i.schedule_report ?? null });
+
+/** Texto da ocorrência no histórico (disponibilização, ciência e execução são registros distintos). */
+function occurrenceText(i: any) {
+  if (i.status === 'CANCELADO') return i.cancel_reason?.startsWith('Preferência') ? 'Não enviado | avisos pausados ou desativados por você' : 'Encerrado pela Enfermagem';
+  if (i.schedule_report === 'INFORMADO_PACIENTE') return 'Agendamento informado por você';
+  if (i.status === 'CONCLUIDO') return `Realização registrada${i.followup_answer ? ` | resposta: ${({ MELHOROU: 'Melhorou', IGUAL: 'Igual', PIOROU: 'Piorou' } as any)[i.followup_answer]}` : ''}`;
+  if (i.status === 'CIENTE') return `Ciente registrado${i.item_kind === 'AGENDAR' ? ' | sem confirmação de agendamento' : ''}`;
+  if (i.status === 'EXPIRADO') return 'Disponibilizado | sem resposta registrada';
+  return 'Disponibilizado | aguardando ciência';
+}
 const alertView = (a: any, internal: boolean) => ({
   id: a.id, rule: `${a.rule_code} v${a.rule_version}`, category: a.category, priority: a.priority, status: a.status, statusLabel: STATUS_LABEL[a.status], title: a.title, message: a.message,
   createdAt: a.created_at, ackDueAt: a.ack_due_at, actionDueAt: a.action_due_at, rev: a.rev,
@@ -42,7 +55,15 @@ export async function carteiraRoutes(app: FastifyInstance) {
       dueAt: z.string().datetime({ offset: true }),
       recurrenceDays: z.number().int().min(1).max(90).nullable().optional(),
       askFollowup: z.boolean().optional().default(false),
+      // Comando do RT (20/11): tipo, frequência do cuidado (separada da frequência dos avisos) e término/revisão obrigatório.
+      kind: z.enum(ITEM_KINDS).optional().default('GERAL'),
+      careFrequency: z.string().trim().max(200).optional(),
+      remindersUntil: z.string().datetime({ offset: true }),
+      untilKind: z.enum(['ENCERRAMENTO', 'REVISAO']).optional().default('ENCERRAMENTO'),
     })).min(1).max(20) }), req.body);
+    for (const it of b.items) {
+      if (new Date(it.remindersUntil).getTime() < new Date(it.dueAt).getTime()) throw unprocessable('INVALID_UNTIL', 'A data de término/revisão precisa ser depois do início dos avisos.');
+    }
     const e = await one<any>(`SELECT e.*, o.patient_id, (SELECT status FROM care_evolutions v WHERE v.event_id = e.id) AS evolution FROM care_events e JOIN service_orders o ON o.id = e.order_id WHERE e.id = ?`, id);
     if (!e || e.specialist_id !== a.userId) throw notFound('Atendimento não encontrado.');
     if (e.evolution !== 'ASSINADA') throw unprocessable('EVOLUTION_REQUIRED', 'O plano de cuidados é criado a partir da evolução assinada do atendimento.');
@@ -50,11 +71,14 @@ export async function carteiraRoutes(app: FastifyInstance) {
     const ids: string[] = [];
     for (const it of b.items) {
       const iid = uid(); ids.push(iid);
-      await run(`INSERT INTO care_plan_items (id, patient_id, created_by, source_event_id, title, instructions, due_at, recurrence_days, ask_followup, status, created_at, updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,'ATIVO',?,?)`, iid, e.patient_id, a.userId, id, it.title, it.instructions, new Date(it.dueAt).toISOString(), it.recurrenceDays ?? null, it.askFollowup ? 1 : 0, now, now);
+      await run(`INSERT INTO care_plan_items (id, patient_id, created_by, source_event_id, series_id, title, instructions, due_at, recurrence_days, ask_followup, status,
+          item_kind, care_frequency, reminders_until, until_kind, created_at, updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,'ATIVO',?,?,?,?,?,?)`, iid, e.patient_id, a.userId, id, iid, it.title, it.instructions, new Date(it.dueAt).toISOString(), it.recurrenceDays ?? null,
+        it.askFollowup && it.kind !== 'AGENDAR' ? 1 : 0, it.kind, it.careFrequency || null, new Date(it.remindersUntil).toISOString(), it.untilKind, now, now);
     }
     await audit({ actorId: a.userId, action: 'CARE_PLAN_CREATED', subjectType: 'care_event', subjectId: id, correlationId: req.correlationId, meta: { items: ids.length } });
-    return { items: (await all<any>('SELECT * FROM care_plan_items WHERE source_event_id = ? ORDER BY due_at', id)).map(itemView) };
+    return { items: (await all<any>('SELECT * FROM care_plan_items WHERE source_event_id = ? ORDER BY due_at', id)).map(itemView),
+      message: 'Programação salva. Os avisos respeitarão as preferências do paciente e serão interrompidos na data definida.' };
   });
 
   app.get('/api/carteira/events/:id/plan', async (req) => {
@@ -62,7 +86,10 @@ export async function carteiraRoutes(app: FastifyInstance) {
     const { id } = parse(idParam, req.params);
     const e = await one<any>('SELECT specialist_id FROM care_events WHERE id = ?', id);
     if (!e || e.specialist_id !== a.userId) throw notFound('Atendimento não encontrado.');
-    return { items: (await all<any>('SELECT * FROM care_plan_items WHERE source_event_id = ? ORDER BY due_at', id)).map(itemView) };
+    const items = await all<any>('SELECT * FROM care_plan_items WHERE source_event_id = ? ORDER BY due_at', id);
+    const seriesIds = [...new Set(items.map((i) => i.series_id ?? i.id))];
+    // Acesso à preferência: ativo/espaçado/pausado/desligado, data da alteração e pedido de revisão.
+    return { items: items.map(itemView), series: await Promise.all(seriesIds.map(seriesState)) };
   });
 
   app.post('/api/carteira/plan/:id/cancel', async (req) => {
@@ -80,10 +107,19 @@ export async function carteiraRoutes(app: FastifyInstance) {
   // ---------------- Paciente ----------------
   app.get('/api/carteira/plan', async (req) => {
     const a = requireRoles(req, ['PACIENTE']);
+    await runPlanReminders({ patientId: a.userId, notify: false });
     const items = await all<any>(`SELECT i.*, u.name AS author, e.label FROM care_plan_items i JOIN users u ON u.id = i.created_by JOIN care_events e ON e.id = i.source_event_id
       WHERE i.patient_id = ? ORDER BY CASE i.status WHEN 'ATIVO' THEN 0 ELSE 1 END, i.due_at LIMIT 200`, a.userId);
     const alerts = await all<any>(`SELECT * FROM care_alerts a WHERE a.patient_id = ? AND a.recipient = 'PACIENTE' ORDER BY a.created_at DESC LIMIT 50`, a.userId);
-    return { items: items.map(itemView), alerts: alerts.map((x) => alertView(x, false)),
+    // Último lembrete efetivamente disponibilizado (de hoje ou anterior), um só para toda a seção.
+    const last = items.filter((i) => i.released_at).sort((x, y) => (x.due_at < y.due_at ? 1 : x.due_at > y.due_at ? -1 : (x.created_at < y.created_at ? 1 : -1)))[0] ?? null;
+    const seriesIds = [...new Set(items.map((i) => i.series_id ?? i.id))];
+    const series = await Promise.all(seriesIds.map(seriesState));
+    const pendingActions = items.filter((i) => i.status === 'ATIVO' && i.released_at).length;
+    return {
+      items: items.map(itemView), alerts: alerts.map((x) => alertView(x, false)),
+      latest: last ? { ...itemView(last), occurrenceText: occurrenceText(last), series: series.find((x) => x.seriesId === (last.series_id ?? last.id)) ?? null } : null,
+      series, pendingActions,
       notice: 'Os avisos da Carteira não substituem atendimento de urgência. Em emergência ligue 192 (SAMU).' };
   });
 
@@ -100,12 +136,10 @@ export async function carteiraRoutes(app: FastifyInstance) {
       if (it.status !== 'ATIVO') throw conflict('PLAN_ITEM_CLOSED', 'Esta tarefa foi cancelada pela enfermeira.');
       if (it.ask_followup && !b.answer) throw unprocessable('FOLLOWUP_REQUIRED', 'Conte como você está para concluir.');
       const now = nowIso();
-      await run(`UPDATE care_plan_items SET status = 'CONCLUIDO', completed_at = ?, followup_answer = ?, followup_note = ?, updated_at = ? WHERE id = ?`, now, b.answer ?? null, b.note ?? null, now, id);
-      if (it.recurrence_days) {
-        const next = new Date(new Date(it.due_at).getTime() + it.recurrence_days * 86400000).toISOString();
-        await run(`INSERT INTO care_plan_items (id, patient_id, created_by, source_event_id, previous_item_id, title, instructions, due_at, recurrence_days, ask_followup, status, created_at, updated_at)
-          VALUES (?,?,?,?,?,?,?,?,?,?,'ATIVO',?,?) ON CONFLICT DO NOTHING`, uid(), it.patient_id, it.created_by, it.source_event_id, id, it.title, it.instructions, next, it.recurrence_days, it.ask_followup, now, now);
-      }
+      await run(`UPDATE care_plan_items SET status = 'CONCLUIDO', completed_at = ?, followup_answer = ?, followup_note = ?, released_at = COALESCE(released_at, ?), updated_at = ? WHERE id = ?`,
+        now, b.answer ?? null, b.note ?? null, now, now, id);
+      await reminderEvent(it.series_id ?? id, id, a.userId, 'REALIZADO', a.userId, b.answer ?? null);
+      if (it.recurrence_days) await ensureNext(it.series_id ?? id);
       // Lembretes e atrasos daquela tarefa se resolvem com a confirmação do paciente.
       for (const al of await all<any>(`SELECT id FROM care_alerts WHERE subject_type = 'care_plan_item' AND subject_id = ? AND status IN ('PENDENTE','RECONHECIDO','EM_TRATAMENTO')`, id)) {
         await run(`UPDATE care_alerts SET status = 'RESOLVIDO', resolution_note = 'Tarefa confirmada pelo paciente.', closed_at = ?, rev = rev + 1, updated_at = ? WHERE id = ?`, now, now, al.id);
@@ -120,6 +154,182 @@ export async function carteiraRoutes(app: FastifyInstance) {
       await audit({ actorId: a.userId, action: 'CARE_PLAN_ITEM_DONE', subjectType: 'care_plan_item', subjectId: id, correlationId: req.correlationId });
       return { ok: true, item: itemView((await one<any>('SELECT * FROM care_plan_items WHERE id = ?', id))!) };
     });
+  });
+
+  // ---------------- Lembretes: ciência, agendamento, preferências, histórico e revisão (RT, 20/11/2026) ----------------
+  async function ownOccurrence(patientId: string, id: string) {
+    const it = await one<any>('SELECT * FROM care_plan_items WHERE id = ? AND patient_id = ? FOR UPDATE', id, patientId);
+    if (!it) throw notFound('Lembrete não encontrado.');
+    return it;
+  }
+
+  /** "Ciente": ciência daquela ocorrência, uma única vez (duas abas, clique duplo e reconexão = um registro). */
+  app.post('/api/carteira/plan/:id/ack', async (req) => {
+    const a = requireRoles(req, ['PACIENTE']);
+    const { id } = parse(idParam, req.params);
+    const b = parse(z.object({ answer: z.enum(['MELHOROU', 'IGUAL', 'PIOROU']).optional() }), req.body ?? {});
+    const out = await tx(async () => {
+      const it = await ownOccurrence(a.userId, id);
+      if (it.acked_at || it.status === 'CIENTE') return { it, already: true };
+      if (it.status !== 'ATIVO' || !it.released_at) throw conflict('REMINDER_CLOSED', 'Este lembrete não está mais disponível para ciência.');
+      if (it.ask_followup && !b.answer) throw unprocessable('FOLLOWUP_REQUIRED', 'Conte como você está para registrar a ciência.');
+      const now = nowIso();
+      await run(`UPDATE care_plan_items SET status = 'CIENTE', acked_at = ?, acked_by = ?, followup_answer = COALESCE(?, followup_answer), updated_at = ? WHERE id = ? AND status = 'ATIVO'`,
+        now, a.userId, b.answer ?? null, now, id);
+      await reminderEvent(it.series_id ?? id, id, a.userId, 'CIENTE', a.userId, b.answer ?? null);
+      for (const al of await all<any>(`SELECT id FROM care_alerts WHERE subject_type = 'care_plan_item' AND subject_id = ? AND status IN ('PENDENTE','RECONHECIDO','EM_TRATAMENTO') AND recipient = 'PACIENTE'`, id)) {
+        await run(`UPDATE care_alerts SET status = 'RESOLVIDO', resolution_note = 'Ciência registrada pelo paciente.', closed_at = ?, rev = rev + 1, updated_at = ? WHERE id = ?`, now, now, al.id);
+        await alertEvent(al.id, a.userId, 'RESOLVIDO', null, 'Ciência registrada pelo paciente.');
+      }
+      if (b.answer === 'PIOROU') {
+        const rule = await activeRule('CLI-FICT-001');
+        if (rule) await raiseAlert(rule, { patientId: a.userId, subjectType: 'care_plan_item', subjectId: id, dedupeKey: `CLI-FICT-001:${id}`, assignedTo: it.created_by });
+      }
+      return { it, already: false };
+    });
+    if (!out.already) await audit({ actorId: a.userId, action: 'CARE_PLAN_REMINDER_ACKED', subjectType: 'care_plan_item', subjectId: id, correlationId: req.correlationId });
+    const next = await ensureNext(out.it.series_id ?? id);
+    return { ok: true, already: out.already, next };
+  });
+
+  /** Tarefa de agendar: "Já agendei" (informado pelo paciente) ou "Preciso de ajuda para agendar" (pendência da Central). */
+  app.post('/api/carteira/plan/:id/schedule-report', async (req) => {
+    const a = requireRoles(req, ['PACIENTE']);
+    const { id } = parse(idParam, req.params);
+    const { action } = parse(z.object({ action: z.enum(['JA_AGENDEI', 'PRECISO_AJUDA']) }), req.body);
+    const it = await one<any>('SELECT * FROM care_plan_items WHERE id = ? AND patient_id = ?', id, a.userId);
+    if (!it) throw notFound('Lembrete não encontrado.');
+    if (it.item_kind !== 'AGENDAR') throw unprocessable('NOT_SCHEDULING', 'Esta orientação não é uma ação de agendar.');
+    const seriesId = it.series_id ?? id;
+    if (action === 'PRECISO_AJUDA') {
+      await requestReview(seriesId, a.userId, 'AJUDA_AGENDAR', `Paciente pediu ajuda para agendar: ${it.title}`, a.userId);
+      return { ok: true, message: 'Pedido registrado. A Central ONEMA vai ajudar você a agendar. Isso não é um canal de urgência.' };
+    }
+    const r = await tx(async () => {
+      const cur = await ownOccurrence(a.userId, id);
+      if (cur.schedule_report === 'INFORMADO_PACIENTE') return false;
+      const now = nowIso();
+      await run(`UPDATE care_plan_items SET schedule_report = 'INFORMADO_PACIENTE', status = CASE WHEN status = 'ATIVO' THEN 'CIENTE' ELSE status END, acked_at = COALESCE(acked_at, ?),
+        acked_by = COALESCE(acked_by, ?), updated_at = ? WHERE id = ?`, now, a.userId, now, id);
+      // Avisos de agendar encerrados a partir do relato (identificado como informado pelo paciente).
+      await run(`UPDATE care_plan_items SET status = 'CANCELADO', cancel_reason = 'Agendamento informado pelo paciente', updated_at = ? WHERE series_id = ? AND status = 'ATIVO' AND released_at IS NULL`, now, seriesId);
+      await reminderEvent(seriesId, id, a.userId, 'AGENDAMENTO_INFORMADO', a.userId, 'Informado pelo paciente');
+      return true;
+    });
+    if (r) await audit({ actorId: a.userId, action: 'CARE_PLAN_SCHEDULE_REPORTED', subjectType: 'care_plan_item', subjectId: id, correlationId: req.correlationId });
+    return { ok: true, already: !r, message: 'Registramos que você já agendou (informado por você). Os avisos de agendar foram encerrados.' };
+  });
+
+  /** Preferências de aviso por orientação: altera os avisos, não a orientação de Enfermagem. */
+  app.put('/api/carteira/series/:id/prefs', async (req) => {
+    const a = requireRoles(req, ['PACIENTE']);
+    const { id } = parse(idParam, req.params);
+    const b = parse(z.object({
+      mode: z.enum(['ATIVO', 'ESPACADO', 'PAUSADO', 'DESATIVADO']),
+      intervalDays: z.number().int().optional(),
+      pausedUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    }), req.body);
+    const root = await one<any>('SELECT * FROM care_plan_items WHERE series_id = ? AND patient_id = ? ORDER BY due_at LIMIT 1', id, a.userId);
+    if (!root) throw notFound('Orientação não encontrada.');
+    let interval: number | null = null, paused: string | null = null;
+    if (b.mode === 'ESPACADO') {
+      if (root.item_kind === 'HORARIO') throw unprocessable('SPACING_NOT_ALLOWED', 'Este cuidado tem horário específico: não é possível espaçar os avisos. Você pode desativá-los; a orientação continua valendo e a Enfermagem verá sua preferência.');
+      if (!root.recurrence_days) throw unprocessable('SPACING_NOT_ALLOWED', 'Esta orientação tem aviso único.');
+      if (!b.intervalDays || !SPACING_OPTIONS.includes(b.intervalDays) || b.intervalDays < root.recurrence_days) {
+        throw unprocessable('INVALID_INTERVAL', `Escolha um intervalo de ${SPACING_OPTIONS.filter((d) => d >= root.recurrence_days).join(', ')} dias.`);
+      }
+      interval = b.intervalDays;
+      const first = new Date(Math.max(Date.now(), new Date(root.due_at).getTime()) + interval * 86400000);
+      if (root.reminders_until && first.getTime() > new Date(root.reminders_until).getTime()) {
+        throw unprocessable('NO_ELIGIBLE_DATE', `Com esse intervalo não haveria novo aviso antes do término da programação (${fmtDay(root.reminders_until)}). Escolha um intervalo menor ou desative os avisos.`);
+      }
+    }
+    if (b.mode === 'PAUSADO') {
+      if (!b.pausedUntil) throw unprocessable('PAUSE_DATE_REQUIRED', 'Escolha a data de retomada.');
+      paused = new Date(`${b.pausedUntil}T00:00:00-03:00`).toISOString();
+      if (new Date(paused).getTime() <= Date.now()) throw unprocessable('INVALID_PAUSE', 'A data de retomada precisa ser no futuro.');
+      if (root.reminders_until && new Date(paused).getTime() > new Date(root.reminders_until).getTime()) {
+        throw unprocessable('NO_ELIGIBLE_DATE', `A programação termina em ${fmtDay(root.reminders_until)}: não haveria aviso depois dessa pausa. Você pode desativar os avisos.`);
+      }
+    }
+    if (b.mode === 'ESPACADO' || b.mode === 'ATIVO') interval = b.mode === 'ESPACADO' ? interval : null;
+    const now = nowIso();
+    await tx(async () => {
+      const prev = await prefOf(id);
+      await run(`INSERT INTO care_plan_reminder_prefs (series_id, patient_id, mode, interval_days, paused_until, updated_by, updated_at) VALUES (?,?,?,?,?,?,?)
+        ON CONFLICT (series_id) DO UPDATE SET mode = EXCLUDED.mode, interval_days = EXCLUDED.interval_days, paused_until = EXCLUDED.paused_until, updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at`,
+        id, a.userId, b.mode, interval, paused, a.userId, now);
+      // Envios futuros incompatíveis são invalidados; a elegibilidade é conferida de novo no disparo.
+      await run(`UPDATE care_plan_items SET status = 'CANCELADO', cancel_reason = 'Preferência do paciente: aviso reprogramado.', updated_at = ? WHERE series_id = ? AND status = 'ATIVO' AND released_at IS NULL`, now, id);
+      await reminderEvent(id, null, a.userId, 'PREFERENCIA', a.userId, `${prev.mode} → ${b.mode}${interval ? ` (a cada ${interval} dias)` : ''}${paused ? ` até ${fmtDay(paused)}` : ''}`);
+    });
+    await audit({ actorId: a.userId, action: 'CARE_PLAN_REMINDER_PREFS', subjectType: 'care_plan_series', subjectId: id, correlationId: req.correlationId, meta: { mode: b.mode, interval, paused } });
+    const next = await ensureNext(id);
+    return { ok: true, state: await seriesState(id), next };
+  });
+
+  /** "Acredito que não preciso mais": pedido de revisão pela Enfermagem. Não encerra a orientação nem marca execução. */
+  app.post('/api/carteira/series/:id/review-request', async (req) => {
+    const a = requireRoles(req, ['PACIENTE']);
+    const { id } = parse(idParam, req.params);
+    const { note } = parse(z.object({ note: z.string().trim().max(500).optional() }), req.body ?? {});
+    const root = await one<any>('SELECT title FROM care_plan_items WHERE series_id = ? AND patient_id = ? LIMIT 1', id, a.userId);
+    if (!root) throw notFound('Orientação não encontrada.');
+    const created = await requestReview(id, a.userId, 'PEDIDO_PACIENTE', note || `Paciente acredita que não precisa mais: ${root.title}`, a.userId);
+    return { ok: true, already: !created, message: 'Seu pedido ficará disponível para revisão da Enfermagem. Isso não encerra automaticamente sua orientação.' };
+  });
+
+  /** Histórico de lembretes: abre só quando pedido; do mais recente ao mais antigo, 10 por página, com filtros. */
+  app.get('/api/carteira/reminders/history', async (req) => {
+    const a = requireRoles(req, ['PACIENTE']);
+    const q = parse(z.object({ seriesId: z.string().uuid().optional(), days: z.coerce.number().int().min(1).max(3650).optional().default(30), page: z.coerce.number().int().min(1).max(500).optional().default(1) }), req.query ?? {});
+    const since = new Date(Date.now() - q.days * 86400000).toISOString();
+    const args: any[] = [a.userId, since];
+    if (q.seriesId) args.push(q.seriesId);
+    const rows = await all<any>(`SELECT * FROM care_plan_items WHERE patient_id = ? AND released_at IS NOT NULL AND due_at >= ? ${q.seriesId ? 'AND series_id = ?' : ''}
+      ORDER BY due_at DESC, created_at DESC LIMIT 11 OFFSET ${(q.page - 1) * 10}`, ...args);
+    return { items: rows.slice(0, 10).map((i) => ({ id: i.id, seriesId: i.series_id, title: i.title, at: i.released_at < i.due_at ? i.due_at : i.due_at, atText: fmt(i.due_at),
+      ackedAt: i.acked_at, text: occurrenceText(i) })), hasMore: rows.length > 10, page: q.page };
+  });
+
+  // ---------------- Enfermagem/RT: programação da série e pendências ----------------
+  /** Programação da série (término/revisão, intervalo). Uma edição clínica nunca reativa aviso desativado pelo paciente. */
+  app.put('/api/carteira/series/:id/schedule', async (req) => {
+    const a = requireRoles(req, ['ESPECIALISTA', ...STAFF]);
+    const { id } = parse(idParam, req.params);
+    const b = parse(z.object({ remindersUntil: z.string().datetime({ offset: true }), untilKind: z.enum(['ENCERRAMENTO', 'REVISAO']),
+      recurrenceDays: z.number().int().min(1).max(90).nullable().optional(), kind: z.enum(ITEM_KINDS).optional() }), req.body);
+    const root = await one<any>('SELECT * FROM care_plan_items WHERE series_id = ? ORDER BY due_at LIMIT 1', id);
+    if (!root || (root.created_by !== a.userId && !isStaff(a))) throw notFound('Orientação não encontrada.');
+    const now = nowIso();
+    await tx(async () => {
+      await run(`UPDATE care_plan_items SET reminders_until = ?, until_kind = ?, recurrence_days = COALESCE(?, recurrence_days), item_kind = COALESCE(?, item_kind), updated_at = ? WHERE series_id = ?`,
+        new Date(b.remindersUntil).toISOString(), b.untilKind, b.recurrenceDays ?? null, b.kind ?? null, now, id);
+      await run(`UPDATE care_plan_reviews SET status = 'RESOLVIDA', resolved_at = ?, resolved_by = ?, resolution = 'Programação definida' WHERE series_id = ? AND kind IN ('PARAMETRIZACAO','REVISAO_PROGRAMADA') AND status = 'ABERTA'`, now, a.userId, id);
+      await reminderEvent(id, null, root.patient_id, 'PROGRAMACAO', a.userId, `${b.untilKind === 'REVISAO' ? 'Revisão' : 'Término'} em ${fmtDay(b.remindersUntil)}`);
+    });
+    await audit({ actorId: a.userId, action: 'CARE_PLAN_SCHEDULE_SET', subjectType: 'care_plan_series', subjectId: id, correlationId: req.correlationId });
+    await ensureNext(id);
+    return { ok: true, state: await seriesState(id), message: 'Programação salva. Os avisos respeitarão as preferências do paciente e serão interrompidos na data definida.' };
+  });
+
+  app.get('/api/admin/carteira/reviews', async (req) => {
+    requireRoles(req, [...STAFF, 'AUDITOR']);
+    const rows = await all<any>(`SELECT r.*, u.name AS patient_name, (SELECT title FROM care_plan_items i WHERE i.series_id = r.series_id ORDER BY due_at LIMIT 1) AS title,
+        (SELECT reminders_until FROM care_plan_items i WHERE i.series_id = r.series_id ORDER BY due_at LIMIT 1) AS reminders_until
+      FROM care_plan_reviews r JOIN users u ON u.id = r.patient_id WHERE r.status = 'ABERTA' ORDER BY r.created_at LIMIT 200`);
+    return { reviews: await Promise.all(rows.map(async (r) => ({ id: r.id, seriesId: r.series_id, kind: r.kind, note: r.note, createdAt: r.created_at, patientName: r.patient_name, title: r.title,
+      state: await seriesState(r.series_id) }))) };
+  });
+
+  app.post('/api/admin/carteira/reviews/:id/resolve', async (req) => {
+    const a = requireRoles(req, [...STAFF]);
+    const { id } = parse(idParam, req.params);
+    const { resolution } = parse(z.object({ resolution: z.string().trim().min(5, 'Descreva a providência.').max(500) }), req.body);
+    const r = await run(`UPDATE care_plan_reviews SET status = 'RESOLVIDA', resolved_at = ?, resolved_by = ?, resolution = ? WHERE id = ? AND status = 'ABERTA'`, nowIso(), a.userId, resolution, id);
+    if (!r.changes) throw conflict('REVIEW_CLOSED', 'Esta pendência já foi resolvida.');
+    await audit({ actorId: a.userId, action: 'CARE_PLAN_REVIEW_RESOLVED', subjectType: 'care_plan_review', subjectId: id, correlationId: req.correlationId });
+    return { ok: true };
   });
 
   // ---------------- Fila de alertas (paciente, enfermeiro, RT/Central) ----------------

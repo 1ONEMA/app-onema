@@ -4,6 +4,7 @@ import { api, type ApiError } from '../../lib/api';
 import { useApi } from '../../lib/hooks';
 import { uploadInParts } from '../../lib/upload';
 import { Alert, Badge, Button, ErrorState, Loading, PageHeader } from '../../ui/ui';
+import { C05VideoSection } from './C05VideoSection';
 
 /** Número da aula no nome do arquivo ("AULA 01.mp4", "Aula 3.mp4", "1", "02.mp4" → 1, 3, 1, 2). */
 const lessonNumber = (name: string) => {
@@ -156,6 +157,7 @@ export function CourseVideosPage() {
           </section>
         );
       })}
+      <C05VideoSection />
     </>
   );
 }

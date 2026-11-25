@@ -1,0 +1,12 @@
+/* Solicitar cuidado — ajustes A01 (22/11/2026). */
+.self-check-note {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #EAF6F4;
+  color: #0B5F53;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.flow .address-grid { min-width: 0; }
+.flow .address-grid > legend.h-sub { padding: 0; }

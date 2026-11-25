@@ -9,6 +9,7 @@ import { AppError, forbidden } from './lib/errors.ts';
 import { uid } from './lib/util.ts';
 import { academyAdminRoutes } from './modules/academy/admin.ts';
 import { academyRoutes } from './modules/academy/routes.ts';
+import { academyC05Routes } from './modules/academy/c05.ts';
 import { adminRoutes } from './modules/admin/routes.ts';
 import { authRoutes } from './modules/auth/routes.ts';
 import { userPhotoRoutes } from './modules/auth/user-photo.ts';
@@ -118,6 +119,7 @@ export async function buildApp(opts: { serveWeb?: boolean; trustProxy?: boolean 
   await app.register(adminRoutes);
   await app.register(academyRoutes);
   await app.register(academyAdminRoutes);
+  await app.register(academyC05Routes);
   await app.register(primeRoutes);
   await app.register(primeAdminRoutes);
   await app.register(careRoutes);

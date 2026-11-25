@@ -10,6 +10,8 @@ import { IconCalendar, IconCheck, IconDoc, IconHeart, IconStar } from '../../ui/
 import { REQ_STATUS } from './OrdersPages';
 import { PatientPlanSection } from '../carteira/CarteiraPages';
 import { MyFollowupCard } from '../lifescore/LifeScorePages';
+import { Panel } from '../../ui/Panel';
+import '../carteira/carteira.css';
 
 const WHEN: Record<string, string> = { AGORA: 'Agora', HOJE: 'Hoje', PROXIMOS_DIAS: 'Nos próximos dias', AGENDAR: 'Data agendada' };
 
@@ -22,6 +24,9 @@ export const EVO_SECTIONS = [
 export function WalletPage() {
   const { me } = useAuth();
   const { data, error, loading, reload } = useApi<any>('/api/care/wallet');
+  // Ajuste A04 (RT, 22/11/2026): atendimentos, plano e evoluções em cards recolhidos; listagens só ao abrir (painel próprio).
+  const [panel, setPanel] = useState<null | 'done' | 'evo'>(null);
+  const [shown, setShown] = useState(10);
   if (loading && !data) return <Loading />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
   const first = me?.user?.name.split(' ')[0];
@@ -52,24 +57,35 @@ export function WalletPage() {
             </ul>
           )}
         </section>
-        <section className="surface">
+        <section className="surface topic-card">
           <h2><IconCheck /> Atendimentos realizados</h2>
-          {!data.done.length ? <Empty title="Nenhum atendimento concluído ainda." /> : (
-            <ul className="list">{data.done.map((e: any) => (
-              <li key={e.id}><div className="row between"><strong>{e.label}</strong>
-                {e.my_stars ? <span className="stars" role="img" aria-label={`Sua avaliação: ${e.my_stars} de 5`}>{[1, 2, 3, 4, 5].map((i) => <IconStar key={i} size={15} filled={i <= e.my_stars} />)}</span>
-                  : <Link className="small" to={`/solicitacoes/${e.request_id}`}>Avaliar</Link>}</div>
-                <div className="small muted">{e.item_name} · {e.specialist_name} · {dateTime(e.completed_at)}</div></li>
-            ))}</ul>
-          )}
+          <p className="small muted">Consulte seus atendimentos e avaliações.</p>
+          {data.done.length > 0 && <p className="small mb0">{data.done.length} atendimento(s) concluído(s){data.done.some((e: any) => !e.my_stars) ? ' · há atendimento aguardando sua avaliação' : ''}.</p>}
+          <button type="button" className="btn secondary wide link-btn mt" onClick={() => setPanel('done')}>Ver atendimentos ›</button>
         </section>
       </div>
       <PatientPlanSection />
-      <section className="surface">
+      <section className="surface topic-card">
         <h2><IconDoc /> Evoluções de enfermagem</h2>
+        <p className="small muted">Consulte os registros assinados dos atendimentos.</p>
+        {data.clinicalDocuments.length > 0 && <p className="small mb0">{data.clinicalDocuments.length} registro(s) assinado(s).</p>}
+        <button type="button" className="btn secondary wide link-btn mt" onClick={() => setPanel('evo')}>Ver evoluções ›</button>
+      </section>
+      <Panel open={panel === 'done'} title="Atendimentos realizados" onClose={() => setPanel(null)}>
+        {!data.done.length ? <Empty title="Nenhum atendimento concluído ainda." /> : (
+          <ul className="list">{data.done.slice(0, shown).map((e: any) => (
+            <li key={e.id}><div className="row between"><strong>{e.label}</strong>
+              {e.my_stars ? <span className="stars" role="img" aria-label={`Sua avaliação: ${e.my_stars} de 5`}>{[1, 2, 3, 4, 5].map((i) => <IconStar key={i} size={15} filled={i <= e.my_stars} />)}</span>
+                : <Link className="small" to={`/solicitacoes/${e.request_id}`}>Avaliar</Link>}</div>
+              <div className="small muted">{e.item_name} · {e.specialist_name} · {dateTime(e.completed_at)}</div></li>
+          ))}</ul>
+        )}
+        {data.done.length > shown && <button type="button" className="btn secondary wide" onClick={() => setShown(shown + 10)}>Carregar mais</button>}
+      </Panel>
+      <Panel open={panel === 'evo'} title="Evoluções de enfermagem" onClose={() => setPanel(null)}>
         <p className="small muted">Registros assinados pela especialista ao final de cada atendimento.</p>
         {!data.clinicalDocuments.length ? <p className="muted">Nenhuma evolução registrada ainda.</p> : (
-          <ul className="list">{data.clinicalDocuments.map((d: any) => (
+          <ul className="list">{data.clinicalDocuments.slice(0, shown).map((d: any) => (
             <li key={d.id}>
               <details className="evo">
                 <summary><strong>{d.label}</strong> <span className="small muted">· {d.itemName} · {dateTime(d.signedAt)}</span></summary>
@@ -82,7 +98,8 @@ export function WalletPage() {
             </li>
           ))}</ul>
         )}
-      </section>
+        {data.clinicalDocuments.length > shown && <button type="button" className="btn secondary wide" onClick={() => setShown(shown + 10)}>Carregar mais</button>}
+      </Panel>
       <section className="surface">
         <h2><IconDoc /> Teleatendimentos</h2>
         <p className="small muted">Registros remotos assinados pela enfermeira, no mesmo prontuário. <Link to="/telenfermagem">Ver teleatendimentos</Link></p>

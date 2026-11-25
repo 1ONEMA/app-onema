@@ -1759,4 +1759,83 @@ UPDATE care_events e SET attention = 'REVISAR_AGENDA', attention_at = to_char(no
     AND e.seq > (SELECT MIN(x.seq) FROM care_events x WHERE x.order_id = e.order_id)
     AND EXISTS (SELECT 1 FROM care_events x WHERE x.order_id = e.order_id AND x.seq < e.seq AND x.status <> 'CONCLUIDO');
 ` },
+  { name: '029_lembretes_cadastro', sql: `
+-- 029: Lembretes do plano de cuidados (comando do RT, 20/11/2026) e cadastro do paciente (ajuste A01, 22/11/2026).
+-- Plano: cada orientação é uma série (series_id = primeira ocorrência); tipo, vigência obrigatória (encerramento/revisão),
+-- ciência separada da realização, preferências de aviso do paciente, pedidos de revisão e trilha append-only.
+ALTER TABLE care_plan_items DROP CONSTRAINT IF EXISTS care_plan_items_status_check;
+ALTER TABLE care_plan_items ADD CONSTRAINT care_plan_items_status_check CHECK (status IN ('ATIVO','CIENTE','CONCLUIDO','EXPIRADO','CANCELADO'));
+ALTER TABLE care_plan_items ADD COLUMN series_id TEXT;
+ALTER TABLE care_plan_items ADD COLUMN item_kind TEXT NOT NULL DEFAULT 'GERAL';
+ALTER TABLE care_plan_items ADD COLUMN care_frequency TEXT;
+ALTER TABLE care_plan_items ADD COLUMN reminders_until TEXT;
+ALTER TABLE care_plan_items ADD COLUMN until_kind TEXT;
+ALTER TABLE care_plan_items ADD COLUMN acked_at TEXT;
+ALTER TABLE care_plan_items ADD COLUMN acked_by TEXT REFERENCES users(id);
+ALTER TABLE care_plan_items ADD COLUMN schedule_report TEXT;
+ALTER TABLE care_plan_items ADD COLUMN released_at TEXT;
+-- Série das ocorrências existentes: a raiz é a primeira ocorrência da cadeia (previous_item_id).
+WITH RECURSIVE chain(id, root) AS (
+  SELECT id, id FROM care_plan_items WHERE previous_item_id IS NULL
+  UNION ALL SELECT c.id, ch.root FROM care_plan_items c JOIN chain ch ON c.previous_item_id = ch.id
+) UPDATE care_plan_items i SET series_id = chain.root FROM chain WHERE chain.id = i.id;
+UPDATE care_plan_items SET series_id = id WHERE series_id IS NULL;
+CREATE INDEX ix_care_plan_series ON care_plan_items(series_id, due_at);
+-- Ocorrências já disponibilizadas (data passada) contam como liberadas.
+UPDATE care_plan_items SET released_at = due_at WHERE due_at <= to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
+
+-- Preferência de avisos do paciente, por orientação (série). Ausência = avisos ativos na frequência original.
+CREATE TABLE care_plan_reminder_prefs (
+  series_id TEXT PRIMARY KEY,
+  patient_id TEXT NOT NULL REFERENCES users(id),
+  mode TEXT NOT NULL CHECK (mode IN ('ATIVO','ESPACADO','PAUSADO','DESATIVADO','SUSPENSO_SEM_INTERACAO')),
+  interval_days INTEGER,
+  paused_until TEXT,
+  updated_by TEXT NOT NULL REFERENCES users(id),
+  updated_at TEXT NOT NULL
+);
+ALTER TABLE care_plan_reminder_prefs ENABLE ROW LEVEL SECURITY;
+
+-- Trilha da série: disponibilização, ciência, realização, preferência, agendamento informado, pedido de revisão, programação.
+CREATE TABLE care_plan_reminder_events (
+  id TEXT PRIMARY KEY,
+  series_id TEXT NOT NULL,
+  item_id TEXT REFERENCES care_plan_items(id),
+  patient_id TEXT NOT NULL REFERENCES users(id),
+  kind TEXT NOT NULL,
+  actor_id TEXT REFERENCES users(id),
+  detail TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX ix_care_plan_reminder_events ON care_plan_reminder_events(series_id, created_at);
+CREATE UNIQUE INDEX ux_care_plan_released ON care_plan_reminder_events(item_id) WHERE kind = 'DISPONIBILIZADO';
+CREATE UNIQUE INDEX ux_care_plan_acked ON care_plan_reminder_events(item_id) WHERE kind = 'CIENTE';
+CREATE TRIGGER trg_care_plan_reminder_events_append BEFORE UPDATE OR DELETE ON care_plan_reminder_events FOR EACH ROW EXECUTE FUNCTION onema_append_only();
+ALTER TABLE care_plan_reminder_events ENABLE ROW LEVEL SECURITY;
+
+-- "Acredito que não preciso mais" e programações sem término: pendências para a Enfermagem/RT (não encerram a orientação).
+CREATE TABLE care_plan_reviews (
+  id TEXT PRIMARY KEY,
+  series_id TEXT NOT NULL,
+  patient_id TEXT NOT NULL REFERENCES users(id),
+  kind TEXT NOT NULL CHECK (kind IN ('PEDIDO_PACIENTE','PARAMETRIZACAO','REVISAO_PROGRAMADA','AJUDA_AGENDAR')),
+  status TEXT NOT NULL CHECK (status IN ('ABERTA','RESOLVIDA')),
+  note TEXT,
+  created_at TEXT NOT NULL,
+  resolved_at TEXT,
+  resolved_by TEXT REFERENCES users(id),
+  resolution TEXT
+);
+CREATE UNIQUE INDEX ux_care_plan_reviews_open ON care_plan_reviews(series_id, kind) WHERE status = 'ABERTA';
+ALTER TABLE care_plan_reviews ENABLE ROW LEVEL SECURITY;
+-- Migração sem repetição infinita: séries ativas sem término/revisão aguardam a parametrização do RT (sem inventar prazo).
+INSERT INTO care_plan_reviews (id, series_id, patient_id, kind, status, note, created_at)
+  SELECT gen_random_uuid()::text, s.series_id, s.patient_id, 'PARAMETRIZACAO', 'ABERTA', 'Programação de avisos sem término ou revisão (anterior ao novo motor).', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+  FROM (SELECT DISTINCT series_id, patient_id FROM care_plan_items WHERE status = 'ATIVO' AND recurrence_days IS NOT NULL) s;
+
+-- Cadastro do próprio paciente (A01): usado para preencher "O cuidado é para mim"; nunca sobrescrito por uma solicitação.
+ALTER TABLE users ADD COLUMN phone TEXT;
+ALTER TABLE users ADD COLUMN birth_date TEXT;
+ALTER TABLE users ADD COLUMN address_sealed TEXT;
+` },
 ];

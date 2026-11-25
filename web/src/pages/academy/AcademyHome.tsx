@@ -6,6 +6,7 @@ import { COURSE_STATE, date, label, money } from '../../lib/format';
 import { useApi, useSubmit } from '../../lib/hooks';
 import { Alert, Badge, Button, ErrorState, Loading, PageHeader, Pending, Progress } from '../../ui/ui';
 import { IconAward, IconBook, IconLock } from '../../ui/icons';
+import { C05Card } from './C05Card';
 
 /** ACA-001 Entrada + ACA-002 Minha Jornada + ACA-010 Pagamento da jornada */
 export function AcademyHome() {
@@ -113,6 +114,8 @@ export function AcademyHome() {
           return locked ? <div key={c.code} className="tile" aria-disabled="true" style={{ opacity: i > 0 && !j.enrollment ? 0.85 : 1 }}>{inner}</div>
             : <Link key={c.code} to={`/academy/cursos/${c.code}`} className="tile link">{inner}</Link>;
         })}
+        {/* C05 · V1: orientação em vídeo (não é curso — fora de contagem, progresso e certificado). */}
+        <C05Card />
       </div>
 
       <div className="two mt">

@@ -2,7 +2,10 @@
  * Carteira Digital — plano de cuidados e alertas (homologação, regras fictícias).
  * Paciente: plano liberado + avisos. Enfermeira: plano a partir do atendimento assinado e pendências. RT/Central: fila e regras.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { api } from '../../lib/api';
+import { Panel } from '../../ui/Panel';
+import './carteira.css';
 import { useApi, useLiveApi, useSubmit } from '../../lib/hooks';
 import { dateTime } from '../../lib/format';
 import { Alert, Badge, Button, Empty, ErrorState, Field, Loading, PageHeader } from '../../ui/ui';
@@ -19,90 +22,240 @@ function localInput(d = new Date(Date.now() + 24 * 3600_000)) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-/** Paciente: plano de cuidados e avisos (dentro da Carteira). */
+/**
+ * Paciente: card "Plano de cuidados" da Carteira (comandos do RT de 20 e 22/11/2026). Mostra somente o último lembrete
+ * disponibilizado; histórico e orientações abrem em painel próprio. "Ciente" registra a ciência daquela ocorrência
+ * (não é execução, melhora nem agendamento). O paciente ajusta os avisos; a orientação de Enfermagem não muda.
+ */
 export function PatientPlanSection() {
   const { data, error, loading, reload } = useLiveApi<any>('/api/carteira/plan', 5000);
   const act = useSubmit<any>();
-  const [answer, setAnswer] = useState<Record<string, string>>({});
-  const [pending, setPending] = useState<string | null>(null);
+  const [answer, setAnswer] = useState('');
+  const [panel, setPanel] = useState<null | 'history' | 'all' | { adjust: string }>(null);
+  const [msg, setMsg] = useState<string | null>(null);
   if (loading && !data) return <Loading lines={2} />;
   if (error && !data) return <ErrorState error={error} onRetry={reload} />;
-  const active = data.items.filter((i: any) => i.status === 'ATIVO');
-  const closed = data.items.filter((i: any) => i.status !== 'ATIVO').sort((x: any, y: any) => ((x.completedAt ?? '') < (y.completedAt ?? '') ? 1 : -1));
-  // Ocorrências concluídas nos últimos 7 dias ficam à vista, travadas; as anteriores, no histórico.
-  const recent = closed.filter((i: any) => i.status === 'CONCLUIDO' && i.completedAt && Date.now() - new Date(i.completedAt).getTime() < 7 * 86400_000);
-  const done = closed.filter((i: any) => !recent.includes(i)).slice(0, 10);
-  const openAlerts = data.alerts.filter((a: any) => a.status === 'PENDENTE');
+  const l = data.latest;
+  const st = l?.series;
+  async function ack() {
+    setMsg(null);
+    const r = await act.run('POST', `/api/carteira/plan/${l.id}/ack`, answer ? { answer } : {}, { idempotent: true });
+    if (r) setAnswer('');
+    reload();
+  }
+  async function schedule(action: 'JA_AGENDEI' | 'PRECISO_AJUDA') {
+    const r = await act.run('POST', `/api/carteira/plan/${l.id}/schedule-report`, { action }, { idempotent: true });
+    if (r) setMsg(r.message);
+    reload();
+  }
   return (
-    <section className="surface" aria-label="Plano de cuidados">
+    <section className="surface plan-card" aria-label="Plano de cuidados">
       <h2>Plano de cuidados</h2>
-      <p className="small muted">Tarefas e orientações registradas pela sua enfermeira depois do atendimento. {data.notice}</p>
-      <Alert error={act.error} />
-      {openAlerts.length > 0 && (
-        <ul className="list">{openAlerts.map((a: any) => (
-          <li key={a.id} className="row between"><span><Badge tone="blue">Aviso</Badge> {a.message} <span className="small muted">· {dateTime(a.createdAt)}</span></span>
-            <Button className="sm secondary" busy={act.busy} onClick={async () => { if (await act.run('POST', `/api/carteira/alerts/${a.id}/transition`, { to: 'RECONHECIDO', rev: a.rev })) reload(); }}>Ciente</Button></li>
-        ))}</ul>
-      )}
-      {!active.length ? <p className="muted">Nenhuma tarefa pendente no plano.</p> : (
-        <ul className="list">{active.map((i: any) => (
-          <li key={i.id}>
-            <div className="row between"><strong>{i.title}</strong><span className="small">até {dateTime(i.dueAt)}{i.recurrenceDays ? ` · a cada ${i.recurrenceDays} dia(s)` : ''}</span></div>
-            <div className="small">{i.instructions}</div>
-            <div className="small muted">{i.author} · {i.label}</div>
-            {i.askFollowup && (
-              <div className="row small mt" role="radiogroup" aria-label={`Como você está? ${i.title}`}>
-                {[['MELHOROU', 'Melhorou'], ['IGUAL', 'Igual'], ['PIOROU', 'Piorou']].map(([k, l]) => (
-                  <label key={k} className="choice"><input type="radio" name={`ans-${i.id}`} checked={answer[i.id] === k} onChange={() => setAnswer({ ...answer, [i.id]: k })} /><span>{l}</span></label>
+      <p className="small muted">Acesse suas orientações e lembretes. Suas orientações continuam disponíveis; você escolhe como receber os avisos.</p>
+      {!l ? <p className="muted">Nenhum lembrete disponível.</p> : (
+        <div className="last-reminder">
+          <span className="chip-label">Último lembrete</span>
+          <h3 className="h4">{l.title}</h3>
+          <p className="small muted mb0">Disponibilizado em {dayTime(l.releasedAt && l.releasedAt > l.dueAt ? l.dueAt : l.dueAt)}</p>
+          {l.status === 'ATIVO' && l.kind !== 'AGENDAR' && (<>
+            {l.askFollowup && (
+              <div className="row small mt" role="radiogroup" aria-label={`Como você está? ${l.title}`}>
+                {[['MELHOROU', 'Melhorou'], ['IGUAL', 'Igual'], ['PIOROU', 'Piorou']].map(([k, t]) => (
+                  <label key={k} className="choice"><input type="radio" name="ans-latest" checked={answer === k} onChange={() => setAnswer(k)} /><span>{t}</span></label>
                 ))}
               </div>
             )}
-            <Button className="sm deep mt" busy={pending === i.id} disabled={act.busy || (i.askFollowup && !answer[i.id])}
-              onClick={async () => { setPending(i.id); await act.run('POST', `/api/carteira/plan/${i.id}/done`, answer[i.id] ? { answer: answer[i.id] } : {}, { idempotent: true }); setPending(null); reload(); }}>
-              {pending === i.id ? 'Confirmando…' : 'Marcar como feito'}</Button>
-          </li>
-        ))}</ul>
+            <Button className="deep wide mt" busy={act.busy} disabled={l.askFollowup && !answer} onClick={ack}>{act.busy ? 'Confirmando…' : 'Ciente'}</Button>
+          </>)}
+          {l.status === 'ATIVO' && l.kind === 'AGENDAR' && (
+            <div className="row mt">
+              <Button className="deep" busy={act.busy} onClick={() => schedule('JA_AGENDEI')}>Já agendei</Button>
+              <Button className="secondary" busy={act.busy} onClick={() => schedule('PRECISO_AJUDA')}>Preciso de ajuda para agendar</Button>
+            </div>
+          )}
+          {l.status !== 'ATIVO' && <div className="status-pill mt">{l.ackedAt ? `Ciente em ${dayTime(l.ackedAt)}` : l.occurrenceText}</div>}
+          {l.status !== 'ATIVO' && l.ackedAt && l.occurrenceText !== 'Ciente registrado' && <p className="small muted mb0">{l.occurrenceText}</p>}
+          {st && <p className="small mt mb0">{st.nextAt ? `Próximo aviso: ${dayTime(st.nextAt)}` : st.flag.text}</p>}
+          {st && st.flag.code !== 'ATIVO' && st.nextAt && <p className="small muted mb0">{st.flag.text}</p>}
+          {st && <button type="button" className="btn secondary wide mt" onClick={() => setPanel({ adjust: st.seriesId })}>Ajustar lembretes</button>}
+          <Alert error={act.error} success={msg} />
+        </div>
       )}
-      {recent.length > 0 && (
-        <ul className="list mt">{recent.map((i: any) => (
-          <li key={i.id} className="plan-done" aria-disabled="true">
-            <div className="row between"><strong>{i.title}</strong><Badge tone="dark">Concluído</Badge></div>
-            <div className="small"><IconCheckInline /> Concluído em {fmtDayTime(i.completedAt)}</div>
-            {i.followupAnswer && <div className="small">Resposta registrada: <strong>{ANSWER[i.followupAnswer] ?? i.followupAnswer}</strong></div>}
-            <div className="small muted">Ação desta ocorrência: indisponível{i.recurrenceDays ? ' · a próxima ocorrência segue a periodicidade' : ''}</div>
-          </li>
-        ))}</ul>
+      {data.pendingActions > 1 && <p className="small mt mb0">Você tem {data.pendingActions} lembretes aguardando ciência (veja em "Ver todas as orientações").</p>}
+      <div className="stack mt">
+        <button type="button" className="btn secondary wide link-btn" onClick={() => setPanel('history')}>Ver histórico de lembretes ›</button>
+        <button type="button" className="btn ghost wide link-btn" onClick={() => setPanel('all')}>Ver todas as orientações ›</button>
+      </div>
+      <p className="small muted mt mb0">{data.notice}</p>
+      <Panel open={panel === 'history'} title="Histórico de lembretes" onClose={() => setPanel(null)}><ReminderHistory series={data.series} /></Panel>
+      <Panel open={panel === 'all'} title="Orientações do plano" onClose={() => setPanel(null)}>
+        <AllOrientations data={data} onAdjust={(id) => setPanel({ adjust: id })} onChange={reload} />
+      </Panel>
+      {panel && typeof panel === 'object' && (
+        <Panel open title="Ajustar lembretes" onClose={() => setPanel(null)}>
+          <AdjustReminders state={data.series.find((x: any) => x.seriesId === panel.adjust)} onDone={() => { setPanel(null); reload(); }} />
+        </Panel>
       )}
-      {done.length > 0 && <details className="mt"><summary>Concluídas</summary><ul className="small">{done.map((i: any) => <li key={i.id}>{i.title} · {i.status === 'CONCLUIDO' ? `feito em ${dateTime(i.completedAt)}` : 'cancelada'}</li>)}</ul></details>}
     </section>
   );
 }
 
-/** Enfermeira: plano de cuidados a partir do atendimento com evolução assinada. */
+const dayTime = (iso: string) => { const d = new Date(iso); return `${d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} às ${d.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}`; };
+
+/** Histórico em painel próprio: filtros por orientação e período, 10 por página ("Carregar mais"). */
+function ReminderHistory({ series }: { series: any[] }) {
+  const [seriesId, setSeriesId] = useState('');
+  const [days, setDays] = useState(30);
+  const [pages, setPages] = useState<any[][]>([]);
+  const [more, setMore] = useState(false);
+  const [busy, setBusy] = useState(false);
+  async function load(page: number, reset = false) {
+    setBusy(true);
+    try {
+      const q = new URLSearchParams({ days: String(days), page: String(page) }); if (seriesId) q.set('seriesId', seriesId);
+      const r = await api<any>('GET', `/api/carteira/reminders/history?${q}`);
+      setPages((p) => (reset ? [r.items] : [...p, r.items])); setMore(r.hasMore);
+    } finally { setBusy(false); }
+  }
+  useEffect(() => { void load(1, true); }, [seriesId, days]); // eslint-disable-line react-hooks/exhaustive-deps
+  const items = pages.flat();
+  return (<>
+    <div className="row">
+      <label className="field"><span className="small">Orientação</span>
+        <select value={seriesId} onChange={(e) => setSeriesId(e.target.value)}><option value="">Todas</option>{series.map((x) => <option key={x.seriesId} value={x.seriesId}>{x.title}</option>)}</select></label>
+      <label className="field"><span className="small">Período</span>
+        <select value={days} onChange={(e) => setDays(Number(e.target.value))}><option value={30}>Últimos 30 dias</option><option value={90}>Últimos 90 dias</option><option value={365}>Último ano</option></select></label>
+    </div>
+    {!items.length && !busy ? <p className="muted">Nenhum lembrete neste período.</p> : (
+      <ul className="list history-list">{items.map((i) => (
+        <li key={i.id}><div className="small muted">{i.atText}</div><strong>{i.title}</strong><div className="small">{i.text}</div></li>
+      ))}</ul>
+    )}
+    {more && <Button className="secondary wide" busy={busy} onClick={() => load(pages.length + 1)}>Carregar mais</Button>}
+  </>);
+}
+
+/** Todas as orientações do plano vigente (separadas do histórico de avisos), com o estado dos avisos de cada uma. */
+function AllOrientations({ data, onAdjust, onChange }: { data: any; onAdjust: (seriesId: string) => void; onChange: () => void }) {
+  const act = useSubmit<any>();
+  const [msg, setMsg] = useState<string | null>(null);
+  const [answer, setAnswer] = useState<Record<string, string>>({});
+  const openBySeries = new Map<string, any>();
+  for (const i of data.items) if (i.status === 'ATIVO' && i.releasedAt) openBySeries.set(i.seriesId, i);
+  return (<>
+    {!data.series.length ? <p className="muted">Nenhuma orientação no plano.</p> : (
+      <ul className="list">{data.series.map((x: any) => {
+        const open = openBySeries.get(x.seriesId);
+        return (
+          <li key={x.seriesId}>
+            <div className="row between"><strong>{x.title}</strong><Badge tone={['DESATIVADO', 'PAUSADO', 'SUSPENSO'].includes(x.flag.code) ? 'orange' : ['ENCERRADO', 'ENCERRADA'].includes(x.flag.code) ? 'dark' : ''}>{x.kindLabel}</Badge></div>
+            <p className="small mb0 pre-wrap">{x.instructions}</p>
+            {x.careFrequency && <p className="small muted mb0">Frequência do cuidado: {x.careFrequency}</p>}
+            <p className="small mb0"><strong>{x.flag.text}</strong>{x.nextAt ? ` · próximo aviso: ${dayTime(x.nextAt)}` : ''}</p>
+            {x.reviewOpen && <p className="small muted mb0">Pedido de revisão registrado em {dayTime(x.reviewOpen.at)}.</p>}
+            {open && x.kind !== 'AGENDAR' && (
+              <div className="mt">
+                {open.askFollowup && <div className="row small" role="radiogroup" aria-label={`Como você está? ${x.title}`}>
+                  {[['MELHOROU', 'Melhorou'], ['IGUAL', 'Igual'], ['PIOROU', 'Piorou']].map(([k, t]) => (
+                    <label key={k} className="choice"><input type="radio" name={`ans-${open.id}`} checked={answer[open.id] === k} onChange={() => setAnswer({ ...answer, [open.id]: k })} /><span>{t}</span></label>))}
+                </div>}
+                <Button className="sm deep" busy={act.busy} disabled={open.askFollowup && !answer[open.id]}
+                  onClick={async () => { await act.run('POST', `/api/carteira/plan/${open.id}/ack`, answer[open.id] ? { answer: answer[open.id] } : {}, { idempotent: true }); onChange(); }}>Ciente</Button>
+              </div>
+            )}
+            <div className="row mt">
+              {['ATIVO', 'ESPACADO', 'PAUSADO', 'DESATIVADO', 'SUSPENSO'].includes(x.flag.code) && <button type="button" className="btn sm secondary" onClick={() => onAdjust(x.seriesId)}>Ajustar lembretes</button>}
+              {['ATIVO', 'ESPACADO'].includes(x.flag.code) && <button type="button" className="btn sm ghost" onClick={() => onAdjust(x.seriesId)}>Já estou seguindo</button>}
+              {!x.reviewOpen && !['ENCERRADA'].includes(x.flag.code) && <Button className="sm ghost" busy={act.busy}
+                onClick={async () => { const r = await act.run('POST', `/api/carteira/series/${x.seriesId}/review-request`, {}, { idempotent: true }); if (r) setMsg(r.message); onChange(); }}>Acredito que não preciso mais</Button>}
+            </div>
+          </li>
+        );
+      })}</ul>
+    )}
+    <Alert error={act.error} success={msg} />
+  </>);
+}
+
+/** "Ajustar lembretes": altera os avisos, não a orientação. Campos condicionais por opção. */
+function AdjustReminders({ state, onDone }: { state: any; onDone: () => void }) {
+  const save = useSubmit<any>();
+  const cur = state?.pref?.mode ?? 'ATIVO';
+  const [opt, setOpt] = useState<'MANTER' | 'ESPACADO' | 'PAUSADO' | 'DESATIVADO' | 'ATIVO'>(cur === 'ATIVO' ? 'MANTER' : 'ATIVO');
+  const [interval, setInterval] = useState<number>(state?.spacingOptions?.[0] ?? 5);
+  const [until, setUntil] = useState('');
+  const [confirmOff, setConfirmOff] = useState(false);
+  if (!state) return null;
+  const horario = state.kind === 'HORARIO';
+  async function submit() {
+    if (opt === 'MANTER') { onDone(); return; }
+    const body: any = { mode: opt };
+    if (opt === 'ESPACADO') body.intervalDays = interval;
+    if (opt === 'PAUSADO') body.pausedUntil = until;
+    if (await save.run('PUT', `/api/carteira/series/${state.seriesId}/prefs`, body, { idempotent: true })) onDone();
+  }
+  return (<>
+    <h3 className="h4">{state.title}</h3>
+    <p className="small muted">Você está alterando os avisos, não a orientação de Enfermagem.</p>
+    <p className="small"><strong>{state.flag.text}</strong></p>
+    <fieldset className="radio-list">
+      <legend className="sr-only">Opções de aviso</legend>
+      {cur === 'ATIVO' ? <label className="choice"><input type="radio" checked={opt === 'MANTER'} onChange={() => setOpt('MANTER')} /><span>Manter frequência atual</span></label>
+        : <label className="choice"><input type="radio" checked={opt === 'ATIVO'} onChange={() => setOpt('ATIVO')} /><span>{cur === 'DESATIVADO' ? 'Reativar avisos' : 'Reativar agora (frequência original)'}</span></label>}
+      {!horario && state.spacingOptions.length > 0 && <label className="choice"><input type="radio" checked={opt === 'ESPACADO'} onChange={() => setOpt('ESPACADO')} /><span>Receber com menos frequência</span></label>}
+      {state.originalIntervalDays && <label className="choice"><input type="radio" checked={opt === 'PAUSADO'} onChange={() => setOpt('PAUSADO')} /><span>Pausar até uma data</span></label>}
+      {cur !== 'DESATIVADO' && <label className="choice"><input type="radio" checked={opt === 'DESATIVADO'} onChange={() => setOpt('DESATIVADO')} /><span>Desativar avisos desta orientação</span></label>}
+    </fieldset>
+    {horario && <p className="small muted">Este cuidado tem horário específico: os avisos não podem ser espaçados. Você pode desativá-los; a orientação continua valendo e a Enfermagem verá sua preferência.</p>}
+    {opt === 'ESPACADO' && (
+      <Field label="Frequência dos avisos">
+        <select value={interval} onChange={(e) => setInterval(Number(e.target.value))}>{state.spacingOptions.map((d: number) => <option key={d} value={d}>A cada {d} dias</option>)}</select>
+      </Field>
+    )}
+    {opt === 'PAUSADO' && <Field label="Retomar os avisos em"><input type="date" value={until} min={new Date(Date.now() + 86400_000).toLocaleDateString('en-CA')} onChange={(e) => setUntil(e.target.value)} /></Field>}
+    {opt === 'DESATIVADO' && <label className="choice mandatory"><input type="checkbox" checked={confirmOff} onChange={(e) => setConfirmOff(e.target.checked)} /><span>Entendi: não vou mais receber avisos desta orientação. A orientação continua valendo e posso reativar quando quiser.</span></label>}
+    <Alert error={save.error} />
+    <div className="row mt">
+      <Button className="deep" busy={save.busy} disabled={(opt === 'PAUSADO' && !until) || (opt === 'DESATIVADO' && !confirmOff)} onClick={submit}>Salvar preferências</Button>
+      <button type="button" className="btn secondary" onClick={onDone}>Cancelar</button>
+    </div>
+  </>);
+}
+
+/** Enfermeira: orientação e programação de avisos a partir do atendimento com evolução assinada. */
 export function CarePlanEditor({ eventId }: { eventId: string }) {
   const { data, reload } = useApi<any>(`/api/carteira/events/${eventId}/plan`);
   const save = useSubmit<any>();
-  const [f, setF] = useState({ title: '', instructions: '', dueAt: localInput(), recurrenceDays: '', askFollowup: false });
+  const [f, setF] = useState({ title: '', instructions: '', kind: 'GERAL', careFrequency: '', dueAt: localInput(), recurrenceDays: '', until: '', untilKind: 'ENCERRAMENTO', askFollowup: false });
   const [ok, setOk] = useState<string | null>(null);
   async function add() {
-    const r = await save.run('POST', `/api/carteira/events/${eventId}/plan`, { items: [{ title: f.title, instructions: f.instructions, dueAt: new Date(f.dueAt).toISOString(),
-      recurrenceDays: f.recurrenceDays ? Number(f.recurrenceDays) : null, askFollowup: f.askFollowup }] });
-    if (r) { setOk('Tarefa incluída no plano do paciente.'); setF({ ...f, title: '', instructions: '' }); reload(); }
+    setOk(null);
+    const r = await save.run('POST', `/api/carteira/events/${eventId}/plan`, { items: [{ title: f.title, instructions: f.instructions, kind: f.kind, careFrequency: f.careFrequency || undefined,
+      dueAt: new Date(f.dueAt).toISOString(), recurrenceDays: f.recurrenceDays ? Number(f.recurrenceDays) : null, askFollowup: f.kind !== 'AGENDAR' && f.askFollowup,
+      remindersUntil: f.until ? new Date(`${f.until}T23:59:00-03:00`).toISOString() : undefined, untilKind: f.untilKind }] });
+    if (r) { setOk(r.message); setF({ ...f, title: '', instructions: '', careFrequency: '' }); reload(); }
   }
   return (
     <section className="flow-card mt" aria-label="Plano de cuidados">
-      <h2>Plano de cuidados</h2>
-      <p className="small muted">Tarefas de continuidade para o paciente, com base na evolução registrada por você. O paciente recebe lembretes sem informação clínica e confirma na Carteira.</p>
-      {data?.items?.length > 0 && <ul className="list small">{data.items.map((i: any) => <li key={i.id}><strong>{i.title}</strong> · {dateTime(i.dueAt)} · {i.status}</li>)}</ul>}
+      <h2>Orientação e programação de avisos</h2>
+      <p className="small muted">Orientações de continuidade para o paciente, com base na evolução registrada por você. Os avisos não têm informação clínica; o paciente registra ciência e pode espaçar, pausar ou desativar os avisos (a orientação continua valendo).</p>
+      {data?.series?.length > 0 && <ul className="list small">{data.series.map((x: any) => (
+        <li key={x.seriesId}><strong>{x.title}</strong> · {x.kindLabel} · {x.flag.text}{x.pref.updatedAt ? ` (alterado em ${dateTime(x.pref.updatedAt)})` : ''}{x.reviewOpen ? ' · pedido de revisão aberto' : ''}</li>
+      ))}</ul>}
       <div className="form-grid">
-        <Field label="Tarefa"><input value={f.title} maxLength={120} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="Ex.: Troca do curativo" /></Field>
-        <Field label="Quando"><input type="datetime-local" value={f.dueAt} onChange={(e) => setF({ ...f, dueAt: e.target.value })} /></Field>
-        <Field label="Repetir a cada (dias, opcional)"><input type="number" min={1} max={90} value={f.recurrenceDays} onChange={(e) => setF({ ...f, recurrenceDays: e.target.value })} /></Field>
+        <Field label="Título da orientação"><input value={f.title} maxLength={120} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="Ex.: Caminhada e Exercícios" /></Field>
+        <Field label="Tipo"><select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}>
+          <option value="GERAL">Orientação geral</option><option value="AGENDAR">Ação de agendar</option><option value="HORARIO">Horário específico</option></select></Field>
+        <Field label="Frequência do cuidado"><input value={f.careFrequency} maxLength={200} onChange={(e) => setF({ ...f, careFrequency: e.target.value })} placeholder="Ex.: diariamente, pela manhã" /></Field>
+        <Field label="Início e horário dos avisos"><input type="datetime-local" value={f.dueAt} onChange={(e) => setF({ ...f, dueAt: e.target.value })} /></Field>
+        <Field label="Frequência inicial dos avisos (dias)"><input type="number" min={1} max={90} value={f.recurrenceDays} onChange={(e) => setF({ ...f, recurrenceDays: e.target.value })} placeholder="Vazio = aviso único" /></Field>
+        <Field label="Encerrar ou revisar em (obrigatório)"><input type="date" value={f.until} onChange={(e) => setF({ ...f, until: e.target.value })} /></Field>
+        <Field label="Na data"><select value={f.untilKind} onChange={(e) => setF({ ...f, untilKind: e.target.value })}><option value="ENCERRAMENTO">Encerrar os avisos</option><option value="REVISAO">Revisar a programação</option></select></Field>
       </div>
       <Field label="Orientação ao paciente"><textarea rows={2} value={f.instructions} maxLength={2000} onChange={(e) => setF({ ...f, instructions: e.target.value })} /></Field>
-      <label className="choice"><input type="checkbox" checked={f.askFollowup} onChange={(e) => setF({ ...f, askFollowup: e.target.checked })} /><span>Perguntar ao paciente como ele está ao concluir</span></label>
+      {f.kind !== 'AGENDAR' && <label className="choice"><input type="checkbox" checked={f.askFollowup} onChange={(e) => setF({ ...f, askFollowup: e.target.checked })} /><span>Perguntar ao paciente como ele está (Melhorou / Igual / Piorou)</span></label>}
       <Alert error={save.error} success={ok} />
-      <Button className="sm deep" busy={save.busy} onClick={add}>Incluir no plano</Button>
+      <Button className="sm deep" busy={save.busy} disabled={!f.until} onClick={add}>Salvar programação</Button>
     </section>
   );
 }
@@ -142,6 +295,50 @@ export function SpecialistAlertsSection() {
 }
 
 /** RT / Central: fila priorizada, atribuição, auditoria e matriz de regras. */
+const REVIEW_KIND: Record<string, string> = { PEDIDO_PACIENTE: 'Paciente acredita que não precisa mais', PARAMETRIZACAO: 'Programação sem término/revisão (parametrizar)',
+  REVISAO_PROGRAMADA: 'Data de revisão da programação atingida', AJUDA_AGENDAR: 'Paciente pediu ajuda para agendar' };
+
+/** Pendências do plano de cuidados: pedidos de revisão, ajuda para agendar e programações a parametrizar (RT/Central). */
+function PlanReviewsSection() {
+  const { data, reload } = useApi<any>('/api/admin/carteira/reviews');
+  const act = useSubmit<any>();
+  const [sel, setSel] = useState<string | null>(null);
+  const [note, setNote] = useState('');
+  const [until, setUntil] = useState('');
+  const [kind, setKind] = useState('ENCERRAMENTO');
+  if (!data?.reviews?.length) return null;
+  return (
+    <section className="surface mt">
+      <h2>Pendências do plano de cuidados ({data.reviews.length})</h2>
+      <p className="small muted">Não encerram orientações automaticamente. Programações sem término não enviam novos avisos até a parametrização (sem prazo inventado).</p>
+      <ul className="list">{data.reviews.map((r: any) => (
+        <li key={r.id}>
+          <div className="row between"><strong>{r.title}</strong><Badge tone="orange">{REVIEW_KIND[r.kind] ?? r.kind}</Badge></div>
+          <div className="small muted">{r.patientName} · {dateTime(r.createdAt)} · avisos: {r.state.flag.text}</div>
+          {r.note && <div className="small">{r.note}</div>}
+          {sel === r.id ? (
+            <div className="mt">
+              {['PARAMETRIZACAO', 'REVISAO_PROGRAMADA'].includes(r.kind) ? (
+                <div className="row">
+                  <label className="field"><span className="small">Encerrar ou revisar em</span><input type="date" value={until} onChange={(e) => setUntil(e.target.value)} /></label>
+                  <label className="field"><span className="small">Na data</span><select value={kind} onChange={(e) => setKind(e.target.value)}><option value="ENCERRAMENTO">Encerrar</option><option value="REVISAO">Revisar</option></select></label>
+                  <Button className="sm deep" busy={act.busy} disabled={!until} onClick={async () => { if (await act.run('PUT', `/api/carteira/series/${r.seriesId}/schedule`, { remindersUntil: new Date(`${until}T23:59:00-03:00`).toISOString(), untilKind: kind })) { setSel(null); reload(); } }}>Salvar programação</Button>
+                </div>
+              ) : (
+                <div className="row">
+                  <label className="field"><span className="small">Providência</span><input value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} /></label>
+                  <Button className="sm deep" busy={act.busy} onClick={async () => { if (await act.run('POST', `/api/admin/carteira/reviews/${r.id}/resolve`, { resolution: note })) { setSel(null); setNote(''); reload(); } }}>Resolver</Button>
+                </div>
+              )}
+              <Alert error={act.error} />
+            </div>
+          ) : <button type="button" className="btn sm secondary mt" onClick={() => setSel(r.id)}>Tratar</button>}
+        </li>
+      ))}</ul>
+    </section>
+  );
+}
+
 export function AdminCarteiraPage() {
   const { has } = useAuth();
   const [filter, setFilter] = useState<'ABERTOS' | 'TODOS'>('ABERTOS');
@@ -167,6 +364,7 @@ export function AdminCarteiraPage() {
         <Button className="sm secondary" busy={act.busy} onClick={async () => { const r = await act.run('POST', '/api/admin/carteira/run'); if (r) { setMsg(`Motor executado: ${r.reminders} lembrete(s), ${r.overdue} atraso(s), ${r.escalated} escalonamento(s).`); refresh(); } }}>Executar motor agora</Button>
       </div>
       <Alert error={act.error} success={msg} />
+      <PlanReviewsSection />
       {!data.alerts.length ? <Empty title="Nenhum alerta nesta fila." /> : (
         <ul className="list">{data.alerts.map((a: any) => (
           <li key={a.id}>
