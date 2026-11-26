@@ -1,4 +1,6 @@
+import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
 import { useAuth } from '../../lib/auth';
+import './certificate.css';
 import { date } from '../../lib/format';
 import { useApi, useSubmit } from '../../lib/hooks';
 import { Alert, Button, Empty, ErrorState, Loading, PageHeader, Pending } from '../../ui/ui';
@@ -45,7 +47,8 @@ export function CertificatesPage() {
                 <div><strong>{c.publicCode}</strong> · emitido em {date(c.issuedAt)} {c.revokedAt && <span className="badge red">Revogado</span>}</div>
                 <div className="row"><a className="btn ghost sm" href={`/verificar/${c.publicCode}`}>Verificar</a><Button className="sm deep" onClick={() => window.print()}>Imprimir / salvar PDF</Button></div>
               </div>
-              <div className="certificate cert-official">
+              <CertSheet>
+              <div className="certificate cert-official cert-front">
                 {(hml || c.revokedAt) && <div className="watermark">{c.revokedAt ? 'REVOGADO' : 'HOMOLOGAÇÃO — SEM VALIDADE'}</div>}
                 <div className="cert-side small">PESSOAS<br />TECNOLOGIA<br />CONHECIMENTO<br />SAÚDE REAL</div>
                 <div className="cert-motto small">CUIDAR HOJE<br />TRANSFORMA<br />AMANHÃ</div>
@@ -70,7 +73,9 @@ export function CertificatesPage() {
                 </div>
                 <p className="cert-foot small">{c.snapshot.statement}</p>
               </div>
-              <div className="certificate cert-official">
+              </CertSheet>
+              <CertSheet>
+              <div className="certificate cert-official cert-back">
                 <div className="cert-center" style={{ width: '100%' }}>
                   <div className="cert-brand">ONEMA ACADEMY</div>
                   <h2 className="mb0">JORNADA DE INTEGRAÇÃO ONEMA ONE</h2>
@@ -87,10 +92,33 @@ export function CertificatesPage() {
                 <p className="small muted" style={{ textAlign: 'center' }}>Carga horária e conteúdo vinculados à trilha concluída e registrada na ONEMA ACADEMY. Autenticidade verificável pelo código individual em {c.verifyUrl}. Hash: <span className="mono">{c.contentHash.slice(0, 16)}…</span></p>
                 <p className="small muted" style={{ textAlign: 'center' }}>Documento integrante do Certificado de Conclusão e do Dossiê Digital do Parceiro.</p>
               </div>
+              </CertSheet>
             </section>
           ))}
         </>
       )}
     </>
+  );
+}
+
+/**
+ * Folha do certificado em tamanho fixo de A4 paisagem (1123 × 794 px). Na tela é reduzida proporcionalmente à largura
+ * disponível — o desenho nunca se sobrepõe no celular; na impressão sai em tamanho real (uma folha por página).
+ */
+const SHEET_W = 1123, SHEET_H = 794;
+function CertSheet({ children }: { children: ReactNode }) {
+  const outer = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  useLayoutEffect(() => {
+    const el = outer.current; if (!el) return;
+    const fit = () => setScale(Math.min(1, el.clientWidth / SHEET_W));
+    fit();
+    const ro = new ResizeObserver(fit); ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div className="cert-sheet-outer" ref={outer} style={{ height: SHEET_H * scale }}>
+      <div className="cert-sheet" style={{ width: SHEET_W, height: SHEET_H, transform: `scale(${scale})` }}>{children}</div>
+    </div>
   );
 }

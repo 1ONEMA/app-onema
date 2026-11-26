@@ -1,0 +1,21 @@
+/* Certificado em folha fixa A4 paisagem, reduzida na tela (sem sobreposição no celular). */
+.cert-sheet-outer { width: 100%; position: relative; overflow: hidden; }
+.cert-sheet { transform-origin: top left; position: absolute; top: 0; left: 0; }
+.cert-sheet > .certificate { width: 100%; height: 100%; aspect-ratio: auto; box-sizing: border-box; font-size: 14px; }
+.cert-front .cert-center { padding: 0 170px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.cert-front .cert-side { top: 46% !important; font-size: 13px; }
+.cert-front .cert-motto { font-size: 13px; }
+.cert-front .cert-qr { top: 110px !important; width: 120px; font-size: 11px; }
+.cert-sheet > .cert-front { display: flex !important; flex-direction: column; justify-content: space-between; padding: 36px 48px 28px !important; }
+.cert-front .cert-seal { right: auto !important; left: 50%; transform: translateX(-50%); bottom: 64px !important; }
+.cert-front .cert-signs { margin-top: auto; padding: 0 40px; }
+.cert-front .cert-foot { text-align: center; margin: 14px 0 0; }
+.cert-sheet > .cert-back { display: flex !important; flex-direction: column; justify-content: space-between; padding: 40px 56px !important; }
+.cert-back .cert-program { font-size: 13px; }
+.cert-back .cert-program ul { margin: 6px 0; padding-left: 18px; }
+@media print {
+  @page { size: A4 landscape; margin: 0; }
+  .cert-sheet-outer { height: auto !important; overflow: visible; page-break-after: always; break-after: page; }
+  .cert-sheet { position: static; transform: none !important; width: 297mm !important; height: 210mm !important; }
+  .cert-sheet > .certificate { border: 0; border-radius: 0; }
+}
