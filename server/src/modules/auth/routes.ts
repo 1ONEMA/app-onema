@@ -100,7 +100,7 @@ export async function authRoutes(app: FastifyInstance) {
     const roles = (await all<any>('SELECT role FROM user_roles WHERE user_id = ?', u.id)).map((r) => r.role);
     if (isBlockedDemoStaff(u.email, roles)) {
       await audit({ actorId: u.id, action: 'LOGIN_BLOCKED_DEMO_STAFF', subjectType: 'user', subjectId: u.id, correlationId: req.correlationId });
-      throw forbidden('Contas de demonstração da equipe estão desativadas neste ambiente. Use sua conta de administrador.', 'DEMO_STAFF_DISABLED');
+      throw forbidden('Contas de demonstração estão desativadas neste ambiente. Use sua conta pessoal.', 'DEMO_STAFF_DISABLED');
     }
     const h = await createSession(reply, u.id);
     await audit({ actorId: u.id, action: 'LOGIN', subjectType: 'session', subjectId: h.slice(0, 12), correlationId: req.correlationId });

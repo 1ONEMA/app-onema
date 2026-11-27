@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api, type ApiError } from '../../lib/api';
 import { useApi } from '../../lib/hooks';
 import { Alert, Dialog } from '../../ui/ui';
@@ -43,7 +44,7 @@ export function C05Card() {
           <Alert error={err} />
         </div>
       </div>
-      <Dialog open={!!video} title="Seu primeiro atendimento com a ONEMA SAÚDE" onClose={() => setVideo(null)}>
+      {video && createPortal(<Dialog open={!!video} title="Seu primeiro atendimento com a ONEMA SAÚDE" onClose={() => setVideo(null)}>
         {video && (
           <div className="c05-player">
             <video controls playsInline preload="metadata" controlsList="nodownload">
@@ -53,7 +54,7 @@ export function C05Card() {
             <button type="button" className="btn ghost sm mt" onClick={() => setVideo(null)}>Voltar para a Academy</button>
           </div>
         )}
-      </Dialog>
+      </Dialog>, document.body)}
     </div>
   );
 }
