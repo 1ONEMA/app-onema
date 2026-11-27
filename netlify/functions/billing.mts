@@ -2,7 +2,7 @@
 import type { Config } from '@netlify/functions';
 
 export default async () => {
-  process.env.APP_ENV ??= 'homologacao';
+  process.env.APP_ENV ??= 'production'; // Sistema em produção (decisão de 27/11/2026); homologação só com APP_ENV=homologacao.
   const { ensureReady } = await import('../../server/src/bootstrap.ts');
   const { tx } = await import('../../server/src/db/db.ts');
   const { runBilling } = await import('../../server/src/modules/prime/core.ts');

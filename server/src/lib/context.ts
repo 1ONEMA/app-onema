@@ -52,7 +52,10 @@ export async function loadSession(req: FastifyRequest): Promise<AuthCtx | null> 
 
 /** Conta de demonstração da equipe (senha pública) bloqueada no ambiente publicado. */
 export function isBlockedDemoStaff(email: string, roles: Role[]) {
-  return config.blockDemoStaff && /@exemplo\.test$/i.test(email) && roles.some((r) => ADMIN_ROLES.includes(r));
+  if (!/@exemplo\.test$/i.test(email)) return false;
+  // Produção: nenhuma conta de demonstração (senha pública) entra, de qualquer perfil, salvo ALLOW_DEMO_LOGIN=true.
+  if (config.appEnv === 'production' && process.env.ALLOW_DEMO_LOGIN !== 'true') return true;
+  return config.blockDemoStaff && roles.some((r) => ADMIN_ROLES.includes(r));
 }
 
 export function needsMfa(a: AuthCtx) {

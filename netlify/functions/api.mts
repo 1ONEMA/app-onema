@@ -12,7 +12,7 @@ const INIT_BUDGET_MS = 8000;
 
 function applyDefaults(siteUrl: string | undefined) {
   // Padrões seguros para o ambiente publicado (valores do painel da Netlify têm precedência).
-  process.env.APP_ENV ??= 'homologacao';
+  process.env.APP_ENV ??= 'production'; // Sistema em produção (decisão de 27/11/2026); homologação só com APP_ENV=homologacao.
   if (siteUrl) process.env.PUBLIC_ORIGIN ??= siteUrl;
   process.env.DB_CONNECT_TIMEOUT_MS ??= '4000';
   // Domínio oficial (o mesmo endereço acessado também é aceito pela checagem de Origin).
