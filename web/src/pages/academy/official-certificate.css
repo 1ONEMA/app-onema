@@ -1,0 +1,29 @@
+/* Certificado oficial ONEMA ACADEMY (ONEMA-ACAD-AJT-CERT-001) — folha A4 paisagem em pt, como o PDF do modelo. */
+@font-face { font-family: 'OC DejaVu Sans'; src: url('/certificado/fonts/DejaVuSans.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'OC DejaVu Sans'; src: url('/certificado/fonts/DejaVuSans-Bold.woff2') format('woff2'); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'OC DejaVu Serif Condensed'; src: url('/certificado/fonts/DejaVuSerifCondensed-Italic.woff2') format('woff2'); font-weight: 400; font-style: italic; font-display: swap; }
+
+.ocert {
+  --oc-navy: #103763;
+  --oc-navy2: #14365d;
+  position: relative; overflow: hidden; box-sizing: border-box;
+  width: 297mm; height: 210mm; /* = 841,89 × 595,28 pt */
+  background: #fff; color: var(--oc-navy);
+  font-family: 'OC DejaVu Sans', 'DejaVu Sans', Verdana, 'Bitstream Vera Sans', sans-serif;
+  font-weight: 400; text-align: left; letter-spacing: 0;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.ocert .oc-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ocert .oc-img { position: absolute; display: block; max-width: none; }
+.ocert .oc-qr { image-rendering: pixelated; }
+.ocert .oc-t { position: absolute; line-height: 1; white-space: nowrap; margin: 0; }
+.ocert .b { font-weight: 700; }
+.ocert .n2 { color: var(--oc-navy2); }
+.ocert .hb { font-family: Helvetica, Arial, 'Liberation Sans', 'Nimbus Sans', sans-serif; font-weight: 700; }
+.ocert .oc-num { color: #fff; }
+/* "D E  C O N C L U S Ã O": um espaço entre letras e três entre palavras, centrado. */
+.ocert .oc-spaced { letter-spacing: 0.348em; text-indent: 0.348em; }
+.ocert .oc-name { font-family: 'OC DejaVu Serif Condensed', 'DejaVu Serif Condensed', 'DejaVu Serif', Georgia, 'Times New Roman', serif; font-style: italic; }
+.ocert .oc-decl { position: absolute; left: 200pt; right: 200pt; top: 279pt; margin: 0; line-height: 16pt; text-align: center; }
+.ocert .oc-total { display: flex; gap: 11.8pt; }
+.ocert .oc-watermark { font-size: 44pt; z-index: 2; }

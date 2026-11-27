@@ -1838,4 +1838,10 @@ ALTER TABLE users ADD COLUMN phone TEXT;
 ALTER TABLE users ADD COLUMN birth_date TEXT;
 ALTER TABLE users ADD COLUMN address_sealed TEXT;
 ` },
+  { name: '030_atividades_interativas', sql: `
+-- 030: Atividades integradoras oficiais (ONEMA-ACA-ATI-INTERATIVA v1.2, RT 26/11/2026): caso, cena, narração,
+-- transições e retornos por alternativa. O gabarito continua só no servidor (options_json).
+ALTER TABLE academy_activities ADD COLUMN content_json TEXT;
+ALTER TABLE academy_activity_steps ADD COLUMN content_json TEXT;
+` },
 ];

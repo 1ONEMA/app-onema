@@ -1,0 +1,882 @@
+{
+ "id": "ONEMA-ACA-ATI-INTERATIVA",
+ "version": "1.2-exibicao",
+ "sourceVersion": "ATI-2026-11-26-v1.0",
+ "date": "26/11/2026",
+ "status": "CONTEUDO_PARA_INTEGRACAO_RT",
+ "noActivityCourses": [
+  "C03"
+ ],
+ "courses": [
+  {
+   "id": "C01",
+   "title": "Excelência no Atendimento",
+   "activityId": "C01-ATI",
+   "activityTitle": "Uma visita, várias decisões",
+   "objective": "Conduzir uma visita com comunicação respeitosa, participação da paciente, proteção da privacidade, avaliação de pedidos adicionais e documentação objetiva.",
+   "caseText": "Uma avaliação domiciliar começa com insatisfação do familiar. A paciente precisa ser incluída nas decisões, a privacidade precisa ser organizada e surge uma solicitação de medicamento fora do atendimento programado. A visita deve terminar com limites claros, orientações compreendidas e registro fiel.",
+   "cast": "Dona Helena, paciente capaz de compreender e decidir; Ricardo, filho; uma vizinha; Enfermeiro parceiro que realiza a visita.",
+   "minimum": 6,
+   "required": true,
+   "criteriaStatus": "RECUPERADO",
+   "image": "assets/imagens/C01_cena_integral.png",
+   "opening": "Nesta atividade, você acompanhará uma visita à Dona Helena. Vamos praticar acolhimento, escuta, autonomia, privacidade e limites profissionais. São seis decisões. Leia ou ouça cada alternativa antes de escolher. Se precisar rever uma resposta, eu explicarei o motivo e você poderá tentar novamente. Vamos começar.",
+   "closing": "Você revisou as seis decisões desta visita. Acolher, respeitar a autonomia, preservar a privacidade e reconhecer limites faz parte da excelência no atendimento. Quando as seis decisões estiverem resolvidas e esta conclusão for confirmada, siga para a avaliação final do Curso 01.",
+   "openingAudio": "C01-abertura",
+   "closingAudio": "C01-sintese",
+   "steps": [
+    {
+     "id": "C01-ATI-D01",
+     "title": "Chegada e reclamação",
+     "scene": "Você chega para uma avaliação de Enfermagem na casa de Dona Helena. Ricardo, seu filho, reclama da experiência de agendamento. A paciente ainda não recebeu explicações sobre a visita.",
+     "prompt": "Qual deve ser a abordagem inicial?",
+     "transition": "Dona Helena compreende quem está realizando a visita. Agora você pode ouvi-la e combinar a participação do familiar.",
+     "type": "choice",
+     "correctOptionId": "B",
+     "sceneAudio": "C01-ATI-D01-situacao",
+     "transitionAudio": "C01-ATI-D01-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Iniciar rapidamente para compensar a insatisfação.",
+       "correct": false,
+       "feedback": "Começar com pressa mantém a paciente sem esclarecimento. Antes de executar, apresente-se, confirme a identidade e acolha a demanda.",
+       "audio": "C01-ATI-D01-A-opcao",
+       "feedbackAudio": "C01-ATI-D01-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Apresentar-se, confirmar Dona Helena, ouvir a reclamação e explicar o atendimento e seus limites.",
+       "correct": true,
+       "feedback": "Correto. Você organiza a chegada, inclui a paciente e acolhe a insatisfação sem fazer promessas que não pode garantir.",
+       "audio": "C01-ATI-D01-B-opcao",
+       "feedbackAudio": "C01-ATI-D01-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Discutir com Ricardo para estabelecer autoridade.",
+       "correct": false,
+       "feedback": "Disputar autoridade aumenta a tensão e não esclarece a visita. Ouça com respeito e explique o atendimento de forma objetiva.",
+       "audio": "C01-ATI-D01-C-opcao",
+       "feedbackAudio": "C01-ATI-D01-C-retorno"
+      },
+      {
+       "id": "D",
+       "text": "Prometer compensações sem autorização.",
+       "correct": false,
+       "feedback": "Não prometa compensações sem autorização. Reconheça a reclamação e indique o canal institucional adequado para sua análise.",
+       "audio": "C01-ATI-D01-D-opcao",
+       "feedbackAudio": "C01-ATI-D01-D-retorno"
+      }
+     ]
+    },
+    {
+     "id": "C01-ATI-D02",
+     "title": "Participação da paciente",
+     "scene": "Após a apresentação, Ricardo responde a todas as perguntas. Dona Helena está orientada, compreende a conversa e consegue expressar sua vontade, mas ainda não foi ouvida.",
+     "prompt": "Como incluir Dona Helena nas decisões?",
+     "transition": "Dona Helena deseja que Ricardo participe, mas pede espaço para responder. A conversa prossegue com sua participação ativa.",
+     "type": "choice",
+     "correctOptionId": "C",
+     "sceneAudio": "C01-ATI-D02-situacao",
+     "transitionAudio": "C01-ATI-D02-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Conversar exclusivamente com Ricardo.",
+       "correct": false,
+       "feedback": "O familiar pode colaborar, mas a paciente está apta a se manifestar. Ouça Dona Helena e verifique como ela deseja a participação dele.",
+       "audio": "C01-ATI-D02-A-opcao",
+       "feedbackAudio": "C01-ATI-D02-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Pedir que Ricardo saia sem ouvir Dona Helena.",
+       "correct": false,
+       "feedback": "Retirar o familiar automaticamente também ignora a preferência da paciente. Pergunte a Dona Helena quem deseja que participe.",
+       "audio": "C01-ATI-D02-B-opcao",
+       "feedbackAudio": "C01-ATI-D02-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Dirigir-se a Dona Helena, ouvi-la e verificar como deseja a participação de Ricardo, observando as regras aplicáveis.",
+       "correct": true,
+       "feedback": "Correto. Você respeita a autonomia de Dona Helena e combina a participação de Ricardo conforme a vontade dela e os limites de compartilhamento.",
+       "audio": "C01-ATI-D02-C-opcao",
+       "feedbackAudio": "C01-ATI-D02-C-retorno"
+      },
+      {
+       "id": "D",
+       "text": "Presumir que o agendamento do filho substitui a vontade da paciente.",
+       "correct": false,
+       "feedback": "Ter agendado a visita não transfere automaticamente as decisões ao familiar. A paciente deve receber explicações e participar das escolhas.",
+       "audio": "C01-ATI-D02-D-opcao",
+       "feedbackAudio": "C01-ATI-D02-D-retorno"
+      }
+     ]
+    },
+    {
+     "id": "C01-ATI-D03",
+     "title": "Privacidade perante terceira pessoa",
+     "scene": "Uma vizinha entra na sala e permanece ouvindo. Antes de abordar informações de saúde, você percebe que a preferência de Dona Helena sobre a presença dela ainda não foi verificada.",
+     "prompt": "Qual conduta preserva a privacidade?",
+     "transition": "Dona Helena prefere que a conversa de saúde ocorra sem a vizinha. Você organiza a privacidade e continua o atendimento.",
+     "type": "choice",
+     "correctOptionId": "B",
+     "sceneAudio": "C01-ATI-D03-situacao",
+     "transitionAudio": "C01-ATI-D03-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Compartilhar o histórico completo com todos os presentes.",
+       "correct": false,
+       "feedback": "Estar no mesmo ambiente não autoriza acesso ao histórico. Confirme a preferência da paciente e compartilhe somente o que for pertinente e autorizado.",
+       "audio": "C01-ATI-D03-A-opcao",
+       "feedbackAudio": "C01-ATI-D03-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Verificar a preferência de Dona Helena e organizar condições adequadas de privacidade e compartilhamento.",
+       "correct": true,
+       "feedback": "Correto. Você protege a privacidade sem presumir autorização. Dona Helena participa da definição de quem pode acompanhar a conversa.",
+       "audio": "C01-ATI-D03-B-opcao",
+       "feedbackAudio": "C01-ATI-D03-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Pedir que a terceira pessoa registre as orientações.",
+       "correct": false,
+       "feedback": "Registrar orientações envolve acesso a informações. Primeiro esclareça a participação dessa pessoa com Dona Helena; não delegue essa tarefa sem verificar a autorização.",
+       "audio": "C01-ATI-D03-C-opcao",
+       "feedbackAudio": "C01-ATI-D03-C-retorno"
+      },
+      {
+       "id": "D",
+       "text": "Prosseguir sem considerar quem está ouvindo.",
+       "correct": false,
+       "feedback": "Prosseguir sem observar quem está ouvindo pode expor informações. Organize um ambiente reservado antes de continuar a conversa assistencial.",
+       "audio": "C01-ATI-D03-D-opcao",
+       "feedbackAudio": "C01-ATI-D03-D-retorno"
+      }
+     ]
+    },
+    {
+     "id": "C01-ATI-D04",
+     "title": "Pedido de medicação fora do escopo",
+     "scene": "Ricardo pede que você administre um medicamento guardado em casa, fora do atendimento programado. A indicação, a prescrição quando exigida e as condições de execução ainda não foram verificadas.",
+     "prompt": "O que deve orientar a decisão?",
+     "transition": "Você explica que não administrará o medicamento sem verificar os requisitos. A demanda adicional recebe o encaminhamento pertinente.",
+     "type": "choice",
+     "correctOptionId": "D",
+     "sceneAudio": "C01-ATI-D04-situacao",
+     "transitionAudio": "C01-ATI-D04-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Executar para evitar conflito.",
+       "correct": false,
+       "feedback": "Evitar conflito não torna uma administração segura. Verifique indicação, prescrição quando exigida, competência, condições e fluxo aplicável antes de decidir.",
+       "audio": "C01-ATI-D04-A-opcao",
+       "feedbackAudio": "C01-ATI-D04-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Aceitar um acordo informal com Ricardo.",
+       "correct": false,
+       "feedback": "Um acordo informal não substitui requisitos clínicos e institucionais. Explique os limites e encaminhe a solicitação pelo fluxo adequado.",
+       "audio": "C01-ATI-D04-B-opcao",
+       "feedbackAudio": "C01-ATI-D04-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Administrar uma dose menor para reduzir o risco.",
+       "correct": false,
+       "feedback": "Reduzir a dose por conta própria não resolve a falta de requisitos e pode causar dano. Não improvise administração ou ajuste de medicamento.",
+       "audio": "C01-ATI-D04-C-opcao",
+       "feedbackAudio": "C01-ATI-D04-C-retorno"
+      },
+      {
+       "id": "D",
+       "text": "Avaliar a situação, os requisitos e os fluxos aplicáveis, explicar os limites e encaminhar adequadamente antes de executar.",
+       "correct": true,
+       "feedback": "Correto. Você considera a necessidade sem executar automaticamente. A decisão depende da avaliação profissional e do atendimento aos requisitos aplicáveis.",
+       "audio": "C01-ATI-D04-D-opcao",
+       "feedbackAudio": "C01-ATI-D04-D-retorno"
+      }
+     ]
+    },
+    {
+     "id": "C01-ATI-D05",
+     "title": "Aumento da tensão",
+     "scene": "Após ouvir a explicação sobre os limites, Ricardo eleva o tom de voz e insiste no pedido. Não há, nesta cena, uma emergência clínica; você precisa conduzir a conversa e observar a segurança.",
+     "prompt": "Como conduzir a situação?",
+     "transition": "A conversa é reorganizada com limites claros. Se o ambiente se tornar inseguro, a continuidade dependerá da proteção dos envolvidos e do apoio adequado.",
+     "type": "choice",
+     "correctOptionId": "B",
+     "sceneAudio": "C01-ATI-D05-situacao",
+     "transitionAudio": "C01-ATI-D05-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Discutir para impor autoridade.",
+       "correct": false,
+       "feedback": "Confrontar o familiar tende a aumentar a tensão. Mantenha linguagem clara, explique os limites e priorize um ambiente seguro.",
+       "audio": "C01-ATI-D05-A-opcao",
+       "feedbackAudio": "C01-ATI-D05-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Manter comunicação objetiva e respeitosa, explicar limites, considerar a segurança e utilizar o encaminhamento apropriado.",
+       "correct": true,
+       "feedback": "Correto. Você mantém uma postura respeitosa e firme. Se houver ameaça ou insegurança, proteja-se e utilize o apoio apropriado à situação.",
+       "audio": "C01-ATI-D05-B-opcao",
+       "feedbackAudio": "C01-ATI-D05-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Executar o que foi exigido para encerrar a discussão.",
+       "correct": false,
+       "feedback": "Ceder à pressão pode levar a uma conduta inadequada. A segurança e os limites profissionais continuam valendo durante um conflito.",
+       "audio": "C01-ATI-D05-C-opcao",
+       "feedbackAudio": "C01-ATI-D05-C-retorno"
+      },
+      {
+       "id": "D",
+       "text": "Permanecer em condição insegura para concluir a solicitação.",
+       "correct": false,
+       "feedback": "A conclusão do serviço não exige permanecer sob ameaça. Avalie a segurança, interrompa a exposição ao risco e busque o apoio cabível.",
+       "audio": "C01-ATI-D05-D-opcao",
+       "feedbackAudio": "C01-ATI-D05-D-retorno"
+      }
+     ]
+    },
+    {
+     "id": "C01-ATI-D06",
+     "title": "Encerramento e registro",
+     "scene": "Após o acolhimento e os esclarecimentos, a visita está terminando. O medicamento solicitado não foi administrado. É preciso orientar Dona Helena e registrar o atendimento real.",
+     "prompt": "Qual conduta conclui adequadamente essa etapa?",
+     "transition": "Você conclui as orientações, verifica a compreensão e preserva um registro objetivo. A visita integra acolhimento, autonomia, limites e continuidade.",
+     "type": "choice",
+     "correctOptionId": "C",
+     "sceneAudio": "C01-ATI-D06-situacao",
+     "transitionAudio": "C01-ATI-D06-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Omitir o conflito para evitar questionamentos.",
+       "correct": false,
+       "feedback": "Omitir fatos relevantes prejudica a continuidade e a rastreabilidade. Registre o ocorrido de modo objetivo, incluindo as medidas adotadas.",
+       "audio": "C01-ATI-D06-A-opcao",
+       "feedbackAudio": "C01-ATI-D06-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Registrar julgamentos sobre a personalidade de Ricardo.",
+       "correct": false,
+       "feedback": "Rótulos sobre personalidade não descrevem a assistência. Registre fatos observáveis, falas relevantes contextualizadas, orientações e encaminhamentos.",
+       "audio": "C01-ATI-D06-B-opcao",
+       "feedbackAudio": "C01-ATI-D06-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Registrar objetivamente fatos, orientações e encaminhamentos efetivos e confirmar a compreensão da paciente.",
+       "correct": true,
+       "feedback": "Correto. O registro corresponde ao que aconteceu e a paciente pode confirmar, com suas palavras, as orientações recebidas.",
+       "audio": "C01-ATI-D06-C-opcao",
+       "feedbackAudio": "C01-ATI-D06-C-retorno"
+      },
+      {
+       "id": "D",
+       "text": "Registrar como realizados os procedimentos apenas planejados.",
+       "correct": false,
+       "feedback": "Uma ação planejada não pode ser registrada como realizada. Diferencie o que foi solicitado, avaliado, executado e não executado.",
+       "audio": "C01-ATI-D06-D-opcao",
+       "feedbackAudio": "C01-ATI-D06-D-retorno"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "C02",
+   "title": "Segurança do Paciente",
+   "activityId": "C02-ATI",
+   "activityTitle": "Quando o atendimento muda de rumo",
+   "objective": "Resolver divergências antes da intervenção, tratar relatos de risco com cautela, priorizar a emergência e documentar a assistência sem transferir a responsabilidade clínica à operação.",
+   "caseText": "Antes de um procedimento programado, uma divergência de identificação interrompe o avanço. Após o esclarecimento, a filha relata uma possível reação medicamentosa não esclarecida. Antes de qualquer administração, o paciente apresenta sinais agudos de gravidade. O caso exige priorização clínica, passagem do cuidado e registro.",
+   "cast": "Enf. Bruna; Sr. Paulo, paciente; Carolina, filha; equipe de urgência e apoio operacional quando pertinentes.",
+   "minimum": 5,
+   "required": true,
+   "criteriaStatus": "PROPOSTO_PARA_RT",
+   "image": "assets/imagens/C02_cena_integral.png",
+   "opening": "O atendimento pode mudar enquanto você está no domicílio. Neste caso, vamos acompanhar a Enf. Bruna e o Sr. Paulo. São cinco decisões sobre identificação, informação de risco, resposta à piora, registro e responsabilidade profissional. Se houver erro, vamos revisar a decisão antes de seguir. A prioridade será sempre a segurança.",
+   "closing": "Identificar, proteger, comunicar e registrar. Você percorreu as cinco decisões e pôde rever o que fosse necessário. Quando todas estiverem resolvidas e você confirmar a conclusão, siga para a avaliação final do Curso 02. A atividade e a prova são etapas diferentes.",
+   "openingAudio": "C02-abertura",
+   "closingAudio": "C02-sintese",
+   "steps": [
+    {
+     "id": "C02-ATI-D01",
+     "title": "Identificação",
+     "scene": "Na visita ao Sr. Paulo, a Enf. Bruna prepara o ambiente e realiza a higiene das mãos pertinente. Ao conferir nome completo e data de nascimento, encontra divergência entre a informação apresentada e o cadastro.",
+     "prompt": "Qual deve ser a conduta?",
+     "transition": "A simulação considera a identidade esclarecida pelo fluxo adequado, com rastreabilidade. Só então o preparo do atendimento programado é retomado.",
+     "type": "choice",
+     "correctOptionId": "B",
+     "sceneAudio": "C02-ATI-D01-situacao",
+     "transitionAudio": "C02-ATI-D01-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Iniciar com a confirmação verbal apenas do nome, deixando a divergência sem esclarecimento.",
+       "correct": false,
+       "feedback": "Apenas o nome não resolve a divergência já identificada. Pause o procedimento e confirme os identificadores até esclarecer a situação.",
+       "audio": "C02-ATI-D01-A-opcao",
+       "feedbackAudio": "C02-ATI-D01-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Pausar o procedimento programado e esclarecer a divergência, confirmando a identidade com pelo menos dois identificadores.",
+       "correct": true,
+       "feedback": "Correto. Você evita uma intervenção na pessoa errada. A identificação deve estar esclarecida e coerente antes de retomar o procedimento programado.",
+       "audio": "C02-ATI-D01-B-opcao",
+       "feedbackAudio": "C02-ATI-D01-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Alterar o cadastro por conta própria, sem verificação nem registro da correção, e iniciar.",
+       "correct": false,
+       "feedback": "Alterar um dado sem verificação e rastreabilidade pode mascarar o problema. Confirme as informações e utilize o fluxo autorizado para correção.",
+       "audio": "C02-ATI-D01-C-opcao",
+       "feedbackAudio": "C02-ATI-D01-C-retorno"
+      }
+     ]
+    },
+    {
+     "id": "C02-ATI-D02",
+     "title": "Relato não confirmado",
+     "scene": "A divergência foi esclarecida pelo fluxo adequado e a identidade foi confirmada antes de qualquer procedimento. Carolina relata que o pai já teve uma reação a um medicamento, mas não sabe informar qual ou descrever o episódio com precisão.",
+     "prompt": "Como tratar essa informação?",
+     "transition": "O relato permanece sinalizado para esclarecimento. Nenhuma administração é presumida como autorizada; a próxima cena apresenta uma mudança clínica.",
+     "type": "choice",
+     "correctOptionId": "C",
+     "sceneAudio": "C02-ATI-D02-situacao",
+     "transitionAudio": "C02-ATI-D02-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Como alergia definitivamente confirmada.",
+       "correct": false,
+       "feedback": "O relato merece atenção, mas não confirma sozinho uma alergia específica. Registre quem informou e o que foi relatado, sinalizando o que ainda precisa ser esclarecido.",
+       "audio": "C02-ATI-D02-A-opcao",
+       "feedbackAudio": "C02-ATI-D02-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Como informação irrelevante.",
+       "correct": false,
+       "feedback": "Ignorar uma possível reação anterior elimina uma barreira de segurança. Considere a informação antes de qualquer decisão sobre medicamento.",
+       "audio": "C02-ATI-D02-B-opcao",
+       "feedbackAudio": "C02-ATI-D02-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Como relato que precisa ser considerado e distinguido de uma informação já verificada.",
+       "correct": true,
+       "feedback": "Correto. Você diferencia relato e informação verificada. Esclareça a história e a segurança da prescrição antes de qualquer administração; a incerteza não autoriza seguir automaticamente.",
+       "audio": "C02-ATI-D02-C-opcao",
+       "feedbackAudio": "C02-ATI-D02-C-retorno"
+      }
+     ]
+    },
+    {
+     "id": "C02-ATI-D03",
+     "title": "Piora inesperada",
+     "scene": "Nenhum medicamento foi administrado. Enquanto a história é esclarecida, o Sr. Paulo apresenta dor forte no peito de início súbito, falta de ar e palidez. A prioridade do atendimento mudou.",
+     "prompt": "Qual é a prioridade?",
+     "transition": "Na simulação, a resposta à emergência foi acionada e o cuidado foi transferido à equipe responsável. Você seguirá para o registro após a resposta prioritária.",
+     "type": "choice",
+     "correctOptionId": "C",
+     "sceneAudio": "C02-ATI-D03-situacao",
+     "transitionAudio": "C02-ATI-D03-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Resolver primeiro todas as questões administrativas.",
+       "correct": false,
+       "feedback": "Resolver a documentação administrativa primeiro pode atrasar ajuda. Diante dos sinais apresentados, a prioridade passa a ser a avaliação e a resposta à emergência.",
+       "audio": "C02-ATI-D03-A-opcao",
+       "feedbackAudio": "C02-ATI-D03-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Aguardar autorização da Central antes de qualquer medida.",
+       "correct": false,
+       "feedback": "Uma resposta urgente não deve aguardar autorização administrativa. A Central Operacional não substitui o serviço de urgência nem o julgamento do Enfermeiro.",
+       "audio": "C02-ATI-D03-B-opcao",
+       "feedbackAudio": "C02-ATI-D03-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Suspender a rotina, avaliar prontamente, acionar o SAMU 192 diante dos sinais de gravidade e atuar dentro da competência profissional.",
+       "correct": true,
+       "feedback": "Correto. Suspenda o procedimento programado, avalie prontamente e acione o SAMU 192 diante desses sinais de gravidade. Atue dentro da competência profissional, siga a regulação e não deixe o paciente sem assistência.",
+       "audio": "C02-ATI-D03-C-opcao",
+       "feedbackAudio": "C02-ATI-D03-C-retorno"
+      }
+     ]
+    },
+    {
+     "id": "C02-ATI-D04",
+     "title": "Documentação",
+     "scene": "Após prestar a resposta inicial e realizar a passagem do cuidado à equipe de urgência, a Enf. Bruna precisa documentar a evolução. O procedimento originalmente programado não foi realizado.",
+     "prompt": "Qual registro é mais adequado?",
+     "transition": "O registro diferencia fatos observados, relato da familiar e ações efetivas. A revisão final abordará a responsabilidade profissional.",
+     "type": "choice",
+     "correctOptionId": "C",
+     "sceneAudio": "C02-ATI-D04-situacao",
+     "transitionAudio": "C02-ATI-D04-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "“Paciente passou mal. Central avisada.”",
+       "correct": false,
+       "feedback": "Esse texto não permite compreender a evolução. Descreva horários, sinais observados, relatos identificados, medidas realizadas, contatos e destino do paciente.",
+       "audio": "C02-ATI-D04-A-opcao",
+       "feedbackAudio": "C02-ATI-D04-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Registrar apenas o procedimento originalmente programado.",
+       "correct": false,
+       "feedback": "Registrar somente o procedimento previsto omite a mudança de prioridade. Documente o que realmente aconteceu, inclusive o que não foi realizado e o motivo.",
+       "audio": "C02-ATI-D04-B-opcao",
+       "feedbackAudio": "C02-ATI-D04-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Registrar fatos, horários, relatos identificados, medidas efetivamente realizadas, comunicações e encaminhamento, sem lançar como feito o procedimento não executado.",
+       "correct": true,
+       "feedback": "Correto. O registro permite reconstruir a situação e sustenta a continuidade. Use dados reais observados e deixe explícita a origem das informações relatadas por terceiros.",
+       "audio": "C02-ATI-D04-C-opcao",
+       "feedbackAudio": "C02-ATI-D04-C-retorno"
+      }
+     ]
+    },
+    {
+     "id": "C02-ATI-D05",
+     "title": "Responsabilidades",
+     "scene": "Ao revisar o caso, você identifica quatro ações: identificar, proteger, comunicar e registrar. A Central Operacional apoiou a organização, mas não estava no domicílio prestando a assistência.",
+     "prompt": "Qual dessas etapas é responsabilidade apenas da Central Operacional?",
+     "transition": "A atividade integra identificação segura, consideração dos relatos, reconhecimento do risco, comunicação e documentação. A avaliação final permanece uma etapa própria.",
+     "type": "choice",
+     "correctOptionId": "D",
+     "sceneAudio": "C02-ATI-D05-situacao",
+     "transitionAudio": "C02-ATI-D05-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Identificar.",
+       "correct": false,
+       "feedback": "Identificar o paciente e reconhecer mudanças integram a responsabilidade de quem presta a assistência. O apoio operacional não elimina essa responsabilidade.",
+       "audio": "C02-ATI-D05-A-opcao",
+       "feedbackAudio": "C02-ATI-D05-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Proteger.",
+       "correct": false,
+       "feedback": "Proteger a pessoa e responder ao risco exigem atuação profissional. Essa responsabilidade não é transferida integralmente para a Central.",
+       "audio": "C02-ATI-D05-B-opcao",
+       "feedbackAudio": "C02-ATI-D05-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Comunicar.",
+       "correct": false,
+       "feedback": "A comunicação é compartilhada entre os envolvidos. O Enfermeiro precisa comunicar os fatos assistenciais relevantes e confirmar a continuidade necessária.",
+       "audio": "C02-ATI-D05-C-opcao",
+       "feedbackAudio": "C02-ATI-D05-C-retorno"
+      },
+      {
+       "id": "D",
+       "text": "Nenhuma delas pode ser transferida integralmente para a Central.",
+       "correct": true,
+       "feedback": "Correto. Identificar, proteger, comunicar e registrar envolvem responsabilidades profissionais e trabalho articulado. A Central apoia a operação sem substituir a avaliação clínica.",
+       "audio": "C02-ATI-D05-D-opcao",
+       "feedbackAudio": "C02-ATI-D05-D-retorno"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "C04",
+   "title": "Operação e Protocolos ONEMA",
+   "activityId": "C04-ATI",
+   "activityTitle": "Da oferta ao encerramento: conduza o atendimento",
+   "objective": "Articular análise da oferta, aceite, preparo, chegada, requisitos, pedidos adicionais, prioridade clínica, responsabilidades e documentação.",
+   "caseText": "Uma oferta com informações incompletas é esclarecida antes do aceite. Após o preparo, a conferência presencial identifica um material sem condição segura de uso. Surge uma demanda adicional e, depois, uma intercorrência aguda. O fechamento precisa refletir o atendimento real, sem registrar como feito o curativo não executado.",
+   "cast": "Enf. Clara; Sr. Roberto, paciente; familiar acompanhante; Central Operacional; equipe de urgência quando acionada no caso.",
+   "minimum": 9,
+   "required": true,
+   "criteriaStatus": "PROPOSTO_PARA_RT",
+   "image": "assets/imagens/C04_cena_integral.png",
+   "opening": "Agora vamos acompanhar a Enf. Clara desde uma oferta até o encerramento do atendimento do Sr. Roberto. São nove decisões e uma tela final de síntese. Você precisará distinguir o compromisso operacional, os requisitos para agir, a resposta ao risco e o registro fiel. Vamos percorrer cada etapa.",
+   "closing": "O encerramento também prepara o próximo passo do cuidado. Da oferta à preparação, do atendimento à decisão, do registro à continuidade: uma jornada, várias decisões, um registro fiel. Com as nove decisões resolvidas, leia esta síntese e confirme a conclusão para seguir à avaliação final do Curso 04.",
+   "openingAudio": "C04-abertura",
+   "closingAudio": "C04-sintese",
+   "steps": [
+    {
+     "id": "C04-ATI-D01",
+     "title": "Análise da oferta",
+     "scene": "A Enf. Clara recebe uma oferta de curativo domiciliar para o Sr. Roberto. As informações de local e horário existem, mas os requisitos do serviço e a responsabilidade pelos materiais ainda precisam ser esclarecidos.",
+     "prompt": "O que você faria?",
+     "transition": "As informações essenciais são solicitadas e esclarecidas pelo canal institucional adequado. A decisão de aceite pode ser reavaliada.",
+     "type": "choice",
+     "correctOptionId": "C",
+     "sceneAudio": "C04-ATI-D01-situacao",
+     "transitionAudio": "C04-ATI-D01-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Aceitaria imediatamente, porque marcou-se como disponível.",
+       "correct": false,
+       "feedback": "Disponibilidade não significa aceite automático. Antes de assumir um compromisso, verifique as informações essenciais e sua capacidade de atendê-lo.",
+       "audio": "C04-ATI-D01-A-opcao",
+       "feedbackAudio": "C04-ATI-D01-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Recusaria imediatamente.",
+       "correct": false,
+       "feedback": "Faltam informações para decidir, mas isso pode ser esclarecido. Solicite os dados necessários antes de aceitar ou recusar sem fundamento suficiente.",
+       "audio": "C04-ATI-D01-B-opcao",
+       "feedbackAudio": "C04-ATI-D01-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Solicitaria esclarecimentos antes de decidir.",
+       "correct": true,
+       "feedback": "Correto. Esclarecer serviço, local, horário, requisitos e condições permite uma decisão responsável sobre a oferta.",
+       "audio": "C04-ATI-D01-C-opcao",
+       "feedbackAudio": "C04-ATI-D01-C-retorno"
+      }
+     ]
+    },
+    {
+     "id": "C04-ATI-D02",
+     "title": "Aceite",
+     "scene": "O serviço, o horário, o local e as responsabilidades foram esclarecidos. Clara verifica competência, disponibilidade e condições para cumprir o compromisso nas condições informadas.",
+     "prompt": "Agora, qual decisão é adequada?",
+     "transition": "O compromisso operacional está assumido. Agora começa o preparo; isso não autoriza previamente qualquer intervenção no domicílio.",
+     "type": "choice",
+     "correctOptionId": "A",
+     "sceneAudio": "C04-ATI-D02-situacao",
+     "transitionAudio": "C04-ATI-D02-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Aceitar a oportunidade.",
+       "correct": true,
+       "feedback": "Correto. Com as informações esclarecidas e condições para assumir o compromisso, o aceite é adequado. A avaliação presencial ainda poderá identificar impedimentos.",
+       "audio": "C04-ATI-D02-A-opcao",
+       "feedbackAudio": "C04-ATI-D02-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Continuar solicitando informações sem necessidade.",
+       "correct": false,
+       "feedback": "Esclarecimentos adicionais são úteis quando necessários. Neste caso os requisitos já foram verificados; repetir pedidos sem motivo não melhora a decisão.",
+       "audio": "C04-ATI-D02-B-opcao",
+       "feedbackAudio": "C04-ATI-D02-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Recusar porque anteriormente havia informações incompletas.",
+       "correct": false,
+       "feedback": "A dúvida anterior foi esclarecida. Reavalie a situação atual; a informação inicialmente incompleta não obriga a recusa após sua resolução.",
+       "audio": "C04-ATI-D02-C-opcao",
+       "feedbackAudio": "C04-ATI-D02-C-retorno"
+      }
+     ]
+    },
+    {
+     "id": "C04-ATI-D03",
+     "title": "Preparação",
+     "scene": "Clara aceitou a oferta. Antes de sair, precisa organizar a preparação para o curativo conforme o serviço confirmado e as responsabilidades pactuadas.",
+     "prompt": "Como se preparar antes do deslocamento?",
+     "transition": "O preparo foi conferido. A próxima etapa ainda exige checagem presencial das condições reais e da integridade dos materiais.",
+     "type": "choice",
+     "correctOptionId": "B",
+     "sceneAudio": "C04-ATI-D03-situacao",
+     "transitionAudio": "C04-ATI-D03-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Ir diretamente ao domicílio, pois os materiais seriam responsabilidade exclusiva do paciente.",
+       "correct": false,
+       "feedback": "Não presuma que todo material estará no domicílio. Confira o que cabe a cada parte e os requisitos necessários antes do deslocamento.",
+       "audio": "C04-ATI-D03-A-opcao",
+       "feedbackAudio": "C04-ATI-D03-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Conferir serviço, informações, documentos, POP vigente aplicável e materiais conforme a responsabilidade pactuada.",
+       "correct": true,
+       "feedback": "Correto. Você confere o serviço, os documentos, o POP vigente aplicável e os materiais conforme a responsabilidade pactuada, reduzindo improvisações.",
+       "audio": "C04-ATI-D03-B-opcao",
+       "feedbackAudio": "C04-ATI-D03-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Levar qualquer material disponível e decidir depois.",
+       "correct": false,
+       "feedback": "Levar o que estiver disponível não comprova adequação. Os materiais devem ser compatíveis com o serviço e com os requisitos de segurança.",
+       "audio": "C04-ATI-D03-C-opcao",
+       "feedbackAudio": "C04-ATI-D03-C-retorno"
+      }
+     ]
+    },
+    {
+     "id": "C04-ATI-D04",
+     "title": "Chegada organizada",
+     "scene": "Clara chega ao domicílio. Roberto está estável e receptivo. É o momento de organizar o acolhimento e verificar as condições reais antes de executar qualquer procedimento.",
+     "prompt": "Qual sequência organiza a chegada nesta cena, com o paciente estável?",
+     "transition": "Após acolher e confirmar a identidade, Clara explica o atendimento e verifica consentimento, privacidade e condições para prosseguir.",
+     "type": "choice",
+     "correctOptionId": "B",
+     "sceneAudio": "C04-ATI-D04-situacao",
+     "transitionAudio": "C04-ATI-D04-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Iniciar o procedimento; apresentar-se; confirmar a identidade; explicar os cuidados ao final.",
+       "correct": false,
+       "feedback": "Começar pela execução ignora identificação, explicação e avaliação. Organize a chegada antes de qualquer procedimento; a cena ainda não apresenta uma emergência.",
+       "audio": "C04-ATI-D04-A-opcao",
+       "feedbackAudio": "C04-ATI-D04-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Apresentar-se; confirmar a identidade; explicar o atendimento; preservar privacidade e consentimento; avaliar as condições reais.",
+       "correct": true,
+       "feedback": "Correto. A sequência didática organiza a chegada: apresentação, identidade, explicação, privacidade e consentimento, seguida da avaliação das condições reais.",
+       "audio": "C04-ATI-D04-B-opcao",
+       "feedbackAudio": "C04-ATI-D04-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Confirmar o endereço; executar o curativo; verificar consentimento; explicar o atendimento.",
+       "correct": false,
+       "feedback": "Explicar somente depois da execução impede uma participação esclarecida. A compreensão e o consentimento devem integrar o preparo para o atendimento.",
+       "audio": "C04-ATI-D04-C-opcao",
+       "feedbackAudio": "C04-ATI-D04-C-retorno"
+      }
+     ]
+    },
+    {
+     "id": "C04-ATI-D05",
+     "title": "Material ausente",
+     "scene": "Na conferência presencial, uma embalagem de material essencial apresenta dano que compromete sua condição de uso. Não há substituto adequado disponível para a etapa prevista.",
+     "prompt": "O que fazer?",
+     "transition": "A etapa dependente desse material não é executada. O impedimento é explicado e tratado pelo fluxo correspondente, sem improvisação.",
+     "type": "choice",
+     "correctOptionId": "C",
+     "sceneAudio": "C04-ATI-D05-situacao",
+     "transitionAudio": "C04-ATI-D05-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Improvisar com outro material.",
+       "correct": false,
+       "feedback": "Um substituto improvisado pode não atender ao requisito técnico. Não execute a etapa que depende do material ausente ou inadequado.",
+       "audio": "C04-ATI-D05-A-opcao",
+       "feedbackAudio": "C04-ATI-D05-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Prosseguir parcialmente e registrar depois.",
+       "correct": false,
+       "feedback": "Executar parcialmente não resolve um requisito essencial de segurança. Avalie o impedimento antes de iniciar a etapa afetada e utilize o fluxo correspondente.",
+       "audio": "C04-ATI-D05-B-opcao",
+       "feedbackAudio": "C04-ATI-D05-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Reconhecer o impedimento, não improvisar, reavaliar a possibilidade de execução e seguir o fluxo operacional correspondente.",
+       "correct": true,
+       "feedback": "Correto. Você reconhece o impedimento, explica a situação e segue o fluxo operacional aplicável, sem executar uma etapa sem condições seguras.",
+       "audio": "C04-ATI-D05-C-opcao",
+       "feedbackAudio": "C04-ATI-D05-C-retorno"
+      }
+     ]
+    },
+    {
+     "id": "C04-ATI-D06",
+     "title": "Solicitação adicional",
+     "scene": "Enquanto o impedimento é explicado, um familiar solicita uma aplicação de medicamento que não fazia parte do serviço. Os requisitos dessa solicitação ainda não foram avaliados.",
+     "prompt": "Como responder?",
+     "transition": "A solicitação adicional não é executada automaticamente. Uma mudança clínica ocorre antes de qualquer decisão de realização dessa demanda.",
+     "type": "choice",
+     "correctOptionId": "C",
+     "sceneAudio": "C04-ATI-D06-situacao",
+     "transitionAudio": "C04-ATI-D06-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Realizar porque você já está no domicílio.",
+       "correct": false,
+       "feedback": "Estar no domicílio não autoriza qualquer procedimento. Avalie necessidade, competência, prescrição quando exigida, materiais e escopo antes de decidir.",
+       "audio": "C04-ATI-D06-A-opcao",
+       "feedbackAudio": "C04-ATI-D06-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Recusar automaticamente qualquer solicitação adicional.",
+       "correct": false,
+       "feedback": "Uma solicitação adicional merece avaliação. Explique os limites e verifique se há requisitos para atendê-la; não decida apenas por ser adicional.",
+       "audio": "C04-ATI-D06-B-opcao",
+       "feedbackAudio": "C04-ATI-D06-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Avaliar necessidade, competência, requisitos e regras aplicáveis antes de decidir.",
+       "correct": true,
+       "feedback": "Correto. Você avalia a demanda e os requisitos antes de decidir. A solicitação do familiar, isoladamente, não autoriza execução ou mudança de prescrição.",
+       "audio": "C04-ATI-D06-C-opcao",
+       "feedbackAudio": "C04-ATI-D06-C-retorno"
+      },
+      {
+       "id": "D",
+       "text": "Pedir que a Central tome a decisão clínica.",
+       "correct": false,
+       "feedback": "A Central pode apoiar o fluxo operacional, mas não substituir seu julgamento clínico. A decisão assistencial continua com o profissional responsável, nos limites de sua competência.",
+       "audio": "C04-ATI-D06-D-opcao",
+       "feedbackAudio": "C04-ATI-D06-D-retorno"
+      }
+     ]
+    },
+    {
+     "id": "C04-ATI-D07",
+     "title": "Alteração clínica",
+     "scene": "Nenhum procedimento sem requisitos foi iniciado. Roberto passa a apresentar dor torácica súbita e falta de ar. Há agora uma intercorrência aguda que exige resposta prioritária.",
+     "prompt": "O que tem prioridade?",
+     "transition": "Na simulação, o socorro é acionado e a passagem do cuidado é organizada. A rotina operacional só prossegue sem atrasar a assistência.",
+     "type": "choice",
+     "correctOptionId": "C",
+     "sceneAudio": "C04-ATI-D07-situacao",
+     "transitionAudio": "C04-ATI-D07-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Resolver primeiro o material ausente.",
+       "correct": false,
+       "feedback": "A falta de material não deve atrasar a resposta a uma deterioração aguda. Interrompa a rotina e priorize o paciente.",
+       "audio": "C04-ATI-D07-A-opcao",
+       "feedbackAudio": "C04-ATI-D07-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Aguardar orientação administrativa da Central.",
+       "correct": false,
+       "feedback": "Aguardar uma orientação administrativa pode atrasar socorro. Avalie e responda ao risco clínico; comunique a operação sem postergar a ajuda necessária.",
+       "audio": "C04-ATI-D07-B-opcao",
+       "feedbackAudio": "C04-ATI-D07-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Priorizar a avaliação e a resposta à emergência, acionar o SAMU 192 diante desses sinais e atuar dentro da competência.",
+       "correct": true,
+       "feedback": "Correto. Diante da dor torácica súbita e da falta de ar, suspenda a rotina e acione o SAMU 192. Avalie e atue dentro da competência, seguindo a regulação, sem deixar o paciente sem assistência.",
+       "audio": "C04-ATI-D07-C-opcao",
+       "feedbackAudio": "C04-ATI-D07-C-retorno"
+      }
+     ]
+    },
+    {
+     "id": "C04-ATI-D08",
+     "title": "Central e Enfermeiro",
+     "scene": "Após acionar a urgência e organizar a passagem do cuidado, Clara precisa articular o registro e a resolução operacional. Quais responsabilidades devem permanecer com cada parte?",
+     "prompt": "Qual divisão preserva as responsabilidades de cada parte?",
+     "transition": "Clara mantém o julgamento assistencial e utiliza o apoio operacional apropriado. A próxima etapa é registrar o atendimento real.",
+     "type": "choice",
+     "correctOptionId": "A",
+     "sceneAudio": "C04-ATI-D08-situacao",
+     "transitionAudio": "C04-ATI-D08-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Central: divergências e coordenação operacionais. Enfermeiro: avaliação do paciente e decisão clínica.",
+       "correct": true,
+       "feedback": "Correto. A Central coordena as questões operacionais. Avaliar o paciente e tomar decisões clínicas cabem ao Enfermeiro, dentro de sua competência, articulado à rede de cuidado.",
+       "audio": "C04-ATI-D08-A-opcao",
+       "feedbackAudio": "C04-ATI-D08-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Central: avaliação do paciente e decisão clínica. Enfermeiro: somente execução do que for orientado.",
+       "correct": false,
+       "feedback": "Atribuir avaliação e decisão clínica à Central transfere indevidamente o julgamento assistencial. Separe apoio operacional de responsabilidade clínica.",
+       "audio": "C04-ATI-D08-B-opcao",
+       "feedbackAudio": "C04-ATI-D08-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Enfermeiro: toda a coordenação operacional, sem apoio institucional. Central: nenhuma participação.",
+       "correct": false,
+       "feedback": "A assistência não exige assumir sozinho toda a coordenação da operação. Utilize o apoio institucional pertinente, preservando sua responsabilidade clínica.",
+       "audio": "C04-ATI-D08-C-opcao",
+       "feedbackAudio": "C04-ATI-D08-C-retorno"
+      }
+     ]
+    },
+    {
+     "id": "C04-ATI-D09",
+     "title": "Registro e estado operacional",
+     "scene": "A equipe de urgência assumiu o cuidado e a comunicação pertinente foi realizada. O curativo previsto não foi executado. Clara precisa registrar o ocorrido e encerrar a etapa operacional conforme o atendimento real.",
+     "prompt": "Como registrar e encerrar?",
+     "transition": "O atendimento fica rastreável: o que ocorreu, o que foi feito, o que não foi realizado e como o cuidado teve continuidade.",
+     "type": "choice",
+     "correctOptionId": "C",
+     "sceneAudio": "C04-ATI-D09-situacao",
+     "transitionAudio": "C04-ATI-D09-continuidade",
+     "options": [
+      {
+       "id": "A",
+       "text": "Registrar o procedimento como realizado.",
+       "correct": false,
+       "feedback": "Não registre como realizado um curativo que não foi executado. Descreva o impedimento e as medidas efetivamente prestadas.",
+       "audio": "C04-ATI-D09-A-opcao",
+       "feedbackAudio": "C04-ATI-D09-A-retorno"
+      },
+      {
+       "id": "B",
+       "text": "Marcar como concluído sem detalhamento.",
+       "correct": false,
+       "feedback": "Um encerramento sem detalhamento não esclarece a ocorrência. Registre os fatos e utilize o estado operacional que represente o atendimento real.",
+       "audio": "C04-ATI-D09-B-opcao",
+       "feedbackAudio": "C04-ATI-D09-B-retorno"
+      },
+      {
+       "id": "C",
+       "text": "Registrar fielmente avaliação, fatos, intervenções efetivas, impedimento e encaminhamentos, usando o estado operacional correspondente.",
+       "correct": true,
+       "feedback": "Correto. Você registra avaliação, impedimento, intervenções, comunicações, encaminhamento e continuidade. Revise e assine o registro pelo mecanismo institucional disponível.",
+       "audio": "C04-ATI-D09-C-opcao",
+       "feedbackAudio": "C04-ATI-D09-C-retorno"
+      },
+      {
+       "id": "D",
+       "text": "Excluir o atendimento.",
+       "correct": false,
+       "feedback": "Excluir o atendimento elimina a rastreabilidade. Preserve o histórico e registre a situação e seu desfecho de forma fiel.",
+       "audio": "C04-ATI-D09-D-opcao",
+       "feedbackAudio": "C04-ATI-D09-D-retorno"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "presentationVersion": "1.2"
+}

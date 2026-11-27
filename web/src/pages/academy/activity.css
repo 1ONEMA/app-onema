@@ -1,0 +1,16 @@
+.act-case { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.act-scene { width: 100%; height: auto; border-radius: 16px; display: block; }
+.act-opening, .act-scene-text, .act-transition { background: #EEF6F5; border-radius: 14px; padding: 12px 14px; display: grid; gap: 8px; margin: 10px 0; }
+.act-transition { background: #E3F6F1; }
+.act-progress { height: 8px; background: #E6EDF4; border-radius: 99px; overflow: hidden; margin-top: 10px; }
+.act-progress span { display: block; height: 100%; background: var(--green, #0f9d76); transition: width .3s; }
+.act-prompt { font-size: 1.05rem; margin: 12px 0 8px; }
+.act-options { border: 0; padding: 0; margin: 0 0 12px; display: grid; gap: 8px; }
+.act-option { display: flex; gap: 8px; align-items: center; justify-content: space-between; border: 1px solid var(--line, #dfe6f0); border-radius: 12px; padding: 10px 12px; background: #fff; }
+.act-option.selected { border-color: var(--deep, #12366a); background: #F3F7FD; }
+.act-option label { display: flex; gap: 10px; align-items: flex-start; flex: 1; cursor: pointer; }
+.act-step.solved .act-options { opacity: .85; }
+.listen-btn { border: 1px solid #cfe0ee; background: #fff; color: var(--deep, #12366a); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 600; white-space: nowrap; min-height: 36px; justify-self: start; }
+.listen-btn.on { background: var(--deep, #12366a); color: #fff; }
+@media (max-width: 760px) { .act-case { grid-template-columns: 1fr; } .act-option { flex-direction: column; align-items: stretch; } }
+.act-options .act-option label { border: 0 !important; padding: 0 !important; background: transparent !important; box-shadow: none !important; min-height: 0; }

@@ -93,7 +93,15 @@ const addH = (iso: string, h: number | null) => (h ? new Date(new Date(iso).getT
  * Cria o alerta (uma vez por chave de deduplicação) e registra as entregas por canal.
  * Notificação externa nunca leva dado clínico; entrega não é leitura.
  */
-export async function raiseAlert(rule: any, p: { patientId: string | null; subjectType: string; subjectId: string; dedupeKey: string; assignedTo?: string | null; title?: string; quiet?: boolean }) {
+/**
+ * Destino (rota do app) anexado ao texto do aviso in-app: a tabela notifications não tem coluna de link, então o destino vai
+ * num marcador final "[[/rota]]" que a tela de Avisos remove do texto e transforma no botão "Abrir" (só rotas internas).
+ */
+export const withLink = (body: string, path: string) => `${body}\n[[${path}]]`;
+
+export async function raiseAlert(rule: any, p: { patientId: string | null; subjectType: string; subjectId: string; dedupeKey: string; assignedTo?: string | null; title?: string; quiet?: boolean;
+  /** Texto do aviso "Nova pendência na Carteira" ao responsável (recebe o id do alerta criado, p/ link direto ao card). */
+  panelNotice?: (alertId: string) => string }) {
   const id = uid(); const now = nowIso();
   const r = await run(`INSERT INTO care_alerts (id, rule_code, rule_version, category, priority, patient_id, subject_type, subject_id, dedupe_key, recipient, owner_role, assigned_to, status,
       title, message, ack_due_at, action_due_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'PENDENTE',?,?,?,?,?,?) ON CONFLICT (dedupe_key) DO NOTHING`,
@@ -108,7 +116,7 @@ export async function raiseAlert(rule: any, p: { patientId: string | null; subje
       await alertEvent(id, null, 'ENTREGUE', 'CARTEIRA');
     } else if (ch === 'PAINEL') {
       await alertEvent(id, null, 'ENTREGUE', 'PAINEL');
-      if (p.assignedTo) await notify(p.assignedTo, 'ESSENCIAL', 'Nova pendência na Carteira', 'Há uma pendência atribuída a você no painel da Carteira Digital.');
+      if (p.assignedTo) await notify(p.assignedTo, 'ESSENCIAL', 'Nova pendência na Carteira', p.panelNotice ? p.panelNotice(id) : 'Há uma pendência atribuída a você no painel da Carteira Digital.');
     } else if (ch === 'PUSH') {
       // Canal externo ainda não homologado: registra a falha e abre pendência técnica (o alerta continua pendente).
       await alertEvent(id, null, 'FALHA_CANAL', 'PUSH', 'Canal push não homologado.');
@@ -135,8 +143,11 @@ export async function runCarteiraAlerts(now = new Date()) {
   const adm = await activeRule('ADM-PLANO-ATRASO-001');
   if (adm) {
     // Só ações de agendar pendentes viram pendência administrativa (falta de "Ciente" não é classificada como não adesão).
-    for (const it of await all<any>(`SELECT id, patient_id, created_by FROM care_plan_items WHERE status = 'ATIVO' AND item_kind = 'AGENDAR' AND released_at IS NOT NULL AND due_at < ?`, new Date(now.getTime() - 24 * 3600_000).toISOString())) {
-      if (await raiseAlert(adm, { patientId: it.patient_id, subjectType: 'care_plan_item', subjectId: it.id, dedupeKey: `ADM-PLANO-ATRASO-001:${it.id}`, assignedTo: it.created_by })) overdue++;
+    for (const it of await all<any>(`SELECT i.id, i.patient_id, i.created_by, u.name AS patient_name FROM care_plan_items i JOIN users u ON u.id = i.patient_id
+        WHERE i.status = 'ATIVO' AND i.item_kind = 'AGENDAR' AND i.released_at IS NOT NULL AND i.due_at < ?`, new Date(now.getTime() - 24 * 3600_000).toISOString())) {
+      // Aviso à enfermeira nomeia o paciente (sem conteúdo clínico) e abre o card exato no painel (ONEMA-AJT-PEND-001).
+      if (await raiseAlert(adm, { patientId: it.patient_id, subjectType: 'care_plan_item', subjectId: it.id, dedupeKey: `ADM-PLANO-ATRASO-001:${it.id}`, assignedTo: it.created_by,
+        panelNotice: (alertId) => withLink(`Tarefa do plano sem confirmação de ${it.patient_name}. Abra a pendência no seu painel.`, `/especialista#pendencia-${alertId}`) })) overdue++;
     }
   }
   // Escalonamento: prazo de ciência vencido sem reconhecimento → destinatário de escalonamento (registrado).

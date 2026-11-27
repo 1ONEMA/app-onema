@@ -12,7 +12,9 @@ import { audit } from '../../lib/audit.ts';
 import { hasRole, parse, requireRoles, requireUser } from '../../lib/context.ts';
 import { conflict, forbidden, notFound, unprocessable } from '../../lib/errors.ts';
 import { nowIso, uid } from '../../lib/util.ts';
-import { activeRule, alertEvent, ensureAlertRules, raiseAlert, ruleGaps, runCarteiraAlerts } from './engine.ts';
+import { activeRule, alertEvent, ensureAlertRules, raiseAlert, ruleGaps, runCarteiraAlerts, withLink } from './engine.ts';
+import { notify } from '../prime/core.ts';
+import { notifyRole } from '../finance/payouts.ts';
 import { ITEM_KINDS, SPACING_OPTIONS, ensureNext, fmt, fmtDay, prefOf, reminderEvent, requestReview, runPlanReminders, seriesState } from './reminders.ts';
 
 const idParam = z.object({ id: z.string().uuid() });
@@ -42,6 +44,44 @@ const alertView = (a: any, internal: boolean) => ({
   createdAt: a.created_at, ackDueAt: a.ack_due_at, actionDueAt: a.action_due_at, rev: a.rev,
   ...(internal ? { recipient: a.recipient, ownerRole: a.owner_role, assignedTo: a.assigned_name ?? null, patientName: a.patient_name ?? null, escalationLevel: a.escalation_level,
     resolutionNote: a.resolution_note, subjectType: a.subject_type, subjectId: a.subject_id } : {}),
+});
+
+// ---------------- Pendências do plano (ONEMA-AJT-PEND-001, 26/11/2026) ----------------
+const PLAN_PENDING_RULE = 'ADM-PLANO-ATRASO-001';
+const REMIND_WINDOW_H = 12;
+const REMIND_TITLE = 'Cuidado do seu plano aguardando confirmação';
+export const REMIND_TEXT = 'Olá! Há um cuidado do seu plano aguardando sua confirmação. Acesse o aplicativo para informar se realizou ou se precisa de ajuda.';
+const FLAG = {
+  SEM: { code: 'SEM_CONFIRMACAO', text: 'Sem confirmação' },
+  ENV: { code: 'LEMBRETE_ENVIADO', text: 'Lembrete enviado · Aguardando resposta' },
+  NAO: { code: 'NAO_ENVIADO', text: 'Não enviado' },
+  ENC: { code: 'ENCAMINHADO', text: 'Encaminhado à ONEMA' },
+} as const;
+const spDate = (iso: string) => new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(iso));
+const forwardedEvent = (alertId: string) => one<any>(`SELECT 1 AS x FROM care_alert_events WHERE alert_id = ? AND action = 'ENCAMINHADO_ONEMA' LIMIT 1`, alertId);
+
+/** Sinalização do card a partir da trilha (append-only): encaminhado > último lembrete (enviado / não enviado) > sem confirmação. */
+async function pendingFlags(rows: { id: string }[]) {
+  const map = new Map<string, { code: string; text: string; at?: string | null }>();
+  if (!rows.length) return map;
+  const ids = rows.map((r) => r.id);
+  const evs = await all<any>(`SELECT alert_id, action, note, created_at FROM care_alert_events WHERE alert_id IN (${ids.map(() => '?').join(',')})
+    AND action IN ('LEMBRETE_ENVIADO','LEMBRETE_NAO_ENVIADO','ENCAMINHADO_ONEMA') ORDER BY created_at, id`, ...ids);
+  for (const id of ids) {
+    const mine = evs.filter((e) => e.alert_id === id);
+    const fwd = mine.find((e) => e.action === 'ENCAMINHADO_ONEMA');
+    const last = [...mine].reverse().find((e) => e.action !== 'ENCAMINHADO_ONEMA');
+    if (fwd) map.set(id, { ...FLAG.ENC, at: fwd.created_at });
+    else if (last?.action === 'LEMBRETE_ENVIADO') map.set(id, { ...FLAG.ENV, at: last.created_at });
+    else if (last) map.set(id, { ...FLAG.NAO, at: last.created_at, reason: last.note } as any);
+    else map.set(id, { ...FLAG.SEM });
+  }
+  return map;
+}
+const pendingView = (x: any, flags: Map<string, any>) => ({
+  ...alertView(x, true), ruleCode: x.rule_code,
+  task: x.task_title ? { title: x.task_title, instructions: x.task_instructions, dueAt: x.task_due_at, dueDate: x.task_due_at ? spDate(x.task_due_at) : null } : null,
+  flag: x.rule_code === PLAN_PENDING_RULE ? flags.get(x.id) ?? FLAG.SEM : null,
 });
 
 export async function carteiraRoutes(app: FastifyInstance) {
@@ -367,9 +407,103 @@ export async function carteiraRoutes(app: FastifyInstance) {
 
   app.get('/api/carteira/specialist/alerts', async (req) => {
     const a = requireRoles(req, ['ESPECIALISTA']);
-    const rows = await all<any>(`SELECT a.*, p.name AS patient_name FROM care_alerts a LEFT JOIN users p ON p.id = a.patient_id
+    const rows = await all<any>(`SELECT a.*, p.name AS patient_name, i.title AS task_title, i.instructions AS task_instructions, i.due_at AS task_due_at
+      FROM care_alerts a LEFT JOIN users p ON p.id = a.patient_id LEFT JOIN care_plan_items i ON a.subject_type = 'care_plan_item' AND i.id = a.subject_id
       WHERE a.assigned_to = ? AND a.status IN ('PENDENTE','RECONHECIDO','EM_TRATAMENTO') ORDER BY ${PRIORITY_ORDER}, a.created_at LIMIT 100`, a.userId);
-    return { alerts: rows.map((x) => alertView(x, true)) };
+    // Histórico da enfermeira: pendências do plano que ela encaminhou à ONEMA (saem das ações pendentes, ficam visíveis aqui).
+    const forwarded = await all<any>(`SELECT a.*, p.name AS patient_name, i.title AS task_title, i.instructions AS task_instructions, i.due_at AS task_due_at
+      FROM care_alerts a LEFT JOIN users p ON p.id = a.patient_id LEFT JOIN care_plan_items i ON a.subject_type = 'care_plan_item' AND i.id = a.subject_id
+      WHERE a.rule_code = ? AND (a.assigned_to IS NULL OR a.assigned_to <> ?) AND a.id IN (SELECT alert_id FROM care_alert_events WHERE action = 'ENCAMINHADO_ONEMA' AND actor_id = ? AND created_at >= ?)
+      ORDER BY a.updated_at DESC LIMIT 20`, PLAN_PENDING_RULE, a.userId, a.userId, new Date(Date.now() - 30 * 86400_000).toISOString());
+    const flags = await pendingFlags([...rows, ...forwarded]);
+    return { alerts: rows.map((x) => pendingView(x, flags)), forwarded: forwarded.map((x) => pendingView(x, flags)) };
+  });
+
+  // ---------------- Pendências do plano (ADM-PLANO-ATRASO-001): lembrete ao paciente e encaminhamento à ONEMA ----------------
+  /** Enfermeira atribuída ou equipe (RT/Central). Paciente, outra enfermeira ou alerta de outra regra: 404/403. */
+  async function loadPlanPending(req: any, id: string, opts: { allowForwardedBy?: boolean } = {}) {
+    const a = requireUser(req);
+    const al = await one<any>('SELECT * FROM care_alerts WHERE id = ?', id);
+    const nurse = !!al && hasRole(a, 'ESPECIALISTA') && al.assigned_to === a.userId;
+    const staff = isStaff(a);
+    // Quem já encaminhou recebe o mesmo resultado num reenvio/duplo clique (idempotente), sem voltar a agir.
+    const forwardedBy = !!al && !nurse && !!opts.allowForwardedBy && hasRole(a, 'ESPECIALISTA')
+      && !!(await one<any>(`SELECT 1 AS x FROM care_alert_events WHERE alert_id = ? AND action = 'ENCAMINHADO_ONEMA' AND actor_id = ?`, id, a.userId));
+    if (!al || (!nurse && !staff && !forwardedBy)) {
+      await audit({ actorId: a.userId, action: 'CARE_ALERT_ACCESS_DENIED', subjectType: 'care_alert', subjectId: id });
+      throw notFound('Pendência não encontrada.');
+    }
+    if (staff && !nurse && !forwardedBy) requireRoles(req, [...STAFF]);
+    if (al.rule_code !== PLAN_PENDING_RULE) throw unprocessable('NOT_PLAN_PENDING', 'Esta ação vale só para tarefas do plano sem confirmação.');
+    return { a, al, nurse, forwardedBy };
+  }
+  const OPEN = ['PENDENTE', 'RECONHECIDO', 'EM_TRATAMENTO'];
+
+  /** "Enviar lembrete": mensagem pronta ao paciente pelos canais autorizados (hoje: aviso no aplicativo). No máximo 1 por 12 h. */
+  app.post('/api/carteira/alerts/:id/remind', async (req) => {
+    const { id } = parse(idParam, req.params);
+    const { a } = await loadPlanPending(req, id);
+    const out = await tx(async () => {
+      // Linha travada: dois cliques/abas simultâneos viram um único envio.
+      const al = (await one<any>('SELECT * FROM care_alerts WHERE id = ? FOR UPDATE', id))!;
+      if (!OPEN.includes(al.status)) throw conflict('ALERT_CLOSED', 'Esta pendência já foi encerrada.');
+      const since = new Date(Date.now() - REMIND_WINDOW_H * 3600_000).toISOString();
+      const prev = await one<any>(`SELECT ev.created_at, u.name AS actor FROM care_alert_events ev LEFT JOIN users u ON u.id = ev.actor_id
+        WHERE ev.alert_id = ? AND ev.action = 'LEMBRETE_ENVIADO' AND ev.created_at >= ? ORDER BY ev.created_at DESC LIMIT 1`, id, since);
+      if (prev) return { a, sent: true, already: true, at: prev.created_at, reason: null as string | null };
+      const it = await one<any>(`SELECT i.*, u.status AS patient_status FROM care_plan_items i JOIN users u ON u.id = i.patient_id WHERE i.id = ?`, al.subject_id);
+      if (!it || !['ATIVO', 'CIENTE'].includes(it.status)) throw conflict('PLAN_ITEM_CLOSED', 'Esta tarefa já foi confirmada, concluída ou encerrada.');
+      // Canal autorizado: aviso no aplicativo (conta ativa e avisos desta orientação não pausados/desativados pelo paciente).
+      const pref = await one<any>('SELECT mode FROM care_plan_reminder_prefs WHERE series_id = ?', it.series_id ?? it.id);
+      let reason: string | null = null;
+      if (it.patient_status !== 'ACTIVE') reason = 'Conta do paciente inativa: sem canal autorizado.';
+      else if (pref && ['DESATIVADO', 'PAUSADO', 'SUSPENSO_SEM_INTERACAO'].includes(pref.mode)) reason = 'O paciente pausou ou desativou os avisos desta orientação: sem canal autorizado.';
+      if (!reason) {
+        try {
+          await notify(it.patient_id, 'LEMBRETE', REMIND_TITLE, withLink(REMIND_TEXT, `/carteira#tarefa-${it.id}`));
+        } catch {
+          reason = 'Falha ao registrar o aviso no aplicativo.';
+        }
+      }
+      if (reason) {
+        await alertEvent(id, a.userId, 'LEMBRETE_NAO_ENVIADO', 'APP', reason);
+        return { a, sent: false, already: false, at: nowIso(), reason };
+      }
+      await alertEvent(id, a.userId, 'LEMBRETE_ENVIADO', 'APP', 'Mensagem pronta enviada ao paciente pelo aviso do aplicativo.');
+      await run('UPDATE care_alerts SET rev = rev + 1, updated_at = ? WHERE id = ?', nowIso(), id);
+      return { a, sent: true, already: false, at: nowIso(), reason: null };
+    });
+    if (!out.already) {
+      await audit({ actorId: out.a.userId, action: out.sent ? 'CARE_ALERT_REMINDER_SENT' : 'CARE_ALERT_REMINDER_FAILED', subjectType: 'care_alert', subjectId: id,
+        correlationId: req.correlationId, meta: { channel: 'APP', ...(out.reason ? { reason: out.reason } : {}) } });
+    }
+    const flags = await pendingFlags([{ id }]);
+    return { ok: out.sent, sent: out.sent, already: out.already, at: out.at, reason: out.reason, flag: flags.get(id) ?? FLAG.SEM,
+      message: out.sent ? (out.already ? 'Lembrete já enviado nas últimas 12 horas. Aguardando resposta do paciente.' : 'Lembrete enviado. Aguardando resposta do paciente.')
+        : `Não enviado. ${out.reason} Você pode encaminhar à ONEMA.` };
+  });
+
+  /** "Encaminhar à ONEMA": a pendência vai para a fila da coordenação (Central), sai das ações da enfermeira e fica no histórico dela. */
+  app.post('/api/carteira/alerts/:id/forward', async (req) => {
+    const { id } = parse(idParam, req.params);
+    const { a } = await loadPlanPending(req, id, { allowForwardedBy: true });
+    const out = await tx(async () => {
+      const al = (await one<any>('SELECT * FROM care_alerts WHERE id = ? FOR UPDATE', id))!;
+      if (await forwardedEvent(id)) return { a, al, already: true };
+      if (!OPEN.includes(al.status)) throw conflict('ALERT_CLOSED', 'Esta pendência já foi encerrada.');
+      const now = nowIso();
+      await run(`UPDATE care_alerts SET recipient = 'CENTRAL', owner_role = 'OPERADOR_CENTRAL', assigned_to = NULL, escalation_level = GREATEST(escalation_level, 1),
+        rev = rev + 1, updated_at = ? WHERE id = ?`, now, id);
+      await alertEvent(id, a.userId, 'ENCAMINHADO_ONEMA', 'PAINEL', 'Encaminhado à coordenação ONEMA (Central) com paciente e tarefa vinculados.');
+      return { a, al, already: false };
+    });
+    if (!out.already) {
+      await audit({ actorId: out.a.userId, action: 'CARE_ALERT_FORWARDED', subjectType: 'care_alert', subjectId: id, correlationId: req.correlationId, meta: { to: 'OPERADOR_CENTRAL' } });
+      const p = out.al.patient_id ? await one<any>('SELECT name FROM users WHERE id = ?', out.al.patient_id) : null;
+      await notifyRole(['OPERADOR_CENTRAL'], 'Pendência do plano encaminhada',
+        withLink(`Tarefa do plano sem confirmação${p ? ` de ${p.name}` : ''} encaminhada pela Enfermagem à coordenação ONEMA.`, '/admin/carteira'));
+    }
+    return { ok: true, already: out.already, flag: FLAG.ENC, message: 'Encaminhado à ONEMA. A pendência saiu das suas ações e fica no seu histórico.' };
   });
 
   app.get('/api/carteira/alerts/:id/events', async (req) => {
