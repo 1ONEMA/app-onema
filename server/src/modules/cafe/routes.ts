@@ -13,9 +13,13 @@ import { notFound } from '../../lib/errors.ts';
 import { nowIso, uid } from '../../lib/util.ts';
 import { CAFE_LIBRARY } from './library.ts';
 import CAFE_BATCH_2026_11 from '../../db/content/cafe-2026-11-07_2026-12-06.json';
+import CAFE_BATCH_2026_12 from '../../db/content/cafe-2026-12-01_2027-01-31.json';
 
 /** Lotes mensais entregues pela ONEMA (data editorial em America/Sao_Paulo; 2 parágrafos cada). */
-export const CAFE_BATCHES: { name: string; items: unknown[] }[] = [{ name: '2026-11-07_2026-12-06', items: CAFE_BATCH_2026_11 }];
+export const CAFE_BATCHES: { name: string; items: unknown[] }[] = [
+  { name: '2026-11-07_2026-12-06', items: CAFE_BATCH_2026_11 },
+  { name: '2026-12-01_2027-01-31', items: CAFE_BATCH_2026_12 },
+];
 const batchItem = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), verse: z.string().trim().min(1), reference: z.string().trim().min(1),
   paragraphs: z.array(z.string().trim().min(100).max(1800)).length(2), scriptureEdition: z.string().trim().min(1), sourceUrl: z.string().url(),
@@ -38,7 +42,7 @@ export async function importCafeBatches() {
   }
   return inserted;
 }
-export const CAFE_LAST_BATCH_DATE = '2026-12-06';
+export const CAFE_LAST_BATCH_DATE = '2027-01-31';
 
 
 const EDITORS = ['GESTOR_CONTEUDO', 'ADMIN_PRIME', 'ADMIN_ACADEMY'] as const;

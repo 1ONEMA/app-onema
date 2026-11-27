@@ -58,4 +58,18 @@ describe('Café com a ONEMA', () => {
     expect(await importCafeBatches()).toBe(0);
     expect((await anon.get('/api/public/cafe?date=2026-11-08')).body.ref).toBe('Equipe 1:1');
   });
+
+  it('lote 01/12/2026–31/01/2027: 62 datas; 01–06/12 preservadas do lote anterior; virada 31/12 → 01/01', async () => {
+    const anon = new Client(app);
+    const n = await one<any>(`SELECT COUNT(*) AS n FROM devotionals WHERE publish_date BETWEEN '2026-12-01' AND '2027-01-31'`);
+    expect(n.n).toBe(62);
+    expect((await one<any>(`SELECT batch FROM devotionals WHERE publish_date = '2026-12-03'`)).batch).toBe('2026-11-07_2026-12-06');
+    expect((await one<any>(`SELECT batch FROM devotionals WHERE publish_date = '2026-12-07'`)).batch).toBe('2026-12-01_2027-01-31');
+    const dez31 = (await anon.get('/api/public/cafe?date=2026-12-31')).body;
+    const jan01 = (await anon.get('/api/public/cafe?date=2027-01-01')).body;
+    expect(dez31.paragraphs).toHaveLength(2);
+    expect(jan01.paragraphs).toHaveLength(2);
+    expect(jan01.ref).not.toBe(dez31.ref);
+    expect((await anon.get('/api/public/cafe?date=2027-01-31')).body.paragraphs).toHaveLength(2);
+  });
 });
