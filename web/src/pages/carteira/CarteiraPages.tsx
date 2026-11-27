@@ -2,7 +2,8 @@
  * Carteira Digital — plano de cuidados e alertas (homologação, regras fictícias).
  * Paciente: plano liberado + avisos. Enfermeira: plano a partir do atendimento assinado e pendências. RT/Central: fila e regras.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { Panel } from '../../ui/Panel';
 import './carteira.css';
@@ -33,10 +34,16 @@ export function PatientPlanSection() {
   const [answer, setAnswer] = useState('');
   const [panel, setPanel] = useState<null | 'history' | 'all' | { adjust: string }>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const scrolled = useRef(false);
   if (loading && !data) return <Loading lines={2} />;
   if (error && !data) return <ErrorState error={error} onRetry={reload} />;
   const l = data.latest;
   const st = l?.series;
+  // Link do lembrete enviado pela enfermeira (/carteira#tarefa-<id>): leva até o card do plano.
+  if (typeof window !== 'undefined' && window.location.hash.startsWith('#tarefa-') && !scrolled.current) {
+    scrolled.current = true;
+    setTimeout(() => document.querySelector('.plan-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+  }
   async function ack() {
     setMsg(null);
     const r = await act.run('POST', `/api/carteira/plan/${l.id}/ack`, answer ? { answer } : {}, { idempotent: true });
@@ -53,7 +60,7 @@ export function PatientPlanSection() {
       <h2>Plano de cuidados</h2>
       <p className="small muted">Acesse suas orientações e lembretes. Suas orientações continuam disponíveis; você escolhe como receber os avisos.</p>
       {!l ? <p className="muted">Nenhum lembrete disponível.</p> : (
-        <div className="last-reminder">
+        <div className="last-reminder" id={`tarefa-${l.id}`}>
           <span className="chip-label">Último lembrete</span>
           <h3 className="h4">{l.title}</h3>
           <p className="small muted mb0">Disponibilizado em {dayTime(l.releasedAt && l.releasedAt > l.dueAt ? l.dueAt : l.dueAt)}</p>
@@ -277,20 +284,103 @@ function AlertActions({ a, onDone }: { a: any; onDone: () => void }) {
   );
 }
 
-/** Enfermeira: pendências atribuídas. */
+/** Enfermeira: pendências atribuídas (atualizam sozinhas). O aviso "Nova pendência na Carteira" abre /especialista#pendencia-<id>. */
 export function SpecialistAlertsSection() {
-  const { data, error, loading, reload } = useApi<any>('/api/carteira/specialist/alerts');
+  const { data, error, loading, reload } = useLiveApi<any>('/api/carteira/specialist/alerts', 5000);
+  const { hash } = useLocation();
+  const [focus, setFocus] = useState<string | null>(null);
+  const handled = useRef<string>('');
+  const target = /^#pendencia-([0-9a-f-]{36})$/i.exec(hash)?.[1] ?? null;
+  useEffect(() => {
+    if (!target || !data || handled.current === hash) return;
+    handled.current = hash;
+    const el = document.getElementById(`pendencia-${target}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.focus({ preventScroll: true });
+    setFocus(target);
+  }, [target, hash, data]);
+  useEffect(() => {
+    if (!focus) return;
+    const t = window.setTimeout(() => setFocus(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [focus]);
   if (loading && !data) return null;
-  if (error || !data.alerts.length) return null;
+  if (error && !data) return null;
+  const alerts: any[] = data.alerts ?? [];
+  const forwarded: any[] = data.forwarded ?? [];
+  const missing = !!target && !alerts.some((a) => a.id === target) && !forwarded.some((a) => a.id === target);
+  if (!alerts.length && !forwarded.length && !missing) return null;
+  const plan = alerts.filter((a) => a.ruleCode === PLAN_RULE);
+  const others = alerts.filter((a) => a.ruleCode !== PLAN_RULE);
+  const hl = (id: string) => (focus === id ? { outline: '3px solid var(--orange, #f59e0b)', outlineOffset: 4, borderRadius: 8 } : undefined);
   return (
     <section className="flow-card mt" aria-label="Pendências da Carteira">
-      <h2>Pendências da Carteira <Badge tone="orange">{data.alerts.length}</Badge></h2>
-      <ul className="list">{data.alerts.map((a: any) => (
-        <li key={a.id}><div className="row between"><strong>{a.title}</strong><span><Badge tone={PRI[a.priority]}>{a.priority}</Badge> <Badge tone="dark">{a.statusLabel}</Badge></span></div>
+      <h2>Pendências da Carteira <Badge tone="orange">{alerts.length}</Badge></h2>
+      {missing && <p className="small muted" role="status">A pendência deste aviso já foi encaminhada, confirmada pelo paciente ou encerrada.</p>}
+      {(plan.length > 0 || forwarded.length > 0) && (<>
+        <h3 className="h4">Pendências do plano</h3>
+        <p className="small muted">Lembrete enviado não significa cuidado realizado.</p>
+        {plan.length > 0 && <ul className="list">{plan.map((a) => (
+          <li key={a.id} id={`pendencia-${a.id}`} tabIndex={-1} style={hl(a.id)}><PlanPendingCard a={a} onDone={reload} /></li>
+        ))}</ul>}
+        {forwarded.length > 0 && (
+          <details open={forwarded.some((a) => a.id === target)}>
+            <summary className="small">Encaminhadas à ONEMA ({forwarded.length})</summary>
+            <ul className="list">{forwarded.map((a) => (
+              <li key={a.id} id={`pendencia-${a.id}`} tabIndex={-1} style={hl(a.id)}><PlanPendingCard a={a} onDone={reload} readOnly /></li>
+            ))}</ul>
+          </details>
+        )}
+      </>)}
+      {others.length > 0 && <ul className="list">{others.map((a: any) => (
+        <li key={a.id} id={`pendencia-${a.id}`} tabIndex={-1} style={hl(a.id)}><div className="row between"><strong>{a.title}</strong><span><Badge tone={PRI[a.priority]}>{a.priority}</Badge> <Badge tone="dark">{a.statusLabel}</Badge></span></div>
           <div className="small">{a.message}</div><div className="small muted">{a.patientName} · {dateTime(a.createdAt)}{a.actionDueAt ? ` · agir até ${dateTime(a.actionDueAt)}` : ''}</div>
           <AlertActions a={a} onDone={reload} /></li>
-      ))}</ul>
+      ))}</ul>}
     </section>
+  );
+}
+
+const PLAN_RULE = 'ADM-PLANO-ATRASO-001';
+const FLAG_TONE: Record<string, string> = { SEM_CONFIRMACAO: 'orange', LEMBRETE_ENVIADO: 'blue', NAO_ENVIADO: 'red', ENCAMINHADO: 'dark' };
+
+/** Card "Tarefa do plano sem confirmação" (ONEMA-AJT-PEND-001): dois botões, sem texto livre. */
+function PlanPendingCard({ a, onDone, readOnly }: { a: any; onDone: () => void; readOnly?: boolean }) {
+  const act = useSubmit<any>();
+  const [flag, setFlag] = useState<any>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [which, setWhich] = useState<'remind' | 'forward' | null>(null);
+  // O estado do servidor prevalece assim que a lista é atualizada (sem recarregar a página).
+  useEffect(() => { setFlag(null); }, [a.flag?.code, a.flag?.at]);
+  const f = flag ?? a.flag ?? { code: 'SEM_CONFIRMACAO', text: 'Sem confirmação' };
+  async function go(kind: 'remind' | 'forward') {
+    setMsg(null); setWhich(kind);
+    const r = await act.run('POST', `/api/carteira/alerts/${a.id}/${kind}`, {}, { idempotent: true });
+    setWhich(null);
+    if (r) { setFlag(r.flag); setMsg(r.message); }
+    onDone();
+  }
+  const sentRecently = f.code === 'LEMBRETE_ENVIADO' && f.at && Date.now() - new Date(f.at).getTime() < 12 * 3600_000;
+  return (
+    <div>
+      <div className="row between"><strong>{a.patientName ?? 'Paciente'}</strong><Badge tone={FLAG_TONE[f.code] ?? 'dark'}>{f.text}</Badge></div>
+      {a.task ? (<>
+        <div><strong>{a.task.title}</strong></div>
+        <div className="small">Cuidado: {a.task.instructions}</div>
+        {a.task.dueDate && <div className="small muted">Data prevista: {a.task.dueDate}</div>}
+      </>) : <div className="small">{a.message}</div>}
+      {f.code === 'LEMBRETE_ENVIADO' && <div className="small muted">Lembrete enviado em {dateTime(f.at)}. O cuidado continua sem confirmação até a resposta do paciente.</div>}
+      {f.code === 'NAO_ENVIADO' && <div className="small">Não enviado{f.reason ? `: ${f.reason}` : '.'} Você pode encaminhar à ONEMA.</div>}
+      {!readOnly && f.code !== 'ENCAMINHADO' && (
+        <div className="row mt">
+          <Button className="sm deep" busy={act.busy && which === 'remind'} disabled={act.busy || !!sentRecently}
+            title={sentRecently ? 'Um lembrete por pendência a cada 12 horas.' : undefined} onClick={() => go('remind')}>Enviar lembrete</Button>
+          <Button className="sm secondary" busy={act.busy && which === 'forward'} disabled={act.busy} onClick={() => go('forward')}>Encaminhar à ONEMA</Button>
+        </div>
+      )}
+      <Alert error={act.error} success={msg} />
+    </div>
   );
 }
 

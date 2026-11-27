@@ -53,8 +53,10 @@ export async function verifyMedia(m: any, deep = true) {
 }
 
 function publicStep(s: any) {
-  const options = JSON.parse(s.options_json).map((o: any) => ({ id: o.id, text: o.text }));
-  return { id: s.id, order: s.sort_order, prompt: s.prompt, options };
+  // Gabarito, retornos e transição nunca vão ao cliente antes da decisão correspondente.
+  const options = JSON.parse(s.options_json).map((o: any) => ({ id: o.id, text: o.text, audio: o.audio ?? null }));
+  const c = s.content_json ? JSON.parse(s.content_json) : null;
+  return { id: s.id, order: s.sort_order, prompt: s.prompt, options, title: c?.title ?? null, scene: c?.scene ?? null, sceneAudio: c?.sceneAudio ?? null };
 }
 
 async function activityView(enrollmentId: string, activity: any) {
@@ -66,16 +68,25 @@ async function activityView(enrollmentId: string, activity: any) {
     const mine = decisions.filter((d) => d.step_id === s.id);
     const last = mine[mine.length - 1];
     const opt = last ? JSON.parse(s.options_json).find((o: any) => o.id === last.option_id) : null;
+    const solved = mine.some((d) => d.correct);
+    const c = s.content_json ? JSON.parse(s.content_json) : null;
     return {
       ...publicStep(s),
-      solved: mine.some((d) => d.correct),
+      solved,
       tries: mine.length,
-      lastDecision: last ? { optionId: last.option_id, correct: !!last.correct, feedback: opt?.feedback ?? null } : null,
+      lastDecision: last ? { optionId: last.option_id, correct: !!last.correct, feedback: opt?.feedback ?? null, feedbackAudio: opt?.feedbackAudio ?? null } : null,
+      transition: solved ? c?.transition ?? null : null, transitionAudio: solved ? c?.transitionAudio ?? null : null,
     };
   });
+  const meta = activity.content_json ? JSON.parse(activity.content_json) : null;
+  const allSolved = stepStatus.every((x) => x.solved);
   return {
     id: activity.id, version: activity.version, title: activity.title, intro: activity.intro,
     requiredCorrect: activity.required_correct, sourceNote: activity.source_note,
+    // Atividade oficial (RT 26/11/2026): caso, cena, narração; síntese só depois de todas as decisões resolvidas.
+    content: meta ? { objective: meta.objective, caseText: meta.caseText, cast: meta.cast, opening: meta.opening, image: meta.image, openingAudio: meta.openingAudio,
+      closing: allSolved ? meta.closing : null, closingAudio: allSolved ? meta.closingAudio : null, sequential: true, confirmRequired: true } : null,
+    allSolved,
     attempt: attempt ? { id: attempt.id, attemptNo: attempt.attempt_no, state: attempt.state, startedAt: attempt.started_at, completedAt: attempt.completed_at } : null,
     steps: stepStatus,
   };
@@ -361,19 +372,50 @@ export async function academyRoutes(app: FastifyInstance) {
       }
       const opt = JSON.parse(step.options_json).find((o: any) => o.id === body.optionId);
       if (!opt) throw badRequest('INVALID_OPTION', 'Opção inválida.');
+      const act0 = await one<any>('SELECT content_json FROM academy_activities WHERE id = ?', attempt.activity_id);
+      const official = !!act0?.content_json;
+      if (official) {
+        // Decisões em sequência: a próxima só depois da anterior resolvida.
+        const pendingBefore = await one<any>(`SELECT 1 AS ok FROM academy_activity_steps s WHERE s.activity_id = ? AND s.sort_order < ?
+          AND NOT EXISTS (SELECT 1 FROM academy_activity_decisions d WHERE d.attempt_id = ? AND d.step_id = s.id AND d.correct = 1)`, attempt.activity_id, step.sort_order, id);
+        if (pendingBefore) throw conflict('PREVIOUS_STEP_PENDING', 'Conclua a decisão anterior.');
+      }
       await run(`INSERT INTO academy_activity_decisions (id, attempt_id, step_id, option_id, correct, decided_at) VALUES (?,?,?,?,?,?)`,
         uid(), id, step.id, opt.id, opt.correct ? 1 : 0, nowIso());
       const activity = await one<any>('SELECT * FROM academy_activities WHERE id = ?', attempt.activity_id)!;
       const steps = await all<any>('SELECT id FROM academy_activity_steps WHERE activity_id = ?', activity.id);
       const solved = (await one<any>(`SELECT COUNT(DISTINCT step_id) AS n FROM academy_activity_decisions WHERE attempt_id = ? AND correct = 1`, id))!.n;
       let completed = false;
-      if (solved >= steps.length && solved >= (activity.required_correct ?? steps.length)) {
+      // Atividade oficial: a conclusão exige confirmar a leitura da síntese (POST …/complete).
+      if (!official && solved >= steps.length && solved >= (activity.required_correct ?? steps.length)) {
         await run(`UPDATE academy_activity_attempts SET state = 'CONCLUIDA', completed_at = ? WHERE id = ?`, nowIso(), id);
         await audit({ actorId: a.userId, action: 'ACTIVITY_COMPLETED', subjectType: 'activity_attempt', subjectId: id, correlationId: req.correlationId,
           meta: { activityId: activity.id, version: activity.version } });
         completed = true;
       }
-      return { status: 200, body: { correct: !!opt.correct, feedback: opt.feedback ?? null, solvedSteps: solved, totalSteps: steps.length, completed } };
+      return { status: 200, body: { correct: !!opt.correct, feedback: opt.feedback ?? null, feedbackAudio: opt.feedbackAudio ?? null, solvedSteps: solved, totalSteps: steps.length, completed } };
+    });
+  });
+
+  /** Conclusão da atividade oficial: todas as decisões resolvidas + confirmação de leitura da síntese. Idempotente. */
+  app.post('/api/academy/activity-attempts/:id/complete', async (req) => {
+    const a = partner(req);
+    const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
+    const { acknowledged } = parse(z.object({ acknowledged: z.literal(true, { message: 'Confirme a leitura da síntese.' }) }), req.body);
+    return await tx(async () => {
+      const attempt = await one<any>(`SELECT aa.*, e.partner_id FROM academy_activity_attempts aa JOIN academy_enrollments e ON e.id = aa.enrollment_id WHERE aa.id = ? FOR UPDATE OF aa`, id);
+      if (!attempt || attempt.partner_id !== a.userId) throw notFound('Tentativa não encontrada.');
+      if (attempt.state === 'CONCLUIDA') return { completed: true, already: true };
+      if (attempt.state !== 'EM_ANDAMENTO') throw conflict('ATTEMPT_CLOSED', 'Esta tentativa já foi encerrada.');
+      const activity = (await one<any>('SELECT * FROM academy_activities WHERE id = ?', attempt.activity_id))!;
+      const total = Number((await one<any>('SELECT COUNT(*) AS n FROM academy_activity_steps WHERE activity_id = ?', activity.id))!.n);
+      const solved = Number((await one<any>(`SELECT COUNT(DISTINCT step_id) AS n FROM academy_activity_decisions WHERE attempt_id = ? AND correct = 1`, id))!.n);
+      if (solved < total || solved < (activity.required_correct ?? total)) throw unprocessable('STEPS_PENDING', 'Ainda há decisões pendentes.');
+      void acknowledged;
+      await run(`UPDATE academy_activity_attempts SET state = 'CONCLUIDA', completed_at = ? WHERE id = ?`, nowIso(), id);
+      await audit({ actorId: a.userId, action: 'ACTIVITY_COMPLETED', subjectType: 'activity_attempt', subjectId: id, correlationId: req.correlationId,
+        meta: { activityId: activity.id, version: activity.version, synthesisAcknowledged: true } });
+      return { completed: true, already: false };
     });
   });
 
