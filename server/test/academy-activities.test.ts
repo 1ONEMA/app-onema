@@ -1,7 +1,7 @@
 /** Atividades integradoras oficiais (ONEMA-ACA-ATI-INTERATIVA v1.2, RT 26/11/2026). */
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { Client, emailOf, one, setup } from './helpers.ts';
+import { Client, emailOf, loginAs, one, setup } from './helpers.ts';
 import { all } from '../src/db/db.ts';
 import { loadOfficialActivities } from '../src/modules/academy/official-bank.ts';
 import ACT from '../src/db/content/academy-atividades.json';
@@ -58,5 +58,15 @@ describe('Atividades integradoras oficiais', () => {
     expect((await c.post(`/api/academy/activity-attempts/${attemptId}/complete`, { acknowledged: true })).body).toMatchObject({ completed: true, already: false });
     expect((await c.post(`/api/academy/activity-attempts/${attemptId}/complete`, { acknowledged: true })).body.already).toBe(true);
     expect((await one<any>('SELECT state FROM academy_activity_attempts WHERE id = ?', attemptId)).state).toBe('CONCLUIDA');
+    // acompanhamento do RT: cada decisão teve 1 erro antes do acerto; agregado sem identificar o parceiro
+    const rt = await loginAs(app, 'rt');
+    const rep = (await rt.get('/api/admin/academy/activity-report')).body;
+    const c01 = rep.activities.find((x: any) => x.code === 'C01');
+    expect(c01).toMatchObject({ started: 1, completed: 1 });
+    expect(c01.steps).toHaveLength(6);
+    const wrong0 = course.steps[0].options.find((o: any) => o.id !== course.steps[0].correctOptionId);
+    expect(c01.steps[0]).toMatchObject({ reached: 1, firstTry: 0, firstTryPct: 0, wrongTotal: 1, wrongOptions: [{ id: wrong0.id, text: wrong0.text, total: 1 }] });
+    expect(JSON.stringify(rep)).not.toContain('Especialista Demonstração');
+    expect((await c.get('/api/admin/academy/activity-report')).status).toBe(403);
   });
 });
