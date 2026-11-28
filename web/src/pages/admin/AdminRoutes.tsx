@@ -24,7 +24,7 @@ export const SECTIONS: { to: string; label: string; roles: Role[]; desc: string 
   { to: 'parceiros', label: 'Validação de parceiros', roles: ['CREDENCIAMENTO', 'AVALIADOR_RT', 'ADMIN_ACADEMY', 'AUDITOR'], desc: 'Novos cadastros e revalidações: prova viva, identidade, COREN, evidências e decisões.' },
   { to: 'credenciamento', label: 'Credenciamento', roles: ['CREDENCIAMENTO', 'ADMIN_ACADEMY', 'AUDITOR'], desc: 'Projeção de capacitação e decisão humana.' },
   { to: 'suporte', label: 'Suporte Academy', roles: ['SUPORTE_ACADEMY', 'ADMIN_ACADEMY'], desc: 'Estado técnico do parceiro e chamados.' },
-  { to: 'relatorios', label: 'Relatórios Academy', roles: ['ADMIN_ACADEMY', 'AUDITOR'], desc: 'Indicadores calculados a partir do banco.' },
+  { to: 'relatorios', label: 'Relatórios Academy', roles: ['ADMIN_ACADEMY', 'AUDITOR', 'AVALIADOR_RT', 'GESTOR_CONTEUDO'], desc: 'Indicadores calculados a partir do banco e onde mais erram nas atividades.' },
   { to: 'financeiro', label: 'Financeiro', roles: ['FINANCEIRO', 'ADMIN_ACADEMY', 'AUDITOR'], desc: 'Pedidos, cobranças, estornos (sandbox).' },
   { to: 'lifescore', label: 'Life Score', roles: ['AVALIADOR_RT', 'OPERADOR_CENTRAL', 'ADMIN_PRIME', 'AUDITOR'], desc: 'Avaliações, preocupações de segurança, retornos, lembretes, suspensão e liberação.' },
   { to: 'agenda', label: 'Agenda de pacotes', roles: ['OPERADOR_CENTRAL', 'ADMIN_PRIME', 'AVALIADOR_RT', 'AUDITOR'], desc: 'Motor de ofertas: eventos a programar, janelas, ondas, pendências, reoferta e reatribuição.' },

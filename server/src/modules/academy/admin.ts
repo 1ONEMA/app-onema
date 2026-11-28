@@ -825,6 +825,50 @@ export async function academyAdminRoutes(app: FastifyInstance) {
     };
   });
 
+  /**
+   * Acompanhamento das atividades integradoras (pedido do RT, 28/11/2026): por decisão, quantas pessoas chegaram,
+   * quantas acertaram de primeira e quais alternativas mais erradas. Números agregados, sem identificar o parceiro.
+   */
+  app.get('/api/admin/academy/activity-report', async (req) => {
+    requireRoles(req, ['AVALIADOR_RT', 'ADMIN_ACADEMY', 'GESTOR_CONTEUDO', 'AUDITOR']);
+    const acts = await all<any>(`SELECT a.id, a.title, c.code FROM academy_activities a JOIN academy_course_versions cv ON cv.id = a.course_version_id
+      JOIN academy_courses c ON c.id = cv.course_id WHERE a.state = 'APPROVED' AND c.current_version_id = cv.id ORDER BY c.code, a.version DESC`);
+    const seen = new Set<string>();
+    const out = [];
+    for (const act of acts) {
+      if (seen.has(act.code)) continue;
+      seen.add(act.code);
+      const attempts = await one<any>(`SELECT COUNT(*) AS started, SUM(CASE WHEN state = 'CONCLUIDA' THEN 1 ELSE 0 END) AS completed
+        FROM academy_activity_attempts WHERE activity_id = ?`, act.id);
+      const steps = await all<any>('SELECT * FROM academy_activity_steps WHERE activity_id = ? ORDER BY sort_order', act.id);
+      const decisions = await all<any>(`SELECT d.attempt_id, d.step_id, d.option_id, d.correct FROM academy_activity_decisions d
+        JOIN academy_activity_attempts t ON t.id = d.attempt_id WHERE t.activity_id = ? ORDER BY d.decided_at`, act.id);
+      out.push({
+        code: act.code, title: act.title,
+        started: Number(attempts?.started ?? 0), completed: Number(attempts?.completed ?? 0),
+        steps: steps.map((st) => {
+          const options: any[] = JSON.parse(st.options_json);
+          const content = st.content_json ? JSON.parse(st.content_json) : {};
+          const mine = decisions.filter((d) => d.step_id === st.id);
+          const firstByAttempt = new Map<string, any>();
+          for (const d of mine) if (!firstByAttempt.has(d.attempt_id)) firstByAttempt.set(d.attempt_id, d);
+          const reached = firstByAttempt.size;
+          const firstTry = [...firstByAttempt.values()].filter((d) => Number(d.correct) === 1).length;
+          const wrong = mine.filter((d) => Number(d.correct) !== 1);
+          const byOption = new Map<string, number>();
+          for (const d of wrong) byOption.set(d.option_id, (byOption.get(d.option_id) ?? 0) + 1);
+          return {
+            order: st.sort_order, title: content.title ?? null, prompt: st.prompt, reached, firstTry,
+            firstTryPct: reached ? Math.round((firstTry / reached) * 100) : null, wrongTotal: wrong.length,
+            wrongOptions: [...byOption.entries()].sort((x, y) => y[1] - x[1])
+              .map(([id, n]) => ({ id, text: options.find((o) => o.id === id)?.text ?? id, total: n })),
+          };
+        }),
+      });
+    }
+    return { generatedAt: nowIso(), activities: out };
+  });
+
   // Recalcula projeções (útil após publicação de versões) - somente ADMIN
   app.post('/api/admin/academy/recompute', async (req) => {
     const a = requireRoles(req, ['ADMIN_ACADEMY']);

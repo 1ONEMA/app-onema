@@ -14,3 +14,9 @@
 .listen-btn.on { background: var(--deep, #12366a); color: #fff; }
 @media (max-width: 760px) { .act-case { grid-template-columns: 1fr; } .act-option { flex-direction: column; align-items: stretch; } }
 .act-options .act-option label { border: 0 !important; padding: 0 !important; background: transparent !important; box-shadow: none !important; min-height: 0; }
+/* Flags do roteiro oficial: "Ouvir em sequência" e "Uma alternativa por vez". */
+.act-pref.on { border-color: var(--deep, #12366a); background: #F3F7FD; }
+.act-dock { position: sticky; top: 8px; z-index: 5; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--deep, #12366a); color: #fff; border-radius: 12px; padding: 8px 12px; margin-bottom: 12px; font-size: 14px; }
+.act-choose-bar { margin-bottom: 8px; gap: 8px; flex-wrap: wrap; }
+.act-guided { border: 1px solid var(--deep, #12366a); border-radius: 12px; padding: 14px; background: #F3F7FD; margin-bottom: 12px; display: grid; gap: 8px; }
+.act-guided p { margin: 0; }

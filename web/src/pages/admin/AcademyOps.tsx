@@ -80,14 +80,17 @@ export function SupportPage() {
 }
 
 export function ReportsPage() {
-  const { data, error, loading, reload } = useApi<any>('/api/admin/academy/reports');
+  const { has } = useAuth();
+  const full = has('ADMIN_ACADEMY', 'AUDITOR');
+  const { data, error, loading, reload } = useApi<any>(full ? '/api/admin/academy/reports' : null);
   const table = (rows: any[], cols: [string, string][]) => !rows.length ? <p className="muted small">Sem registros.</p> : (
     <div className="table-wrap" tabIndex={0}><table><thead><tr>{cols.map(([, h]) => <th key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={i}>{cols.map(([k]) => <td key={k}>{k.includes('amount') ? money(r[k]) : r[k] == null ? '—' : label(String(r[k]))}</td>)}</tr>)}</tbody></table></div>
   );
   return (
     <>
       <PageHeader kicker="ONEMA Academy · ACA-015" title="Relatórios"><p>Contagens reais calculadas no momento da consulta. Nenhum número é estimado.</p></PageHeader>
-      {loading ? <Loading /> : error ? <ErrorState error={error} onRetry={reload} /> : (
+      <ActivityReport />
+      {!full ? null : loading ? <Loading /> : error ? <ErrorState error={error} onRetry={reload} /> : (
         <div className="two">
           <section className="surface"><h2>Matrículas por estado</h2>{table(data.enrollmentsByState, [['state', 'Estado'], ['total', 'Total']])}</section>
           <section className="surface"><h2>Resultados por curso</h2>{table(data.courseResults, [['code', 'Curso'], ['result', 'Resultado'], ['total', 'Total']])}</section>
@@ -97,8 +100,39 @@ export function ReportsPage() {
           <section className="surface"><h2>Credenciamento</h2>{table(data.credentialing, [['decision', 'Decisão'], ['total', 'Total']])}</section>
         </div>
       )}
-      <p className="small muted">Gerado em {data && dateTime(data.generatedAt)}</p>
+      {data && <p className="small muted">Gerado em {dateTime(data.generatedAt)}</p>}
     </>
+  );
+}
+
+/** Onde os parceiros mais erram nas atividades integradoras (agregado, sem identificar ninguém). */
+function ActivityReport() {
+  const { data, error, loading, reload } = useApi<any>('/api/admin/academy/activity-report');
+  if (loading && !data) return <Loading />;
+  if (error) return <ErrorState error={error} onRetry={reload} />;
+  return (
+    <section className="surface mb">
+      <h2>Atividades integradoras: onde mais erram</h2>
+      <p className="small muted">Por decisão: quantas pessoas chegaram, quantas acertaram de primeira e quais alternativas erradas foram mais escolhidas. Sem identificar o parceiro.</p>
+      {!data.activities.length ? <p className="muted small">Nenhuma atividade publicada.</p> : data.activities.map((a: any) => (
+        <details key={a.code} className="mt" open={a.started > 0}>
+          <summary><strong>{a.code} · {a.title}</strong> <span className="small muted">· {a.started} iniciada(s) · {a.completed} concluída(s)</span></summary>
+          <div className="table-wrap" tabIndex={0}><table>
+            <thead><tr><th>Decisão</th><th>Chegaram</th><th>Acerto de 1ª</th><th>Erros</th><th>Alternativas erradas mais escolhidas</th></tr></thead>
+            <tbody>{a.steps.map((s: any) => (
+              <tr key={s.order}>
+                <td>{s.order}. {s.title ?? s.prompt}</td>
+                <td>{s.reached}</td>
+                <td>{s.firstTryPct == null ? '—' : `${s.firstTryPct}% (${s.firstTry})`}</td>
+                <td>{s.wrongTotal}</td>
+                <td className="small">{s.wrongOptions.length ? s.wrongOptions.slice(0, 3).map((o: any) => `${o.id}. ${o.text} (${o.total}×)`).join(' · ') : '—'}</td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        </details>
+      ))}
+      <p className="small muted mt mb0">Gerado em {dateTime(data.generatedAt)}</p>
+    </section>
   );
 }
 
